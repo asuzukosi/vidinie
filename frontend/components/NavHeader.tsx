@@ -75,8 +75,8 @@ export function NavHeader({ data }: NavHeaderProps) {
             ))}
           </CommandGroup>
           <CommandSeparator className="my-2" />
-          <CommandGroup heading="Favorites">
-            {data.navCollapsible.favorites.map((item) => (
+          <CommandGroup heading="Tags">
+            {data.navCollapsible.tags.map((item) => (
               <CommandItem
                 className="py-2!"
                 key={item.id}
@@ -105,8 +105,8 @@ export function NavHeader({ data }: NavHeaderProps) {
             ))}
           </CommandGroup>
           <CommandSeparator className="my-2" />
-          <CommandGroup heading="Topics">
-            {data.navCollapsible.topics.map((item) => (
+          <CommandGroup heading="Projects">
+            {data.navCollapsible.projects.map((item) => (
               <CommandItem
                 className="py-2!"
                 key={item.id}

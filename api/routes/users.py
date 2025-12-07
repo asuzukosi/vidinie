@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from api.core.models import UserLoginRequest, UserRegisterRequest
 
-router = APIRouter()
+router = APIRouter(tags=["users"])
 
 @router.post("/login")
 async def login(request: UserLoginRequest):

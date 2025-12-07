@@ -40,24 +40,6 @@ const data: SidebarData = {
       icon: IconListDetails,
     },
     {
-      id: "meetings",
-      title: "Meetings",
-      url: "#",
-      icon: IconCalendarStats,
-    },
-    {
-      id: "notes",
-      title: "Notes",
-      url: "#",
-      icon: IconNotebook,
-    },
-    {
-      id: "calendar",
-      title: "Calendar",
-      url: "#",
-      icon: IconCalendar,
-    },
-    {
       id: "completed",
       title: "Completed",
       url: "#",
@@ -71,7 +53,7 @@ const data: SidebarData = {
     },
   ],
   navCollapsible: {
-    favorites: [
+    tags: [
       {
         id: "design",
         title: "Design",
@@ -109,7 +91,7 @@ const data: SidebarData = {
         icon: IconAd2,
       },
     ],
-    topics: [
+    projects: [
       {
         id: "product-updates",
         title: "Product Updates",
@@ -131,9 +113,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarContent>
         <NavMain items={data.navMain} />
         <NavCollapsible
-          favorites={data.navCollapsible.favorites}
+          tags={data.navCollapsible.tags}
           teams={data.navCollapsible.teams}
-          topics={data.navCollapsible.topics}
+          projects={data.navCollapsible.projects}
         />
       </SidebarContent>
       <NavFooter user={data.user} />

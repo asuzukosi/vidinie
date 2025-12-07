@@ -13,22 +13,22 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { ChevronDown } from "lucide-react";
-import { FavoriteItem, TeamItem, TopicItem } from "./types";
+import { ProjectItem, TagItem, TeamItem } from "./types";
 
 interface NavCollapsibleProps {
-  favorites: FavoriteItem[];
+  tags: TagItem[];
   teams: TeamItem[];
-  topics: TopicItem[];
+  projects: ProjectItem[];
 }
 
 export function NavCollapsible({
-  favorites,
+  tags,
   teams,
-  topics,
+  projects,
 }: NavCollapsibleProps) {
   return (
     <div className="space-y-0">
-      {favorites && favorites.length > 0 && (
+      {tags && tags.length > 0 && (
         <Collapsible defaultOpen className="group/collapsible">
           <SidebarGroup>
             <SidebarGroupLabel
@@ -36,14 +36,14 @@ export function NavCollapsible({
               className="text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
             >
               <CollapsibleTrigger>
-                Favorites
+                Tags
                 <ChevronDown className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-180" />
               </CollapsibleTrigger>
             </SidebarGroupLabel>
             <CollapsibleContent>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {favorites.map((item) => (
+                  {tags.map((item) => (
                     <SidebarMenuItem key={item.id}>
                       <SidebarMenuButton asChild>
                         <a href={item.href} className="flex items-center gap-3">
@@ -95,7 +95,7 @@ export function NavCollapsible({
         </Collapsible>
       )}
 
-      {topics && topics.length > 0 && (
+      {projects && projects.length > 0 && (
         <Collapsible className="group/collapsible">
           <SidebarGroup>
             <SidebarGroupLabel
@@ -103,14 +103,14 @@ export function NavCollapsible({
               className="text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
             >
               <CollapsibleTrigger>
-                Topics
+                Projects
                 <ChevronDown className="ml-auto transition-transform group-data-[state=closed]/collapsible:rotate-0 group-data-[state=open]/collapsible:rotate-180" />
               </CollapsibleTrigger>
             </SidebarGroupLabel>
             <CollapsibleContent>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {topics.map((item) => {
+                  {projects.map((item) => {
                     const Icon = item.icon;
                     return (
                       <SidebarMenuItem key={item.id}>

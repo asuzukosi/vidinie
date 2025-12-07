@@ -14,7 +14,7 @@ export interface User {
   avatar: string;
 }
 
-export interface FavoriteItem {
+export interface TagItem {
   id: string;
   title: string;
   href: string;
@@ -27,7 +27,7 @@ export interface TeamItem {
   icon: ElementType;
 }
 
-export interface TopicItem {
+export interface ProjectItem {
   id: string;
   title: string;
   icon: ElementType;
@@ -37,8 +37,8 @@ export interface SidebarData {
   user: User;
   navMain: NavItem[];
   navCollapsible: {
-    favorites: FavoriteItem[];
+    tags: TagItem[];
     teams: TeamItem[];
-    topics: TopicItem[];
+    projects: ProjectItem[];
   };
 }

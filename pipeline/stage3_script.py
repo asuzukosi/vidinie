@@ -70,7 +70,7 @@ def generate_scripts_and_voiceovers(pipeline_id: str,
         pipeline_data.script_data = script_data
         logger.info(f"generated scripts for {len(script_data['segments'])} segments")
         
-        # Generate voiceovers
+        # generate voiceovers
         voiceover_provider = provider or config.get('voiceover.provider', 'elevenlabs')
         logger.info(f"using voiceover provider: {voiceover_provider}")
         
@@ -88,12 +88,12 @@ def generate_scripts_and_voiceovers(pipeline_id: str,
         pipeline_data.script_with_audio = script_with_audio
         logger.info(f"generated voiceovers for {len(script_with_audio['segments'])} segments")
         
-        # Generate combined audio
+        # generate combined audio
         combined_audio_path = os.path.join(audio_dir, 'full_voiceover.mp3')
         total_duration = voiceover_gen.generate_full_audio(script_with_audio, combined_audio_path)
         logger.info(f"combined audio generated: {combined_audio_path} ({total_duration:.1f}s)")
         
-        # Save pipeline data
+        # save pipeline data
         pipeline_data.update_stage("script_generation", "completed")
         pipeline_data.save_to_folder(temp_dir)
         pipeline_data.save_to_pickle(os.path.join(temp_dir, f"pipeline_{pipeline_data.id}.pkl"))

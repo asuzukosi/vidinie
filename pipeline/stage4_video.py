@@ -11,9 +11,8 @@ workflow sequence:
     3. script_generation    - generate narration scripts and voiceovers (stage3)
     4. video_generation     - compose final video from all assets (THIS MODULE - stage4)
     
-    Note: The workflow can be customized based on document type and requirements.
+    note: the workflow can be customized based on document type and requirements.
 """
-# TODO: figure out why font generation is not working properly.
 import sys
 import os
 import argparse
@@ -31,7 +30,7 @@ setup_logging(log_dir='temp')
 logger = get_logger('stage4_video')
 
 
-def video_generation(pipeline_id: str,
+def generate_video(pipeline_id: str,
                      output_path: Optional[str] = None) -> PipelineData:
     """
     generate video from script and audio.
@@ -115,7 +114,7 @@ def main():
                         help='custom output path for video')
     args = parser.parse_args()
     
-    pipeline_data = video_generation(
+    pipeline_data = generate_video(
         args.pipeline_id,
         output_path=args.output
     )

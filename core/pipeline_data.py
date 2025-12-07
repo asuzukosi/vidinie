@@ -41,7 +41,7 @@ class PipelineData(BaseModel):
     
     # source document
     source_path: Optional[str] = None
-    source_type: Optional[str] = None  # 'pdf', 'html', etc.
+    source_type: Optional[str] = None  # 'pdf', 'html'
     
     # document_processing & image_processing operations
     parsed_content: Optional[Dict[str, Any]] = None  # structured content from document
