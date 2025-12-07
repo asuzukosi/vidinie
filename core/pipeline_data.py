@@ -83,26 +83,24 @@ class PipelineData(BaseModel):
         """
         save pipeline data to a folder as JSON files.
         creates a subfolder named with the pipeline ID.
-        
         args:
             base_dir: base directory where pipeline data will be saved
-        
         returns:
             path to the saved data folder
         """
         base_path = Path(base_dir)
         base_path.mkdir(parents=True, exist_ok=True)
         
-        # Create subfolder with pipeline ID
+        # create subfolder with pipeline ID
         folder = base_path / self.id
         folder.mkdir(parents=True, exist_ok=True)
         
-        # Save main data
+        # save main data
         main_file = folder / "pipeline_data.json"
         with open(main_file, 'w', encoding='utf-8') as f:
             json.dump(self.model_dump(), f, indent=2, ensure_ascii=False)
         
-        # Save individual components for easy access
+        # save individual components for easy access
         if self.parsed_content:
             with open(folder / "parsed_content.json", 'w', encoding='utf-8') as f:
                 json.dump(self.parsed_content, f, indent=2, ensure_ascii=False)
