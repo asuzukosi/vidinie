@@ -1,5 +1,5 @@
 """
-vidgen unified video generator
+vidinie unified video generator
 creates presentation-style explainer videos with:
 - slide backgrounds (gradient, solid, or images)
 - text overlays synchronized with voiceover
@@ -131,7 +131,7 @@ class VideoGenerator:
             self.width,
             self.height,
             title,
-            subtitle="Explainer Video by VidGen"
+            subtitle="Explainer Video by Vidinie"
         )
         
         clip = ImageClip(title_card).set_duration(duration)

@@ -1,5 +1,5 @@
 """
-vidgen script generator module
+vidinie script generator module
 
 generates natural narration scripts from video outline segments.
 uses openai to convert structured content into engaging voiceover scripts.

@@ -1,5 +1,5 @@
 """
-vidgen image generator module
+vidinie image generator module
 generates images using ai models (dall-e) for video segments.
 """
 

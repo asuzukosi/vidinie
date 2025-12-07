@@ -1,5 +1,5 @@
 """
-vidgen video utilities module
+vidinie video utilities module
 
 provides shared utilities for all video style generators.
 provides common functions for video composition, text rendering, and effects.

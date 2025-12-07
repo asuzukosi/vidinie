@@ -1,5 +1,5 @@
 """
-vidgen content analyzer module
+vidinie content analyzer module
 
 analyzes pdf content and creates structured video segments.
 uses openai to intelligently break content into digestible video sections

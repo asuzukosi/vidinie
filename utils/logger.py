@@ -1,5 +1,5 @@
 """
-vidgen centralized logging utility
+vidinie centralized logging utility
 
 provides consistent logging configuration across all modules.
 all modules should import and use this logger instead of creating their own.
@@ -98,9 +98,9 @@ def setup_logging(
             os.makedirs(log_dir, exist_ok=True)
         # create rotating file handler (rotates daily at midnight)
         # old log files are automatically renamed with date suffix: filename.YYYY-MM-DD
-        # example: vidgen.log -> vidgen.log.2024-01-15
+        # example: vidinie.log -> vidinie.log.2024-01-15
         file_handler = logging.handlers.TimedRotatingFileHandler(
-            filename=os.path.join(log_dir, 'vidgen.log'),
+            filename=os.path.join(log_dir, 'vidinie.log'),
             when='midnight',        # rotate at midnight
             interval=1,             # every 1 day
             backupCount=30,  # keep this many old log files

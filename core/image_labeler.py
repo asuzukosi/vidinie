@@ -1,5 +1,5 @@
 """
-vidgen image labeler module
+vidinie image labeler module
 uses openai vision api to analyze and label images extracted from pdf documents.
 generates descriptions, labels, and context for each image.
 """
@@ -250,7 +250,7 @@ def label_images(images_metadata: List[Dict], api_key: Optional[str] = None) -> 
 
 
 if __name__ == "__main__":
-    # test vidgen image labeler
+    # test vidinie image labeler
     import sys
     
     if len(sys.argv) < 2:

@@ -1,5 +1,5 @@
 """
-vidgen stock image utilities module
+vidinie stock image utilities module
 utility functions for fetching stock images from unsplash and pexels apis.
 """
 

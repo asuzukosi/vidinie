@@ -48,7 +48,7 @@ class TestLogger:
             
             logger.info("Test message")
             
-            log_file = Path(temp_dir) / 'vidgen.log'
+            log_file = Path(temp_dir) / 'vidinie.log'
             assert log_file.exists()
             
             with open(log_file, 'r') as f:
@@ -215,7 +215,7 @@ def test_logging_integration():
         logger.warning("Warning message")
         logger.error("Error message")
         
-        log_file = Path(temp_dir) / 'vidgen.log'
+        log_file = Path(temp_dir) / 'vidinie.log'
         assert log_file.exists()
         
         with open(log_file, 'r') as f:

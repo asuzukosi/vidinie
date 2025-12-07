@@ -1,5 +1,5 @@
 """
-vidgen stock image fetcher module
+vidinie stock image fetcher module
 fetches stock images from unsplash and pexels apis.
 """
 

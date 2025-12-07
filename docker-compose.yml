@@ -12,7 +12,7 @@ services:
     depends_on:
       - mongodb
     networks:
-      - vidgen-network
+      - vidinie-network
   frontend:
     build:
       context: .
@@ -24,7 +24,7 @@ services:
     depends_on:
       - backend
     networks:
-      - vidgen-network
+      - vidinie-network
   mongodb:
     image: mongodb/mongodb-community-server:8.0-ubi8
     environment:
@@ -35,6 +35,6 @@ services:
         source: ./mongodb_data
         target: /data/db
     networks:
-      - vidgen-network
+      - vidinie-network
 networks:
-  - vidgen-network
+  - vidinie-network

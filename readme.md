@@ -1,10 +1,10 @@
-# VidGen - PDF to Video Generator
+# Vidinie - Transform articles into engaging videos
 
-Transform PDF documents into professional explainer videos with AI-powered narration and multiple visual styles.
+Vidinie - Transform articles into engaging videos.
 
 ## What It Does
 
-VidGen automatically converts PDFs into engaging video content:
+Vidinie automatically converts PDFs into engaging video content:
 - Extracts and analyzes document structure and images
 - Generates natural narration scripts with AI
 - Creates professional voiceover audio
@@ -32,7 +32,7 @@ Edit `.env` and add your API keys:
 
 **Interactive Terminal UI:**
 ```bash
-python vidgen.py
+python vidinie.py
 ```
 
 **Command Line:**
@@ -78,11 +78,11 @@ Edit `config.yaml` to customize:
 ## Project Structure
 
 ```
-vidgen/
+vidinie/
 ├── core/           # Pipeline modules (parsing, analysis, generation)
 ├── styles/         # Video style generators
 ├── cli/            # Terminal UI application
-├── vidgen.py       # Interactive TUI entry point
+├── vidinie.py       # Interactive TUI entry point
 ├── script.py       # Command-line interface
 └── config.yaml     # Configuration
 ```
