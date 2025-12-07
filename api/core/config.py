@@ -1,0 +1,3 @@
+settings = {
+    "mongo_uri": "mongodb://localhost:27017"
+}

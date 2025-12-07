@@ -1,15 +1,10 @@
-from typing import Union
-
 from fastapi import FastAPI
-
+from api.routes import users, pipelines
 app = FastAPI()
 
+app.include_router(users.router, prefix="/users")
+app.include_router(pipelines.router, prefix="/pipelines")
 
-@app.get("/")
-def read_root():
-    return {"Hello": "World"}
-
-
-@app.get("/items/{item_id}")
-def read_item(item_id: int, q: Union[str, None] = None):
-    return {"item_id": item_id, "q": q}
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
