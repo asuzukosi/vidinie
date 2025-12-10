@@ -71,6 +71,18 @@ class PipelineData(BaseModel):
     
     # timing information
     stage_timings: Dict[str, Dict[str, Any]] = Field(default_factory=dict)  # {operation_name: {start_time, end_time, duration}}
+
+    # rating information
+    rating: Optional[int] = None  # rating of the pipeline
+    
+    # feedback information
+    feedback: Optional[str] = None  # feedback from the user
+    
+    # tags information
+    tags: List[str] = Field(default_factory=list)  # tags of the pipeline
+    
+    # projects information
+    projects: List[str] = Field(default_factory=list)  # projects of the pipeline
     
     class Config:
         """pydantic configuration."""
