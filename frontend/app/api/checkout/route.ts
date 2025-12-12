@@ -10,7 +10,8 @@ export async function POST(req: NextRequest){
             success_url: `${req.headers.get("origin")}/success?session_id={CHECKOUT_SESSION_ID}`,
             cancel_url: `${req.headers.get("origin")}/cancel`,
         });
-        return NextResponse.json({ sessionId: session.id }, { status: 200 });
+        // return both session id and url for client-side redirect without redirectToCheckout
+        return NextResponse.json({ sessionId: session.id, url: session.url }, { status: 200 });
 
     }catch (error: any) {
         return NextResponse.json({ error: error.message }, { status: 500 });

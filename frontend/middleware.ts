@@ -10,19 +10,15 @@ const isPublicRoute = createRouteMatcher([
 export default clerkMiddleware(async (auth, request) => {
   // protect all routes except public routes
   if (!isPublicRoute(request)) {
-    const session = await auth();
-    if (!session || !session.userId) {
-      // not authenticated, redirect to sign-in page or return 401
-      return Response.redirect('/sign-in');
-    }
+    await auth.protect();
   }
 });
-
 
 export const config = {
   matcher: [
     // skip next.js internals and static files
-    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
+    // also exclude avatar-01.png specifically
+    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)|avatar-01\\.png).*)',
     // always run for api routes
     '/(api|trpc)(.*)',
   ],

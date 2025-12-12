@@ -36,11 +36,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
+  <ClerkProvider>
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <ClerkProvider>
           <SignedOut>
             <SignInButton />
             <SignUpButton>
@@ -55,8 +55,8 @@ export default function RootLayout({
           <StoreProvider>
             {children}
           </StoreProvider>
-        </ClerkProvider>
       </body>
     </html>
+  </ClerkProvider>
   );
 }
