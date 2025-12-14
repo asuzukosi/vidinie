@@ -25,7 +25,7 @@ from core.context_processor import ContextProcessor
 from core.content_analyzer import ContentAnalyzer
 from core.stock_image_fetcher import StockImageFetcher
 from core.image_generator import ImageGenerator
-from core.pipeline_data import PipelineData
+from core.pipeline_data import PipelineData, PipelineStage, PipelineStatus
 
 setup_logging(log_dir='temp')
 logger = get_logger('stage2_content')
@@ -59,16 +59,16 @@ def create_video_outline(pipeline_id: str,
         logger.error("run stage1_parsing.py first")
         sys.exit(1)
     
-    pipeline_data.update_stage("content_analysis", "in_progress")
+    pipeline_data.update_stage(PipelineStage.CONTENT_ANALYSIS, PipelineStatus.IN_PROGRESS)
     
     if not config.openai_api_key:
         logger.error("openai api key required")
-        pipeline_data.update_stage("content_analysis", "failed")
+        pipeline_data.update_stage(PipelineStage.CONTENT_ANALYSIS, PipelineStatus.FAILED)
         return pipeline_data
     
     if not pipeline_data.parsed_content:
         logger.error("parsed content not found in pipeline data")
-        pipeline_data.update_stage("content_analysis", "failed")
+        pipeline_data.update_stage(PipelineStage.CONTENT_ANALYSIS, PipelineStatus.FAILED)
         return pipeline_data
     
     try:
@@ -159,7 +159,7 @@ def create_video_outline(pipeline_id: str,
         
         # update pipeline data
         pipeline_data.video_outline = outline
-        pipeline_data.update_stage("content_analysis", "completed")
+        pipeline_data.update_stage(PipelineStage.CONTENT_ANALYSIS, PipelineStatus.COMPLETED)
         
         # save pipeline data
         pipeline_data.save_to_folder(temp_dir)
@@ -170,7 +170,7 @@ def create_video_outline(pipeline_id: str,
         
     except Exception as e:
         logger.error(f"error during content analysis: {str(e)}")
-        pipeline_data.update_stage("content_analysis", "failed")
+        pipeline_data.update_stage(PipelineStage.CONTENT_ANALYSIS, PipelineStatus.FAILED)
         return pipeline_data
 
 

@@ -12,6 +12,7 @@ from openai import OpenAI
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from pathlib import Path
 from utils.logger import get_logger
+from core.pipeline_data import ImageMetadata
 
 logger = get_logger(__name__)
 
@@ -75,7 +76,7 @@ class ImageLabeler:
                 "relevance": "unknown"
             }
 
-    def label_images_batch(self, images_metadata: List[Dict]) -> List[Dict]:
+    def label_images_batch(self, images_metadata: List[ImageMetadata]) -> List[ImageMetadata]:
         """
         label multiple images from metadata list.
         args:
@@ -86,23 +87,23 @@ class ImageLabeler:
         logger.info(f"Starting batch labeling for {len(images_metadata)} images")
         
         for i, img_meta in enumerate(images_metadata, 1):
-            logger.info(f"Processing image {i}/{len(images_metadata)}")
+            logger.info(f"processing image {i}/{len(images_metadata)}")
             
             # skip if already labeled
-            if img_meta.get('label') and img_meta.get('description'):
+            if img_meta.label and img_meta.description:
                 logger.info(f"Image already labeled: {img_meta.get('label')}")
                 continue
             
-            image_path = img_meta['filepath']
-            text_context = img_meta.get('text_context', '')
+            image_path = img_meta.filepath
+            text_context = img_meta.text_context
             result = self.label_image(image_path, text_context)
-            img_meta['label'] = result.get('label', 'Unlabeled')
-            img_meta['description'] = result.get('description', '')
-            img_meta['image_type'] = result.get('image_type', 'unknown')
-            img_meta['key_elements'] = result.get('key_elements', [])
-            img_meta['ai_relevance'] = result.get('relevance', 'medium')
+            img_meta.label = result.get('label', 'Unlabeled')
+            img_meta.description = result.get('description', '')
+            img_meta.image_type = result.get('image_type', 'unknown')
+            img_meta.key_elements = result.get('key_elements', [])
+            img_meta.ai_relevance = result.get('relevance', 'medium')
         
-        logger.info("Batch labeling complete")
+        logger.info("batch labeling complete")
         return images_metadata
 
     @staticmethod
@@ -197,7 +198,7 @@ class ImageLabeler:
             "key_elements": [],
             "relevance": "medium"
         }
-        
+        # configure the model to provide a structured response to prevent long parsing process
         lines = response_text.split('\n')
         
         for line in lines:
@@ -223,7 +224,7 @@ class ImageLabeler:
         
         return result
     
-    def save_labeled_metadata(self, images_metadata: List[Dict], output_path: str):
+    def save_labeled_metadata(self, images_metadata: List[ImageMetadata], output_path: str):
         """
         save labeled metadata to JSON file.
         args:
@@ -231,12 +232,13 @@ class ImageLabeler:
             output_path: path to save json file
         """
         with open(output_path, 'w') as f:
-            json.dump(images_metadata, f, indent=2)
-        
-        logger.info(f"Saved labeled metadata to {output_path}")
+            data = [img.model_dump(mode="json") for img in images_metadata]
+            json.dump(data, f, indent=2)
+        logger.info(f"saved labeled metadata to {output_path}")
 
 
-def label_images(images_metadata: List[Dict], api_key: Optional[str] = None) -> List[Dict]:
+def label_images(images_metadata: List[ImageMetadata], 
+                 api_key: Optional[str] = None) -> List[ImageMetadata]:
     """
     convenience function to label images.
     args:
@@ -247,43 +249,3 @@ def label_images(images_metadata: List[Dict], api_key: Optional[str] = None) -> 
     """
     labeler = ImageLabeler(api_key)
     return labeler.label_images_batch(images_metadata)
-
-
-if __name__ == "__main__":
-    # test vidinie image labeler
-    import sys
-    
-    if len(sys.argv) < 2:
-        print("usage: python image_labeler.py <images_metadata.json>")
-        print("first run image_extractor.py to generate the metadata file")
-        sys.exit(1)
-    
-    metadata_path = sys.argv[1]
-    
-    print(f"\n**** loading image metadata ****")
-    with open(metadata_path, 'r') as f:
-        images_metadata = json.load(f)
-    
-    print(f"loaded {len(images_metadata)} images\n")
-    
-    print("**** starting image labeling ****\n")
-    
-    labeler = ImageLabeler()
-    labeled_metadata = labeler.label_images_batch(images_metadata)
-    
-    print("\n**** labeling results ****\n")
-    for i, img in enumerate(labeled_metadata, 1):
-        print(f"{i}. {img['filename']}")
-        print(f"- label: {img.get('label', 'Unknown')}")
-        print(f"- type: {img.get('image_type', 'Unknown')}")
-        print(f"- description: {img.get('description', 'Unknown')}")
-        print(f"- relevance: {img.get('ai_relevance', 'Unknown')}")
-        print()
-    
-    # save updated metadata
-    output_path = metadata_path.replace('.json', '_labeled.json')
-    labeler.save_labeled_metadata(labeled_metadata, output_path)
-    
-    print(f"**** labeling complete ****")
-    print(f"saved to: {output_path}\n")
-

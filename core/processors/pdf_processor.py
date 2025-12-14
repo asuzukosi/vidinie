@@ -16,6 +16,9 @@ from pathlib import Path
 from typing import Dict, List
 from utils.logger import get_logger
 from core.processors.document_processor import DocumentProcessor
+from core.image_labeler import ImageLabeler
+from core.pipeline_data import ParsedContent, ImageMetadata,\
+                               ParsedContentMetadata, ParsedContentSection
 
 logger = get_logger('pdf_processor')
 
@@ -40,7 +43,7 @@ class PDFProcessor(DocumentProcessor):
         self.pdf = None
         self.pdf_document = None
         self.pages_data = []
-        self.images_data = []
+        self.images_metadata: List[ImageMetadata] = []
         
         # create output directory for images
         Path(images_output_dir).mkdir(parents=True, exist_ok=True)
@@ -57,9 +60,7 @@ class PDFProcessor(DocumentProcessor):
             self.pdf.close()
         if self.pdf_document:
             self.pdf_document.close()
-    
-    # ==================== TEXT EXTRACTION METHODS ====================
-    
+        
     def extract_text(self) -> str:
         """
         extract all text from the pdf document.
@@ -78,29 +79,29 @@ class PDFProcessor(DocumentProcessor):
         
         return "\n\n".join(full_text)
     
-    def extract_structured_content(self) -> Dict:
+    def extract_structured_content(self) -> ParsedContent:
         """
         extract text with structure information (headings, paragraphs, lists).
-        
         returns:
-            dictionary containing structured content
+            parsed content object
         """
         if not self.pdf:
             raise ValueError("pdf document not opened. use context manager or call __enter__()")
             
-        structured_content = {
-            "title": self._extract_title(),
-            "sections": [],
-            "total_pages": len(self.pdf.pages),
-            "metadata": self.pdf.metadata
-        }
-        
+        parsed_content = ParsedContent()
+        parsed_content.title = self._extract_title()
+        parsed_content.total_pages = len(self.pdf.pages)
+        parsed_content.metadata = ParsedContentMetadata(
+            title=self.pdf.metadata.get('Title', ''),
+            creator=self.pdf.metadata.get('Author', ''),
+            producer=self.pdf.metadata.get('Producer', ''),
+            creation_date=self.pdf.metadata.get('CreationDate', ''),
+            modification_date=self.pdf.metadata.get('ModDate', '')
+        )
         full_text = self.extract_text()
-        sections = self._identify_sections(full_text)
+        parsed_content.sections = self._identify_sections(full_text)
         
-        structured_content["sections"] = sections
-        
-        return structured_content
+        return parsed_content
     
     def _extract_title(self) -> str:
         """
@@ -127,23 +128,21 @@ class PDFProcessor(DocumentProcessor):
         
         return "untitled document"
     
-    def _identify_sections(self, text: str) -> List[Dict]:
+    def _identify_sections(self, text: str) -> List[ParsedContentSection]:
         """
         identify sections in the text based on headings.
-        
         returns:
             list of sections with title and content
         """
-        sections = []
+        sections: List[ParsedContentSection] = []
         
         # split by double newlines (paragraphs)
         paragraphs = text.split('\n\n')
         
-        current_section = {
-            "title": "introduction",
-            "content": "",
-            "level": 1
-        }
+        current_section = ParsedContentSection()
+        current_section.title = "introduction"
+        current_section.content = ""
+        current_section.level = 1
         
         for para in paragraphs:
             para = para.strip()
@@ -153,30 +152,30 @@ class PDFProcessor(DocumentProcessor):
             # detect headings (simple heuristic: short lines, possibly with numbers)
             if self._is_likely_heading(para):
                 # save previous section if it has content
-                if current_section["content"].strip():
+                if current_section.content.strip():
                     sections.append(current_section)
                 
                 # start new section
-                current_section = {
-                    "title": para,
-                    "content": "",
-                    "level": self._detect_heading_level(para)
-                }
+                current_section = ParsedContentSection(
+                    title=para,
+                    content="",
+                    level=self._detect_heading_level(para)
+                )
             else:
                 # add to current section
-                current_section["content"] += para + "\n\n"
+                current_section.content += para + "\n\n"
         
         # add the last section
-        if current_section["content"].strip():
+        if current_section.content.strip():
             sections.append(current_section)
         
         # if no sections were detected, create one section with all content
         if not sections:
-            sections.append({
-                "title": "content",
-                "content": text,
-                "level": 1
-            })
+            sections.append(ParsedContentSection(
+                title="content",
+                content=text,
+                level=1
+            ))
         
         logger.info(f"identified {len(sections)} sections")
         return sections
@@ -271,18 +270,15 @@ class PDFProcessor(DocumentProcessor):
         
         return pages_text
     
-    # ==================== IMAGE EXTRACTION METHODS ====================
     
-    def extract_images(self, min_width: int = 100, min_height: int = 100) -> List[Dict]:
+    def extract_images(self, min_width: int = 100, min_height: int = 100) -> List[ImageMetadata]:
         """
         extract all images from the pdf document.
-        
         args:
             min_width: minimum image width to extract (filters small icons)
             min_height: minimum image height to extract
-        
         returns:
-            list of dictionaries containing image metadata
+            list of image metadata
         """
         if not self.pdf_document:
             raise ValueError("pdf document not opened. use context manager or call __enter__()")
@@ -291,6 +287,7 @@ class PDFProcessor(DocumentProcessor):
         
         # initialize image count
         image_count = 0
+        self.images_metadata = []
         
         # iterate over pages
         for page_num in range(len(self.pdf_document)):
@@ -340,25 +337,24 @@ class PDFProcessor(DocumentProcessor):
                     text_context = self._extract_text_context(page, img_info)
                     
                     # store metadata
-                    image_metadata = {
-                        "filename": filename,
-                        "filepath": filepath,
-                        "page_number": page_num + 1,
-                        "width": width,
-                        "height": height,
-                        "format": format_name,
-                        "mode": mode,
-                        "size_bytes": len(image_bytes),
-                        "text_context": text_context,
-                        "xref": xref,
-                        "index_on_page": img_index,
-                        "label": None,  # to be filled by image_labeler
-                        "description": None,  # to be filled by image_labeler
-                        "relevance_score": None  # to be filled by content_analyzer
-                    }
+                    image_metadata = ImageMetadata()
+                    image_metadata.filename = filename
+                    image_metadata.filepath = filepath
+                    image_metadata.page_number = page_num + 1
+                    image_metadata.width = width
+                    image_metadata.height = height
+                    image_metadata.format = format_name
+                    image_metadata.mode = mode
+                    image_metadata.size_bytes = len(image_bytes)
+                    image_metadata.text_context = text_context
+                    image_metadata.xref = xref
+                    image_metadata.index_on_page = img_index
+                    image_metadata.label = None  # to be filled by image_labeler
+                    image_metadata.description = None  # to be filled by image_labeler
+                    image_metadata.relevance_score = None  # to be filled by content_analyzer
                     
                     # add metadata to list
-                    self.images_data.append(image_metadata)
+                    self.images_metadata.append(image_metadata)
                     image_count += 1
                     
                     # log image extraction
@@ -373,8 +369,8 @@ class PDFProcessor(DocumentProcessor):
         # save metadata to json
         self._save_image_metadata()
         
-        # return images data
-        return self.images_data
+        # return images metadata
+        return self.images_metadata
     
     def _extract_text_context(self, page, img_info, context_chars: int = 500) -> str:
         """
@@ -405,7 +401,8 @@ class PDFProcessor(DocumentProcessor):
         metadata_path = os.path.join(self.images_output_dir, "images_metadata.json")
         # save metadata to json file
         with open(metadata_path, 'w') as f:
-            json.dump(self.images_data, f, indent=2)
+            data = [img.model_dump(mode="json") for img in self.images_metadata]
+            json.dump(data, f, indent=2)
         
         logger.info(f"saved metadata to {metadata_path}")
     
@@ -420,9 +417,9 @@ class PDFProcessor(DocumentProcessor):
         
         if os.path.exists(metadata_path):
             with open(metadata_path, 'r') as f:
-                self.images_data = json.load(f)
-            logger.info(f"loaded metadata for {len(self.images_data)} images")
-            return self.images_data
+                self.images_metadata = ImageMetadata.model_validate_json(f.read())
+            logger.info(f"loaded metadata for {len(self.images_metadata)} images")
+            return self.images_metadata
         else:
             logger.warning("no metadata file found")
             return []
@@ -430,14 +427,12 @@ class PDFProcessor(DocumentProcessor):
     def get_images_by_page(self, page_number: int) -> List[Dict]:
         """
         get all images from a specific page.
-        
         args:
             page_number: page number (1-indexed)
-        
         returns:
             list of image metadata for that page
         """
-        return [img for img in self.images_data if img['page_number'] == page_number]
+        return [img for img in self.images_metadata if img.page_number == page_number]
     
     def get_image_stats(self) -> Dict:
         """
@@ -446,7 +441,7 @@ class PDFProcessor(DocumentProcessor):
         returns:
             dictionary with image statistics
         """
-        if not self.images_data:
+        if not self.images_metadata:
             return {
                 "total_images": 0,
                 "average_size": 0,
@@ -455,20 +450,53 @@ class PDFProcessor(DocumentProcessor):
             }
         
         # get total size of all images
-        total_size = sum(img['size_bytes'] for img in self.images_data)
+        total_size = sum(img.size_bytes for img in self.images_metadata)
         
         # get formats of all images
         formats = {}
-        for img in self.images_data:
-            fmt = img.get('format', 'unknown')
+        for img in self.images_metadata:
+            fmt = img.format or 'unknown'
             formats[fmt] = formats.get(fmt, 0) + 1
         
         return {
-            "total_images": len(self.images_data),
-            "average_size": total_size // len(self.images_data) if self.images_data else 0,
+            "total_images": len(self.images_metadata),
+            "average_size": total_size // len(self.images_metadata) if self.images_metadata else 0,
             "total_size": total_size,
             "formats": formats,
-            "pages_with_images": len(set(img['page_number'] for img in self.images_data))
+            "pages_with_images": len(set(img.page_number for img in self.images_metadata))
         }
     
+    def label_images(self, openai_api_key: str, prompts_dir: str):
+        logger.info("extracting images from pdf")
+        images_metadata = self.extract_images()
+        
+        if images_metadata:
+            stats = self.get_image_stats()
+            logger.info(f"extracted {stats['total_images']} images")
+            
+            # label images with ai if api key is available
+            if openai_api_key:
+                logger.info("labeling images with AI")
+                # try:
+                labeler = ImageLabeler(openai_api_key, 
+                                        prompts_dir=prompts_dir)
+                labeled_metadata = labeler.label_images_batch(images_metadata)
+                
+                # save labeled metadata
+                Path(self.images_output_dir).mkdir(parents=True, exist_ok=True)
+                metadata_path = os.path.join(self.images_output_dir, 'images_metadata_labeled.json')
+                labeler.save_labeled_metadata(labeled_metadata, metadata_path)
+                
+                self.images_metadata = labeled_metadata
+                logger.info(f"labeled {len(labeled_metadata)} images")
+                # except Exception as e:
+                #     logger.warning(f"image labeling failed: {str(e)}")
+                #     logger.warning("continuing without labeled images")
+                #     self.images_metadata = images_metadata
+            else:
+                logger.warning("openai api key not found, skipping image labeling")
+                self.images_metadata = images_metadata
+        else:
+            logger.info("no images found in pdf")
+            self.images_metadata = []
 

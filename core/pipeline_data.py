@@ -22,8 +22,87 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any
 from pydantic import BaseModel, Field
 from utils.logger import get_logger
+from enum import Enum
+logger = get_logger('pipeline_data')
 
-logger = get_logger(__name__)
+
+class SourceType(str, Enum):
+    """
+    source type of the pipeline data.
+    """
+    PDF = "pdf"
+    HTML = "html"
+
+class PipelineStatus(str, Enum):
+    """
+    status of the pipeline.
+    """
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+class PipelineStage(str, Enum):
+    """
+    stage of the pipeline.
+    """
+    INITIALIZED = "initialized"
+    DOCUMENT_PROCESSING = "document_processing"
+    IMAGE_PROCESSING = "image_processing"
+    CONTENT_ANALYSIS = "content_analysis"
+    SCRIPT_GENERATION = "script_generation"
+    VIDEO_GENERATION = "video_generation"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+class ParsedContentSection(BaseModel):
+    """
+    parsed content section from the document.
+    """
+    title: Optional[str] = None
+    content: Optional[str] = None
+    level: Optional[int] = None
+
+class ParsedContentMetadata(BaseModel):
+    """
+    parsed content metadata from the document.
+    """
+    title: Optional[str] = None
+    creator: Optional[str] = None
+    producer: Optional[str] = None
+    creation_date: Optional[str] = None
+    modification_date: Optional[str] = None
+
+class ParsedContent(BaseModel):
+    """
+    parsed content from the document.
+    """
+    title: Optional[str] = None
+    total_pages: Optional[int] = None
+    sections: List[ParsedContentSection] = Field(default_factory=list)
+    metadata: Optional[ParsedContentMetadata] = None
+
+class ImageMetadata(BaseModel):
+    """
+    image metadata from the document.
+    """
+    filename: Optional[str] = None
+    filepath: Optional[str] = None
+    page_number: Optional[int] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+    format: Optional[str] = None
+    mode: Optional[str] = None
+    size_bytes: Optional[int] = None
+    text_context: Optional[str] = None
+    xref: Optional[int] = None
+    index_on_page: Optional[int] = None
+    label: Optional[str] = None
+    description: Optional[str] = None
+    relevance_score: Optional[float] = None
+    image_type: Optional[str] = None
+    key_elements: Optional[List[str]] = None
+    ai_relevance: Optional[str] = None
 
 
 class PipelineData(BaseModel):
@@ -31,21 +110,28 @@ class PipelineData(BaseModel):
     comprehensive data model for document processing pipeline.
     holds all data from each operation in the pipeline and provides
     serialization and deserialization capabilities.
-    
     supports multiple workflow configurations with flexible operation ordering.
     """
-    
+
     # identification
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    path_id: Optional[str] = None # id used by mongodb for internal use
+    name: str = Field(default="")
+    description: str = Field(default="")
+    tags: List[str] = Field(default_factory=list)  # tags of the pipeline
+    projects: List[str] = Field(default_factory=list)  # projects of the pipeline
+    
+    # timing information
+    updated_at: str = Field(default_factory=lambda: datetime.now().isoformat())
     created_at: str = Field(default_factory=lambda: datetime.now().isoformat())
     
     # source document
     source_path: Optional[str] = None
-    source_type: Optional[str] = None  # 'pdf', 'html'
+    source_type: Optional[SourceType] = None
     
     # document_processing & image_processing operations
-    parsed_content: Optional[Dict[str, Any]] = None  # structured content from document
-    images_metadata: List[Dict[str, Any]] = Field(default_factory=list)  # extracted and labeled images
+    parsed_content: Optional[ParsedContent] = None  # structured content from document
+    images_metadata: List[ImageMetadata] = Field(default_factory=list)  # extracted and labeled images
     
     # content_analysis operation
     chunks: List[Dict[str, Any]] = Field(default_factory=list)  # processed content chunks
@@ -66,8 +152,8 @@ class PipelineData(BaseModel):
     context_processor_info: Optional[Dict[str, Any]] = None  # stores context processor config and results
     
     # status tracking
-    current_stage: str = "initialized"  # current operation name
-    status: str = "pending"  # pending, in_progress, completed, failed
+    current_stage: PipelineStage = PipelineStage.INITIALIZED  # current operation name
+    status: PipelineStatus = PipelineStatus.PENDING
     
     # timing information
     stage_timings: Dict[str, Dict[str, Any]] = Field(default_factory=dict)  # {operation_name: {start_time, end_time, duration}}
@@ -78,12 +164,7 @@ class PipelineData(BaseModel):
     # feedback information
     feedback: Optional[str] = None  # feedback from the user
     
-    # tags information
-    tags: List[str] = Field(default_factory=list)  # tags of the pipeline
-    
-    # projects information
-    projects: List[str] = Field(default_factory=list)  # projects of the pipeline
-    
+
     class Config:
         """pydantic configuration."""
         arbitrary_types_allowed = True
@@ -110,18 +191,19 @@ class PipelineData(BaseModel):
         # save main data
         main_file = folder / "pipeline_data.json"
         with open(main_file, 'w', encoding='utf-8') as f:
-            json.dump(self.model_dump(), f, indent=2, ensure_ascii=False)
+            json.dump(self.model_dump(mode="json"), f, indent=2, ensure_ascii=False)
         
         # save individual components for easy access
         if self.parsed_content:
             with open(folder / "parsed_content.json", 'w', encoding='utf-8') as f:
-                json.dump(self.parsed_content, f, indent=2, ensure_ascii=False)
+                json.dump(self.parsed_content.model_dump(mode="json"), f, indent=2, ensure_ascii=False)
         
         if self.images_metadata:
             images_dir = folder / "images"
             images_dir.mkdir(exist_ok=True)
             with open(images_dir / "images_metadata_labeled.json", 'w', encoding='utf-8') as f:
-                json.dump(self.images_metadata, f, indent=2, ensure_ascii=False)
+                data = [img.model_dump(mode="json") for img in self.images_metadata]
+                json.dump(data, f, indent=2, ensure_ascii=False)
         
         if self.video_outline:
             with open(folder / "video_outline.json", 'w', encoding='utf-8') as f:
@@ -253,7 +335,7 @@ class PipelineData(BaseModel):
         logger.info(f"Loaded pipeline data from pickle: {file_path}")
         return data
     
-    def update_stage(self, stage: str, status: str = "in_progress"):
+    def update_stage(self, stage: PipelineStage, status: PipelineStatus = PipelineStatus.IN_PROGRESS):
         """
         update current operation and status, tracking timing.
         

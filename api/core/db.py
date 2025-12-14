@@ -1,13 +1,13 @@
-from pymongo import AsyncMongoClient
-from api.core.config import settings
+import motor.motor_asyncio
+from dotenv import load_dotenv
+import os
 
-client = AsyncMongoClient(settings["mongo_uri"])
-db = client["vidinie"]
-users_collection = db["users"]
-pipelines_collection = db["pipelines"]
+load_dotenv()
 
-async def get_user(user_id: str):
-    return await users_collection.find_one({"_id": user_id})
+MONGODB_URI = os.environ.get("MONGODB_URI", "mongodb://localhost:27017")
+db_client = motor.motor_asyncio.AsyncIOMotorClient(MONGODB_URI)
 
-async def get_pipeline(pipeline_id: str):
-    return await pipelines_collection.find_one({"_id": pipeline_id})
+database = db_client["vidinie"]
+
+users_collection = database["users"]
+pipelines_collection = database["pipelines"]

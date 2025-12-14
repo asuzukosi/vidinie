@@ -41,6 +41,7 @@ tqdm
 
 # fastapi
 fastapi[standard]
+pydantic[email]
 pymongo
 email-validator
 dnspython
@@ -56,3 +57,4 @@ aiofiles
 celery
 redis
 httpx
+motor

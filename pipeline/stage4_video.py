@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.logger import setup_logging, get_logger
 from utils.config_loader import get_config
 from core.video_generator import VideoGenerator
-from core.pipeline_data import PipelineData
+from core.pipeline_data import PipelineData, PipelineStage, PipelineStatus
 
 setup_logging(log_dir='temp')
 logger = get_logger('stage4_video')
@@ -60,7 +60,7 @@ def generate_video(pipeline_id: str,
     if not pipeline_data.script_with_audio:
         logger.error("script with audio not found in pipeline data")
         logger.error("run stage3_script.py first")
-        pipeline_data.update_stage("video_generation", "failed")
+        pipeline_data.update_stage(PipelineStage.VIDEO_GENERATION, PipelineStatus.FAILED)
         return pipeline_data
     
     try:
@@ -86,11 +86,11 @@ def generate_video(pipeline_id: str,
         if os.path.exists(video_path):
             pipeline_data.video_path = video_path
             pipeline_data.output_path = output_path  # ensure it's stored
-            pipeline_data.update_stage("video_generation", "completed")
+            pipeline_data.update_stage(PipelineStage.VIDEO_GENERATION, PipelineStatus.COMPLETED)
             logger.info(f"video generated successfully: {video_path}")
         else:
             logger.error("video file was not created")
-            pipeline_data.update_stage("video_generation", "failed")
+            pipeline_data.update_stage(PipelineStage.VIDEO_GENERATION, PipelineStatus.FAILED)
             return pipeline_data
         
         # save pipeline data to folder and pickle file
@@ -102,7 +102,7 @@ def generate_video(pipeline_id: str,
         
     except Exception as e:
         logger.error(f"error during video generation: {str(e)}", exc_info=True)
-        pipeline_data.update_stage("video_generation", "failed")
+        pipeline_data.update_stage(PipelineStage.VIDEO_GENERATION, PipelineStatus.FAILED)
         return pipeline_data
 
 

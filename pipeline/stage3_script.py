@@ -21,7 +21,7 @@ from utils.logger import setup_logging, get_logger
 from utils.config_loader import get_config
 from core.script_generator import ScriptGenerator
 from core.voiceover_generator import VoiceoverGenerator
-from core.pipeline_data import PipelineData
+from core.pipeline_data import PipelineData, PipelineStage, PipelineStatus
 
 setup_logging(log_dir='temp')
 logger = get_logger('stage3_script')
@@ -51,12 +51,12 @@ def generate_scripts_and_voiceovers(pipeline_id: str,
         logger.error("run stage1_parsing.py and stage2_content.py first")
         sys.exit(1)
     
-    pipeline_data.update_stage("script_generation", "in_progress")
+    pipeline_data.update_stage(PipelineStage.SCRIPT_GENERATION, PipelineStatus.IN_PROGRESS)
     
     if not pipeline_data.video_outline:
         logger.error("video outline not found in pipeline data")
         logger.error("run stage2_content.py first")
-        pipeline_data.update_stage("script_generation", "failed")
+        pipeline_data.update_stage(PipelineStage.SCRIPT_GENERATION, PipelineStatus.FAILED)
         return pipeline_data
     
     try:
@@ -94,7 +94,7 @@ def generate_scripts_and_voiceovers(pipeline_id: str,
         logger.info(f"combined audio generated: {combined_audio_path} ({total_duration:.1f}s)")
         
         # save pipeline data
-        pipeline_data.update_stage("script_generation", "completed")
+        pipeline_data.update_stage(PipelineStage.SCRIPT_GENERATION, PipelineStatus.COMPLETED)
         pipeline_data.save_to_folder(temp_dir)
         pipeline_data.save_to_pickle(os.path.join(temp_dir, f"pipeline_{pipeline_data.id}.pkl"))
         
@@ -103,7 +103,7 @@ def generate_scripts_and_voiceovers(pipeline_id: str,
         
     except Exception as e:
         logger.error(f"error during script generation: {str(e)}", exc_info=True)
-        pipeline_data.update_stage("script_generation", "failed")
+        pipeline_data.update_stage(PipelineStage.SCRIPT_GENERATION, PipelineStatus.FAILED)
         return pipeline_data
 
 
