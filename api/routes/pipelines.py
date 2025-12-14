@@ -33,7 +33,7 @@ class StartPipelineRequest(BaseModel):
     name: str
     description: str
     tags: List[str]
-
+    projects: List[str]
 
 
 class CreatePipelineDataResponse(BaseModel):
@@ -113,24 +113,68 @@ async def start_pipeline_with_file(
     return CreatePipelineDataResponse(**pipeline_data.model_dump(mode="json"))
 
 @router.post("/start_pipeline_with_url", name="start pipeline with url")
-def start_pipeline_with_url(request: StartPipelineRequest) -> Any:
+async def start_pipeline_with_url(request: StartPipelineRequest) -> Any:
     # validate if url is valid
     logger.info("received request to start pipeline with url")
     if not request.url.startswith("http"):
         raise HTTPException(status_code=400, detail="Invalid URL must start with http or https")
     # validate if url is reachable
+    response = None
     try:
         response = requests.get(request.url)
         if response.status_code != 200:
             raise HTTPException(status_code=400, detail="Failed to download file")
     except requests.exceptions.RequestException:
         raise HTTPException(status_code=400, detail="Failed to download file")
-    logger.info("pipeline start request successful")
-    return {"message": "Pipeline started successfully", 
-            "name": request.name, 
-            "description": request.description, 
-            "tags": request.tags,
-            "data": response.content}
+    
+    logger.info("creating pipeline data object")
+    pipeline_data = PipelineData()
+    pipeline_data.name = request.name
+    pipeline_data.description = request.description
+    pipeline_data.tags = request.tags
+    pipeline_data.projects = request.projects
+    pipeline_data.source_type = SourceType.HTML
+    pipeline_data.update_stage(PipelineStage.DOCUMENT_PROCESSING, 
+                               PipelineStatus.IN_PROGRESS)
+    
+    
+    logger.info("pipeline data object created")
+    # create temp directory for metadata
+    temp_dir = config.get('output.temp_directory', 'temp')
+    images_dir = os.path.join(temp_dir, pipeline_data.id, 'images')
+    Path(images_dir).mkdir(parents=True, exist_ok=True)
+    logger.info(f"created temp directory for metadata: {images_dir}")
+    # save file to temp directory
+    with open(os.path.join(temp_dir, pipeline_data.id, 'data.html'), 'wb') as f:
+        f.write(response.content)
+    logger.info(f"saved file to temp directory: {os.path.join(temp_dir, pipeline_data.id, 'data.html')}")
+    pipeline_data.source_path = os.path.join(temp_dir, pipeline_data.id, 'data.html')
+    
+   # process html file
+    with HTMLProcessor(html_path=request.url, images_output_dir=images_dir) as processor:
+        content: ParsedContent = processor.extract_structured_content()
+        pipeline_data.parsed_content = content
+
+        # logging content info
+        logger.info(f"title: {content.title}")
+        logger.info(f"total pages: {content.total_pages}")
+        logger.info(f"sections: {len(content.sections)}")
+
+         # extract and label images if requested
+        logger.info("labeling images")
+        processor.label_images(config.openai_api_key, config.get_prompts_directory())
+        pipeline_data.images_metadata = processor.images_metadata
+        logger.info(f"labeled {len(processor.images_metadata)} images")
+    
+    pipeline_data.update_stage(PipelineStage.DOCUMENT_PROCESSING, PipelineStatus.COMPLETED)
+
+    # save pipeline data to database
+    logger.info("saving pipeline data to database")
+    db_pipeline = await pipelines_collection.insert_one(pipeline_data.model_dump(mode="json"))
+    pipeline_data.path_id = pipeline_data.id
+    pipeline_data.id = str(db_pipeline.inserted_id)
+    logger.info(f"pipeline data saved to database with id: {pipeline_data.id}")
+    return CreatePipelineDataResponse(**pipeline_data.model_dump(mode="json"))
 
 # @router.post("/parse_document")
 # async def parse_document_route(request: ParseDocumentRequest) -> PipelineData:

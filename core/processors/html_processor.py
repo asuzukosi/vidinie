@@ -10,12 +10,15 @@ import hashlib
 import urllib.parse
 import io
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Any
 from bs4 import BeautifulSoup
 from PIL import Image
 import requests
 from utils.logger import get_logger
+from datetime import datetime
 from core.processors.document_processor import DocumentProcessor
+from core.pipeline_data import ImageMetadata, ParsedContent, ParsedContentMetadata, ParsedContentSection
+from core.image_labeler import ImageLabeler
 
 logger = get_logger('html_processor')
 
@@ -35,11 +38,11 @@ class HTMLProcessor(DocumentProcessor):
             html_path: path to html file or URL
             images_output_dir: directory to save extracted images
         """
-        self.html_path = html_path
-        self.images_output_dir = images_output_dir
+        self.html_path: str = html_path
+        self.images_output_dir: str = images_output_dir
         self.soup = None
-        self.html_content = None
-        self.images_data = []
+        self.html_content: str = None
+        self.images_metadata: List[ImageMetadata] = []
         self.is_url = html_path.startswith(('http://', 'https://'))
         # create output directory for images
         Path(images_output_dir).mkdir(parents=True, exist_ok=True)
@@ -55,11 +58,11 @@ class HTMLProcessor(DocumentProcessor):
                 raise FileNotFoundError(f"html file not found: {self.html_path}")
             with open(self.html_path, 'r', encoding='utf-8') as f:
                 self.html_content = f.read()
-        
+        # create instance of beautifulsoup with html content and html.parser parser.
         self.soup = BeautifulSoup(self.html_content, 'html.parser')
         return self
         
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, *args: Any, **kwargs: Any) -> None:
         """context manager exit."""
         self.soup = None
         self.html_content = None
@@ -85,34 +88,35 @@ class HTMLProcessor(DocumentProcessor):
         chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
         text = '\n'.join(chunk for chunk in chunks if chunk)
         
-        logger.info("Extracted text from HTML document")
+        logger.info("exxtracted text from html document")
         return text
     
-    def extract_structured_content(self) -> Dict:
+    def extract_structured_content(self) -> ParsedContent:
         """
         extract text with structure information (headings, paragraphs, sections).
         returns:
-            dictionary containing structured content
+            parsed content object
         """
         if not self.soup:
             raise ValueError("html document not opened. use context manager or call __enter__()")
         # extract title
         title = self._extract_title()
         # extract sections based on headings
-        sections = self._extract_sections()
+        sections: List[ParsedContentSection] = self._extract_sections()
         # count "pages" (approximate by major sections)
-        total_sections = len([s for s in sections if s['level'] == 1])
+        total_sections = len([s for s in sections if s.level == 1])
         
-        structured_content = {
-            "title": title,
-            "sections": sections,
-            "total_pages": max(total_sections, 1),  # At least 1 page
-            "metadata": {
-                "source": self.html_path,
-                "is_url": self.is_url
-            }
-        }
-        
+        structured_content = ParsedContent()
+        structured_content.title = title
+        structured_content.sections = sections
+        structured_content.total_pages = max(total_sections, 1)
+        structured_content.metadata = ParsedContentMetadata(
+            title=title,
+            creator="html processor",
+            producer="html processor",
+            creation_date=datetime.now().isoformat(),
+            modification_date=None
+        )
         return structured_content
     
     def _extract_title(self) -> str:
@@ -138,13 +142,13 @@ class HTMLProcessor(DocumentProcessor):
         
         return "untitled document"
     
-    def _extract_sections(self) -> List[Dict]:
+    def _extract_sections(self) -> List[ParsedContentSection]:
         """
         extract sections from html based on heading tags.
         returns:
             list of sections with title and content
         """
-        sections = []
+        sections: List[ParsedContentSection] = []
         current_section = None
         
         # find all heading and content elements
@@ -155,44 +159,44 @@ class HTMLProcessor(DocumentProcessor):
             # check if it's a heading
             if tag_name in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
                 # save previous section if it exists
-                if current_section and current_section['content'].strip():
+                if current_section and current_section.content.strip():
                     sections.append(current_section)
                 # start new section
                 level = int(tag_name[1])  # h1 -> 1, h2 -> 2, etc.
                 title = element.get_text().strip()
-                current_section = {
-                    "title": title if title else "untitled section",
-                    "content": "",
-                    "level": level
-                }
+                current_section = ParsedContentSection()
+                current_section.title = title if title else "untitled section"
+                current_section.content = ""
+                current_section.level = level
+                sections.append(current_section)
             elif current_section and tag_name in ['p', 'div']:
                 # add content to current section
                 text = element.get_text().strip()
                 if text:
-                    current_section["content"] += text + "\n\n"
+                    current_section.content += text + "\n\n"
         # add the last section if it exists
-        if current_section and current_section['content'].strip():
+        if current_section and current_section.content.strip():
             sections.append(current_section)
         # if no sections found, create one with all content
         if not sections:
             text = self.extract_text()
-            sections.append({
-                "title": "content",
-                "content": text,
-                "level": 1
-            })
+            sections.append(ParsedContentSection(
+                title="content",
+                content=text,
+                level=1
+            ))
         
-        logger.info(f"Identified {len(sections)} sections")
+        logger.info(f"identified {len(sections)} sections")
         return sections
     
-    def extract_images(self, min_width: int = 100, min_height: int = 100) -> List[Dict]:
+    def extract_images(self, min_width: int = 100, min_height: int = 100) -> List[ImageMetadata]:
         """
         extract all images from the html document.
         args:
             min_width: minimum image width to extract
             min_height: minimum image height to extract
         returns:
-            list of dictionaries containing image metadata
+            list of image metadata objects
         """
         if not self.soup:
             raise ValueError("html document not opened. use context manager or call __enter__()")
@@ -259,24 +263,27 @@ class HTMLProcessor(DocumentProcessor):
                 alt_text = img_tag.get('alt', '')
                 text_context = self._extract_text_context(img_tag)
                 # store metadata
-                image_metadata = {
-                    "filename": filename,
-                    "filepath": filepath,
-                    "page_number": 1,  # HTML doesn't have pages, use 1
-                    "width": width,
-                    "height": height,
-                    "format": format_name or "unknown",
-                    "mode": mode,
-                    "size_bytes": len(image_bytes),
-                    "text_context": text_context,
-                    "alt_text": alt_text,
-                    "source_url": img_url,
-                    "label": None,
-                    "description": None,
-                    "relevance_score": None
-                }
+                image_metadata = ImageMetadata(
+                    filename=filename,
+                    filepath=filepath,
+                    page_number=1,  # html doesn't have pages, use 1
+                    width=width,
+                    height=height,
+                    format=format_name or "unknown",
+                    mode=mode,
+                    size_bytes=len(image_bytes),
+                    text_context=text_context,
+                    xref=None,
+                    index_on_page=img_index,
+                    label=alt_text,
+                    description=None,
+                    relevance_score=None,
+                    image_type=None,
+                    key_elements=None,
+                    ai_relevance=None
+                )
                 # add metadata to list
-                self.images_data.append(image_metadata)
+                self.images_metadata.append(image_metadata)
                 image_count += 1
                 # log image extraction
                 logger.info(f"extracted image {image_count}: {filename} ({width}x{height})")
@@ -289,7 +296,7 @@ class HTMLProcessor(DocumentProcessor):
         # save metadata to json
         self._save_image_metadata()
         # return images data
-        return self.images_data
+        return self.images_metadata
     
     def _extract_text_context(self, img_tag, context_chars: int = 500) -> str:
         """
@@ -307,10 +314,10 @@ class HTMLProcessor(DocumentProcessor):
                 text = parent.get_text().strip()
                 if len(text) > context_chars:
                     return text[:context_chars]
-                return text
-            return img_tag.get('alt', '')
+                return text.strip()
+            return img_tag.get('alt', '').strip()
         except Exception as e:
-            logger.debug(f"Could not extract text context: {str(e)}")
+            logger.debug(f"could not extract text context: {str(e)}")
             return ""
     
     def _save_image_metadata(self):
@@ -318,7 +325,8 @@ class HTMLProcessor(DocumentProcessor):
         metadata_path = os.path.join(self.images_output_dir, "images_metadata.json")
         # save metadata to json file
         with open(metadata_path, 'w') as f:
-            json.dump(self.images_data, f, indent=2)
+            data = [img.model_dump(mode="json") for img in self.images_metadata]
+            json.dump(data, f, indent=2, ensure_ascii=False)
         # log saved metadata
         logger.info(f"Saved metadata to {metadata_path}")
         
@@ -328,7 +336,7 @@ class HTMLProcessor(DocumentProcessor):
         returns:
             dictionary with image statistics
         """
-        if not self.images_data:
+        if not self.images_metadata:
             return {
                 "total_images": 0,
                 "average_size": 0,
@@ -336,17 +344,47 @@ class HTMLProcessor(DocumentProcessor):
                 "pages_with_images": 0
             }
         
-        total_size = sum(img['size_bytes'] for img in self.images_data)
+        total_size = sum(img.size_bytes for img in self.images_metadata)
         formats = {}
-        for img in self.images_data:
-            fmt = img.get('format', 'unknown')
+        for img in self.images_metadata:
+            fmt = img.format or 'unknown'
             formats[fmt] = formats.get(fmt, 0) + 1
         
         return {
-            "total_images": len(self.images_data),
-            "average_size": total_size // len(self.images_data) if self.images_data else 0,
+            "total_images": len(self.images_metadata),
+            "average_size": total_size // len(self.images_metadata) if self.images_metadata else 0,
             "total_size": total_size,
             "formats": formats,
-            "pages_with_images": 1 if self.images_data else 0  # HTML is single "page"
+            "pages_with_images": 1 if self.images_metadata else 0  # HTML is single "page"
         }
+
+
+    def label_images(self, openai_api_key: str, prompts_dir: str):
+        logger.info("extracting images from html")
+        images_metadata = self.extract_images()
+        
+        if images_metadata:
+            stats = self.get_image_stats()
+            logger.info(f"extracted {stats['total_images']} images")
+            
+            # label images with ai if api key is available
+            if openai_api_key:
+                logger.info("labeling images with AI")
+                labeler = ImageLabeler(openai_api_key, 
+                                        prompts_dir=prompts_dir)
+                labeled_metadata = labeler.label_images_batch(images_metadata)
+                
+                # save labeled metadata
+                Path(self.images_output_dir).mkdir(parents=True, exist_ok=True)
+                metadata_path = os.path.join(self.images_output_dir, 'images_metadata_labeled.json')
+                labeler.save_labeled_metadata(labeled_metadata, metadata_path)
+                
+                self.images_metadata = labeled_metadata
+                logger.info(f"labeled {len(labeled_metadata)} images")
+            else:
+                logger.warning("openai api key not found, skipping image labeling")
+                self.images_metadata = images_metadata
+        else:
+            logger.info("no images found in pdf")
+            self.images_metadata = []
 

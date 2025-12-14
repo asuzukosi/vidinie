@@ -477,7 +477,6 @@ class PDFProcessor(DocumentProcessor):
             # label images with ai if api key is available
             if openai_api_key:
                 logger.info("labeling images with AI")
-                # try:
                 labeler = ImageLabeler(openai_api_key, 
                                         prompts_dir=prompts_dir)
                 labeled_metadata = labeler.label_images_batch(images_metadata)
@@ -489,10 +488,7 @@ class PDFProcessor(DocumentProcessor):
                 
                 self.images_metadata = labeled_metadata
                 logger.info(f"labeled {len(labeled_metadata)} images")
-                # except Exception as e:
-                #     logger.warning(f"image labeling failed: {str(e)}")
-                #     logger.warning("continuing without labeled images")
-                #     self.images_metadata = images_metadata
+            
             else:
                 logger.warning("openai api key not found, skipping image labeling")
                 self.images_metadata = images_metadata
