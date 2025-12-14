@@ -168,7 +168,7 @@ class HTMLProcessor(DocumentProcessor):
                 current_section.title = title if title else "untitled section"
                 current_section.content = ""
                 current_section.level = level
-                sections.append(current_section)
+            
             elif current_section and tag_name in ['p', 'div']:
                 # add content to current section
                 text = element.get_text().strip()
