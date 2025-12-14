@@ -104,6 +104,40 @@ class ImageMetadata(BaseModel):
     key_elements: Optional[List[str]] = None
     ai_relevance: Optional[str] = None
 
+STAGE_MAP: Dict[PipelineStage, PipelineStage] = {
+    PipelineStage.INITIALIZED: PipelineStage.DOCUMENT_PROCESSING,
+    PipelineStage.DOCUMENT_PROCESSING: PipelineStage.IMAGE_PROCESSING,
+    PipelineStage.IMAGE_PROCESSING: PipelineStage.CONTENT_ANALYSIS,
+    PipelineStage.CONTENT_ANALYSIS: PipelineStage.SCRIPT_GENERATION,
+    PipelineStage.SCRIPT_GENERATION: PipelineStage.VIDEO_GENERATION,
+    PipelineStage.VIDEO_GENERATION: PipelineStage.COMPLETED,
+    PipelineStage.FAILED: PipelineStage.FAILED,
+}
+
+def get_next_stage(current_stage: PipelineStage) -> PipelineStage:
+    """
+    get the next stage of the pipeline.
+    """
+    return STAGE_MAP.get(current_stage, PipelineStage.FAILED)
+
+def get_previous_stage(current_stage: PipelineStage) -> PipelineStage:
+    """
+    get the previous stage of the pipeline.
+    """
+    for key, value in STAGE_MAP.items():
+        if value == current_stage:
+            return key
+    return PipelineStage.FAILED
+
+
+class PipelineStageStatistics(BaseModel):
+    """
+    statistics of the pipeline stage.
+    """
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
+    duration: Optional[float] = None
+    status: Optional[PipelineStatus] = None
 
 class PipelineData(BaseModel):
     """
@@ -156,7 +190,7 @@ class PipelineData(BaseModel):
     status: PipelineStatus = PipelineStatus.PENDING
     
     # timing information
-    stage_timings: Dict[str, Dict[str, Any]] = Field(default_factory=dict)  # {operation_name: {start_time, end_time, duration}}
+    stage_statistics: Dict[PipelineStage, PipelineStageStatistics] = Field(default_factory=dict)  # {stage: {start_time, end_time, duration, status}}
 
     # rating information
     rating: Optional[int] = None  # rating of the pipeline
@@ -351,20 +385,20 @@ class PipelineData(BaseModel):
         
         # if starting a new operation
         if status == "in_progress" and stage != self.current_stage:
-            if stage not in self.stage_timings:
-                self.stage_timings[stage] = {}
-            self.stage_timings[stage]['start_time'] = now
+            if stage not in self.stage_statistics:
+                self.stage_statistics[stage] = PipelineStageStatistics()
+            self.stage_statistics[stage].start_time = now
         
         # if completing or failing an operation
         if status in ["completed", "failed"]:
-            if stage in self.stage_timings and 'start_time' in self.stage_timings[stage]:
-                start_time = datetime.fromisoformat(self.stage_timings[stage]['start_time'])
+            if stage in self.stage_statistics and self.stage_statistics[stage].start_time:
+                start_time = datetime.fromisoformat(self.stage_statistics[stage].start_time)
                 end_time = datetime.now()
                 duration = (end_time - start_time).total_seconds()
                 
-                self.stage_timings[stage]['end_time'] = now
-                self.stage_timings[stage]['duration'] = duration
-                self.stage_timings[stage]['status'] = status
+                self.stage_statistics[stage].end_time = now
+                self.stage_statistics[stage].duration = duration
+                self.stage_statistics[stage].status = status
         
         self.current_stage = stage
         self.status = status
