@@ -5,9 +5,12 @@ from fastapi import APIRouter, File, UploadFile, Form, HTTPException
 # from pipeline.stage4_video import generate_video
 from core.pipeline_data import PipelineData, SourceType, PipelineStage,\
                                PipelineStatus, ParsedContent, \
+                                ParsedContentMetadata, ParsedContentSection, \
+                                ImageMetadata, \
                                PipelineStageStatistics, get_next_stage, get_previous_stage
 from utils.logger import setup_logging, get_logger
 from pydantic import BaseModel
+from core.image_labeler import ImageLabeler
 from typing import List, Any, Dict, Union
 import os
 from pathlib import Path
@@ -253,15 +256,237 @@ async def get_pipeline_stage_details(pipeline_id: str) -> PipelineStageDetails:
                                 status=pipeline_data.status, next_stage=next_stage,
                                 previous_stage=previous_stage,
                                 stage_statistics=current_stage_statistics.model_dump(mode="json"))
-# @router.post("/parse_document")
-# async def parse_document_route(request: ParseDocumentRequest) -> PipelineData:
-#     pipeline_data = parse_document(request.pdf_path, request.extract_images)
-#     return pipeline_data
 
-# class CreateVideoOutlineRequest(BaseModel):
-#     skip_stock: bool = False
-#     target_segments: int = 7
-#     segment_duration: int = 45
+@router.get("/view_pipeline_images/{pipeline_id}", name="view pipeline images")
+async def view_pipeline_images(pipeline_id: str) -> List[ImageMetadata]:
+    logger.info("received request to view pipeline images")
+    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
+    if not pipeline_data:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    pipeline_data: PipelineData = PipelineData(**pipeline_data)
+    return pipeline_data.images_metadata
+
+@router.post("/add_pipeline_image/{pipeline_id}", name="add pipeline image")
+async def add_pipeline_image(pipeline_id: str, image: UploadFile, 
+                             text_context: Optional[str] = None,
+                             label: Optional[bool] = False) -> ImageMetadata:
+    logger.info("received request to add pipeline image")
+    
+    # retreive pipeline data
+    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
+    if not pipeline_data:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    pipeline_data: PipelineData = PipelineData(**pipeline_data)
+    
+    # validate if image is valid
+    if not image.filename.endswith((".png", ".jpg", ".jpeg", ".gif")):
+        raise HTTPException(status_code=400, detail="Invalid image type must be a PNG, JPG, or JPEG file")
+    
+    # save image to path specified by pipeline_id
+    path_id = pipeline_data.path_id
+    if not path_id:
+        raise HTTPException(status_code=500, 
+                            detail="Path ID not found for this pipeline you will have to create a new pipeline object to continue")
+    image_path = os.path.join(path_id, "images", image.filename)
+    with open(image_path, 'wb') as f:
+        f.write(image.file.read())
+    
+    # create image metadata object
+    image_metadata = ImageMetadata()
+    image_metadata.filename = image.filename
+    image_metadata.filepath = image_path
+    image_metadata.page_number = 1
+    image_metadata.width = image.size[0]
+    image_metadata.height = image.size[1]
+    image_metadata.format = image.content_type.split("/")[1]
+    image_metadata.mode = "RGB"
+    image_metadata.size_bytes = len(image.file.read())
+    image_metadata.text_context = text_context or ""
+    image_metadata.xref = None
+    image_metadata.index_on_page = 0
+
+    # if label is true, generate label and description
+    if label:
+        labeler = ImageLabeler(config.openai_api_key, config.get_prompts_directory())
+        image_metadata = labeler.label_images_batch([image_metadata])
+    
+    # add image metadata to pipeline data
+    pipeline_data.images_metadata.append(image_metadata)
+    pipeline_data_json: Dict[str, Any] = pipeline_data.model_dump(mode="json")
+    
+    # update database with new image metadata
+    await pipelines_collection.update_one(
+        {"_id": ObjectId(pipeline_id)},
+        {"$set": {"images_metadata": pipeline_data_json["images_metadata"]}}
+    )
+    return image_metadata
+
+class UpdatePipelineImageMetadataRequest(BaseModel):
+    index: int
+    filename: Optional[str] = None
+    text_context: Optional[str] = None
+    label: Optional[bool] = False
+    description: Optional[str] = None
+    relevance_score: Optional[float] = None
+    image_type: Optional[str] = None
+    key_elements: Optional[List[str]] = None
+    ai_relevance: Optional[str] = None
+
+def clean_dict(dict: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    helper function to clean a dictionary of None values for updating object
+    """
+    return {k: v for k, v in dict.items() if v is not None}
+
+@router.put("/update_pipeline_image_metadata/{pipeline_id}", name="update pipeline image metadata")
+async def update_pipeline_image_metadata(pipeline_id: str, request: UpdatePipelineImageMetadataRequest) -> ImageMetadata:
+    logger.info("received request to update pipeline image metadata")
+    # retreive pipeline data
+    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
+    if not pipeline_data:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    image_metadata: Dict[str, Any] = pipeline_data.get("images_metadata", [])[request.index]
+    if not image_metadata:
+        raise HTTPException(status_code=404, detail="Image metadata not found")
+    request_dict: Dict[str, Any] = request.model_dump(mode="json")
+    request_dict.pop("index", None)
+    request_dict = clean_dict(request_dict)
+    image_metadata.update(request_dict)
+    # update image metadata
+    if len(pipeline_data["images_metadata"]) > request.index:
+        pipeline_data["images_metadata"][request.index] = image_metadata
+    else:
+        pipeline_data["images_metadata"].append(image_metadata)
+    await pipelines_collection.update_one(
+        {"_id": ObjectId(pipeline_id)},
+        {"$set": {"images_metadata": pipeline_data["images_metadata"]}}
+    )
+    # create response object
+    response = ImageMetadata(**image_metadata)
+    return response
+
+class DeletePipelineImageResponse(BaseModel):
+    pipeline_id: str
+    filename: str
+    message: str
+    path_id: Optional[str] = None
+
+@router.delete("/delete_pipeline_image/{pipeline_id}", name="delete pipeline image")
+async def delete_pipeline_image(pipeline_id: str, index: int) -> DeletePipelineImageResponse:
+    logger.info("received request to delete pipeline image")
+    # retreive pipeline data
+    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
+    if not pipeline_data:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    pipeline_data: PipelineData = PipelineData(**pipeline_data)
+    image_metadata = pipeline_data.images_metadata.pop(index)
+    pipeline_data_json: Dict[str, Any] = pipeline_data.model_dump(mode="json")
+    # update database with new image metadata
+    await pipelines_collection.update_one(
+        {"_id": ObjectId(pipeline_id)},
+        {"$set": {"images_metadata": pipeline_data_json["images_metadata"]}}
+    )
+    # delete image file
+    if image_metadata.filepath:
+        os.remove(image_metadata.filepath)
+    # create response object
+    response = DeletePipelineImageResponse(pipeline_id=pipeline_id, 
+                                           message=f"Image {image_metadata.filename} deleted successfully",
+                                           filename=image_metadata.filename,
+                                           path_id=pipeline_data.path_id)
+    return response
+
+class ParsedContentDataMinimal(BaseModel):
+    title: Optional[str] = None
+    total_pages: Optional[int] = None
+    num_sections: Optional[int] = None
+    metadata: Optional[ParsedContentMetadata] = None
+
+@router.get("/get_pipeline_parsed_content_info/{pipeline_id}", name="get pipeline parsed content info")
+async def get_pipeline_parsed_content_info(pipeline_id: str) -> ParsedContentDataMinimal:
+    logger.info("received request to get pipeline parsed content info")
+    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
+    if not pipeline_data:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    pipeline_data: PipelineData = PipelineData(**pipeline_data)
+    return ParsedContentDataMinimal(title=pipeline_data.parsed_content.title,
+                                    total_pages=pipeline_data.parsed_content.total_pages,
+                                    num_sections=len(pipeline_data.parsed_content.sections),
+                                    metadata=pipeline_data.parsed_content.metadata)
+
+
+@router.get("/get_pipeline_sections/{pipeline_id}", name="get pipeline sections")
+async def get_pipeline_sections(pipeline_id: str) -> List[ParsedContentSection]:
+    logger.info("received request to get pipeline sections")
+    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
+    if not pipeline_data:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    pipeline_data: PipelineData = PipelineData(**pipeline_data)
+    return pipeline_data.parsed_content.sections
+
+@router.post("/add_pipeline_section/{pipeline_id}", name="add pipeline section")
+async def add_pipeline_section(pipeline_id: str, section: ParsedContentSection) -> ParsedContentSection:
+    logger.info("received request to add pipeline section")
+    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
+    if not pipeline_data:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    pipeline_data: PipelineData = PipelineData(**pipeline_data)
+    pipeline_data.parsed_content.sections.append(section)
+    pipeline_data_json: Dict[str, Any] = pipeline_data.model_dump(mode="json")
+    await pipelines_collection.update_one(
+        {"_id": ObjectId(pipeline_id)},
+        {"$set": {"parsed_content": pipeline_data_json["parsed_content"]}}
+    )
+    return section
+
+@router.put("/update_pipeline_section/{pipeline_id}", name="update pipeline section")
+async def update_pipeline_section(pipeline_id: str, index: int, section: ParsedContentSection) -> ParsedContentSection:
+    logger.info("received request to update pipeline section")
+    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
+    if not pipeline_data:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    section_data: Dict[str, Any] = pipeline_data.get("parsed_content", {}).get("sections", [])[index]
+    input_section: Dict[str, Any] = section.model_dump(mode="json")
+    input_section = clean_dict(input_section)
+    section_data.update(input_section)
+    if len(pipeline_data["parsed_content"]["sections"]) > index:
+        pipeline_data["parsed_content"]["sections"][index] = section_data
+    else:
+        pipeline_data["parsed_content"]["sections"].append(section_data)
+    pipeline_data_json: Dict[str, Any] = pipeline_data.model_dump(mode="json")
+    await pipelines_collection.update_one(
+        {"_id": ObjectId(pipeline_id)},
+        {"$set": {"parsed_content": pipeline_data_json["parsed_content"]}}
+    )
+    return ParsedContentSection(**section_data)
+
+class DeletePipelineSectionResponse(BaseModel):
+    pipeline_id: str
+    index: int
+    message: str
+    title: Optional[str] = None
+
+@router.delete("/delete_pipeline_section/{pipeline_id}", name="delete pipeline section")
+async def delete_pipeline_section(pipeline_id: str, index: int) -> DeletePipelineSectionResponse:
+    logger.info("received request to delete pipeline section")
+    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
+    if not pipeline_data:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    section_data = pipeline_data["parsed_content"]["sections"].pop(index)
+    await pipelines_collection.update_one(
+        {"_id": ObjectId(pipeline_id)},
+        {"$set": {"parsed_content": pipeline_data["parsed_content"]}}
+    )
+    return DeletePipelineSectionResponse(pipeline_id=pipeline_id,
+                                         index=index,
+                                         message=f"Section {section_data["title"]} deleted successfully",
+                                         title=section_data["title"])
+
+
+class CreateVideoOutlineRequest(BaseModel):
+    skip_stock: bool = False
+    target_segments: int = 7
+    segment_duration: int = 45
 
 # @router.post("/create_video_outline/{pipeline_id}")
 # async def create_video_outline_route(pipeline_id: str, 
