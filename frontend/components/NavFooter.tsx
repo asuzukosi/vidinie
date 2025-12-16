@@ -30,6 +30,17 @@ import {
   Settings,
   User,
 } from "lucide-react";
+import { signOut } from "@/lib/auth-client";
+import { useRouter } from "next/navigation";
+
+function getInitials(name: string): string {
+  return name
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+}
 
 export function NavFooter({
   user,
@@ -40,6 +51,18 @@ export function NavFooter({
     avatar: string;
   };
 }) {
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await signOut({
+      fetchOptions: {
+        onSuccess: () => {
+          router.push("/signin");
+        },
+      },
+    });
+  };
+
   return (
     <SidebarFooter className="p-4">
       <SidebarMenu>
@@ -50,7 +73,7 @@ export function NavFooter({
                 <DropdownMenuTrigger asChild>
                   <Avatar className="h-8 w-8 rounded-full">
                     <AvatarImage src={user.avatar} alt={user.name} />
-                    <AvatarFallback className="rounded-full">CN</AvatarFallback>
+                    <AvatarFallback className="rounded-full">{getInitials(user.name)}</AvatarFallback>
                   </Avatar>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="m-2">
@@ -66,7 +89,7 @@ export function NavFooter({
                     />
                     Settings
                   </DropdownMenuItem>
-                  <DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleLogout}>
                     <LogOut
                       size={16}
                       className="opacity-80"
