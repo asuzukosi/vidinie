@@ -19,8 +19,9 @@ import { Input } from "@/components/ui/input";
 
 interface LoginFormProps extends React.ComponentProps<"div"> {
   onLogin?: (email: string, password: string) => Promise<void>;
+  onGoogleLogin?: () => Promise<void>;
 }
-export function LoginForm({ className, onLogin, ...props }: LoginFormProps) {
+export function LoginForm({ className, onLogin, onGoogleLogin, ...props }: LoginFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -81,6 +82,9 @@ export function LoginForm({ className, onLogin, ...props }: LoginFormProps) {
               <Field>
                 <Button type="submit" disabled={isLoading}>
                   {isLoading ? "Logging in..." : "Login"}
+                </Button>
+                <Button variant="outline" type="button" onClick={onGoogleLogin}>
+                  Login with Google
                 </Button>
                 <FieldDescription className="text-center">
                   Don&apos;t have an account? <a href="/signup">Sign up</a>
