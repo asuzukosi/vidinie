@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -31,7 +32,9 @@ export function SignupForm({ onSignup, ...props }: SignupFormProps) {
     e.preventDefault();
 
     if (password !== confirmPassword) {
-      alert("Passwords do not match");
+      toast.error("Passwords do not match", {
+        description: "Please make sure both passwords are the same.",
+      });
       return;
     }
 

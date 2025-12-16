@@ -1,8 +1,12 @@
 "use client";
+import { useRouter } from "next/navigation";
 import { SignupForm } from "@/components/signup-form";
 import { authClient } from "@/lib/auth-client";
+import { toast } from "sonner";
 
 export default function SignupPage() {
+  const router = useRouter();
+
   const handleSignup = async (
     name: string,
     email: string,
@@ -12,12 +16,18 @@ export default function SignupPage() {
       name,
       email,
       password,
-      callbackURL: "/",
     });
 
     if (error) {
-      alert(error.message);
+      toast.error("Signup failed", {
+        description: error.message || "Unable to create account. Please try again.",
+      });
+      return;
     }
+    toast.success("Account created successfully", {
+      description: "Welcome to Vidinie!",
+    });
+    router.push("/");
   };
 
   return (
