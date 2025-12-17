@@ -1,7 +1,0 @@
-{
-  "dependencies": {
-    "better-auth": "^1.4.7",
-    "dotenv": "^17.2.3",
-    "mongodb": "^6.21.0"
-  }
-}
