@@ -3,42 +3,39 @@ Context processor utility
 Processes large context and splits it into smaller chunks with summaries.
 """
 
-from typing import List, Dict, Optional
+from typing import List, Optional
 from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from openai import OpenAI
 from utils.logger import get_logger
-
+from core.pipeline_data import ContextChunk
 logger = get_logger(__name__)
 
 
 class ContextProcessor:
     """
-    Processes large context and splits it into smaller chunks.
-    
-    Args:
-        context: The large context to process
-        api_key: OpenAI API key
-        document_title: The title of the document
-        chunk_length: The length of each chunk
-        split_by: The character to split the context by
-    
-    Returns:
-        A list of smaller chunks with summaries
+    process large context and split it into smaller chunks.
+    args:
+        context: the large context to process
+        api_key: openai api key
+        document_title: the title of the document
+        chunk_length: the length of each chunk
+        split_by: the character to split the context by
+    returns:
+        list of smaller chunks with summaries
     """
     
     def __init__(self, context: str, api_key: str, document_title: str = "Untitled Document", 
                  chunk_length: int = 5000, split_by: str = '\n', prompts_dir: Optional[Path] = None):
         """
-        Initialize large context processor.
-        
-        Args:
-            context: The large context to process
-            api_key: OpenAI API key
-            document_title: The title of the document
-            chunk_length: The length of each chunk
-            split_by: The character to split the context by
-            prompts_dir: Path to prompts directory (from config)
+        initialize large context processor.
+        args:
+            context: the large context to process
+            api_key: openai api key
+            document_title: the title of the document
+            chunk_length: the length of each chunk
+            split_by: the character to split the context by
+            prompts_dir: path to prompts directory
         """
         self.context = context
         self.document_title = document_title
@@ -46,7 +43,7 @@ class ContextProcessor:
         self.split_by = split_by
         self.client = OpenAI(api_key=api_key)
         
-        # Initialize jinja2 environment for prompt templates
+        # initialize jinja2 environment for prompt templates
         if prompts_dir is None:
             from utils.config_loader import get_config
             config = get_config()
@@ -59,15 +56,13 @@ class ContextProcessor:
 
     def _generate_summary(self, prompt: str) -> str:
         """
-        Generate a summary of the context.
-        
-        Args:
-            prompt: The text chunk to summarize
-        
-        Returns:
-            A summary of the context
+        generate a summary of the context.
+        args:
+            prompt: the text chunk to summarize
+        returns:
+            summary of the context
         """
-        # Load system prompt from template
+        # load system prompt from template
         system_template = self.jinja_env.get_template('bullet_summary_system.j2')
         system_prompt = system_template.render(document_title=self.document_title)
         
@@ -88,14 +83,14 @@ class ContextProcessor:
 
     def _split_context(self) -> List[str]:
         """
-        Split the context into smaller chunks.
-        
-        Returns:
-            A list of smaller chunks
+        split the context into smaller chunks.
+        returns:
+            list of smaller chunks
         """
-        all_segments = self.context.split(self.split_by)
-        chunks = []
-        current_chunk = ""
+        
+        all_segments: List[str] = self.context.split(self.split_by)
+        chunks: List[str] = []
+        current_chunk: str = ""
         for segment in all_segments:
             if len(current_chunk) + len(segment) > self.chunk_length:
                 chunks.append(current_chunk)
@@ -105,20 +100,16 @@ class ContextProcessor:
             chunks.append(current_chunk)
         return chunks
     
-    def get_chunks(self) -> List[Dict]:
+    def get_chunks(self) -> List[ContextChunk]:
         """
-        Get the chunks of the context with summaries.
-        
-        Returns:
-            A list of dictionaries with 'chunk' and 'summary' keys
+        get the chunks of the context with summaries.
+        returns:
+            list of ContextChunk objects
         """
-        chunks = self._split_context()
-        data = []
+        chunks: List[str] = self._split_context()
+        data: List[ContextChunk] = []
         for chunk in chunks:
-            summary = self._generate_summary(chunk)
-            data.append({
-                'chunk': chunk,
-                'summary': summary
-            })
+            summary: str = self._generate_summary(chunk)
+            data.append(ContextChunk(chunk=chunk, summary=summary))
         return data
 

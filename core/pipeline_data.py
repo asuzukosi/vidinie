@@ -139,6 +139,48 @@ class PipelineStageStatistics(BaseModel):
     duration: Optional[float] = None
     status: Optional[PipelineStatus] = None
 
+class ContextChunk(BaseModel):
+    """
+    context chunk with summary from the document.
+    """
+    chunk: str
+    summary: str
+
+class ContextProcessorInfo(BaseModel):
+    """
+    context processor information.
+    """
+    document_title: str
+    chunk_length: int
+    split_by: str
+    total_chunks: int
+    total_content_length: int
+
+
+class SegmentImage(BaseModel):
+    """pydantic model for segment image."""
+    source: str  # "pdf", "stock", or "ai_generated"
+    query: Optional[str] = None  # search keyword if stock, or prompt if ai_generated
+    path: Optional[str] = None  # path to pdf image if pdf, or path to generated image if ai_generated
+
+class VideoSegment(BaseModel):
+    """pydantic model for a video segment."""
+    title: str
+    purpose: str
+    content: str
+    key_points: List[str]
+    visual_keywords: List[str]
+    duration: int
+    image: Optional[SegmentImage] = None  # image to show with segment
+    stock_image_query: Optional[str] = None  # TODO: remove this field and use image.query instead
+
+class VideoOutline(BaseModel):
+    """pydantic model for video outline."""
+    title: str
+    total_segments: int
+    estimated_duration: int
+    segments: List[VideoSegment]
+
 class PipelineData(BaseModel):
     """
     comprehensive data model for document processing pipeline.
@@ -168,8 +210,8 @@ class PipelineData(BaseModel):
     images_metadata: List[ImageMetadata] = Field(default_factory=list)  # extracted and labeled images
     
     # content_analysis operation
-    chunks: List[Dict[str, Any]] = Field(default_factory=list)  # processed content chunks
-    video_outline: Optional[Dict[str, Any]] = None  # video structure and segment plan
+    chunks: List[ContextChunk] = Field(default_factory=list)  # processed content chunks
+    video_outline: Optional[VideoOutline] = None  # video structure and segment plan
     
     # script_generation operation
     script_data: Optional[Dict[str, Any]] = None  # generated narration scripts
@@ -241,7 +283,7 @@ class PipelineData(BaseModel):
         
         if self.video_outline:
             with open(folder / "video_outline.json", 'w', encoding='utf-8') as f:
-                json.dump(self.video_outline, f, indent=2, ensure_ascii=False)
+                json.dump(self.video_outline.model_dump(mode="json"), f, indent=2, ensure_ascii=False)
         
         if self.script_data:
             with open(folder / "video_script.json", 'w', encoding='utf-8') as f:

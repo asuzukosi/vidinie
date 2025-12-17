@@ -1,13 +1,9 @@
 from fastapi import APIRouter, File, UploadFile, Form, HTTPException
-# from pipeline.stage1_parsing import parse_document
-# from pipeline.stage2_content import create_video_outline
-# from pipeline.stage3_script import generate_scripts_and_voiceovers
-# from pipeline.stage4_video import generate_video
 from core.pipeline_data import PipelineData, SourceType, PipelineStage,\
-                               PipelineStatus, ParsedContent, \
+                               PipelineStatus, ParsedContent, VideoSegment, \
                                 ParsedContentMetadata, ParsedContentSection, \
-                                ImageMetadata, \
-                               PipelineStageStatistics, get_next_stage, get_previous_stage
+                                ImageMetadata, ContextChunk, ContextProcessorInfo, \
+                               PipelineStageStatistics, get_next_stage, get_previous_stage, VideoOutline
 from utils.logger import setup_logging, get_logger
 from pydantic import BaseModel
 from core.image_labeler import ImageLabeler
@@ -18,6 +14,9 @@ from api.core.db import pipelines_collection
 from utils.config_loader import get_config
 from core.processors.pdf_processor import PDFProcessor
 from core.processors.html_processor import HTMLProcessor
+from core.context_processor import ContextProcessor
+from core.content_analyzer import ContentAnalyzer
+from core.stock_image_fetcher import StockImageFetcher
 from bson.objectid import ObjectId
 from datetime import datetime
 from typing import Optional
@@ -488,11 +487,168 @@ class CreateVideoOutlineRequest(BaseModel):
     target_segments: int = 7
     segment_duration: int = 45
 
-# @router.post("/create_video_outline/{pipeline_id}")
-# async def create_video_outline_route(pipeline_id: str, 
-#                                     request: CreateVideoOutlineRequest) -> PipelineData:
-#     pipeline_data = create_video_outline(pipeline_id, request.skip_stock, request.target_segments, request.segment_duration)
-#     return pipeline_data
+@router.post("/process_content/{pipeline_id}", name="process context")
+async def process_content(pipeline_id: str, request: CreateVideoOutlineRequest):
+    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
+    if not pipeline_data:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    pipeline_data: PipelineData = PipelineData(**pipeline_data)
+    pipeline_data.update_stage(PipelineStage.CONTENT_ANALYSIS, PipelineStatus.IN_PROGRESS)
+    # check if openai api key is set
+    config = get_config()
+    if not config.openai_api_key:
+        logger.error("openai api key required")
+        pipeline_data.update_stage(PipelineStage.CONTENT_ANALYSIS, PipelineStatus.FAILED)
+        pipelines_collection.update_one(
+            {"_id": ObjectId(pipeline_id)},
+            {"$set": pipeline_data.model_dump(mode="json")}
+        )
+        raise HTTPException(status_code=500, detail="OpenAI API key not set")
+    # check if parsed content is set
+    if not pipeline_data.parsed_content:
+        logger.error("parsed content not found in pipeline data")
+        pipeline_data.update_stage(PipelineStage.CONTENT_ANALYSIS, PipelineStatus.FAILED)
+        await pipelines_collection.update_one(
+            {"_id": ObjectId(pipeline_id)},
+            {"$set": pipeline_data.model_dump(mode="json")}
+        )
+        raise HTTPException(status_code=500, detail="Parsed content not found")
+    # process context
+    pdf_content = pipeline_data.parsed_content
+    images_metadata = pipeline_data.images_metadata or []
+    logger.info(f"loaded {len(pdf_content['sections'])} sections and {len(images_metadata)} images")
+    # process context into chunks
+    logger.info("processing context into chunks")
+    all_content = ""
+    for section in pdf_content.sections:
+        all_content += section.content
+    prompts_dir = config.get_prompts_directory()
+    chunk_length = config.get('content.chunk_length', 4000)
+
+    context_processor = ContextProcessor(
+            all_content,
+            config.openai_api_key,
+            pdf_content.title,
+            chunk_length=chunk_length,
+            split_by='\n',
+            prompts_dir=prompts_dir
+        )
+    chunks: List[ContextChunk] = context_processor.get_chunks()
+    pipeline_data.chunks = chunks
+    # store context processor information
+    pipeline_data.context_processor_info = ContextProcessorInfo(
+        document_title=pdf_content.title,
+        chunk_length=chunk_length,
+        split_by='\n',
+        total_chunks=len(chunks),
+        total_content_length=len(all_content)
+    )
+    logger.info(f"stored context processor information with total chunks: {len(chunks)} and total content length: {len(all_content)}")
+    # create video outline
+    logger.info("creating video outline")
+    analyzer = ContentAnalyzer(
+        api_key=config.openai_api_key,
+        target_segments=request.target_segments,
+        segment_duration=request.segment_duration,
+        prompts_dir=prompts_dir
+    )
+    outline: VideoOutline = analyzer.analyze_content(
+        document_title=pdf_content.title,
+        chunks=chunks,
+        images_metadata=images_metadata
+    )
+    logger.info("fetching stock images")
+    stock_images_dir = os.path.join(config.get('output.temp_directory', 'temp'), pipeline_data.path_id, 'images', 'stock_images')
+    fetcher = StockImageFetcher(config.unsplash_access_key, 
+                                config.pexels_api_key, output_dir=stock_images_dir)
+    availability = fetcher.is_available()
+    if any(availability.values()):
+        preferred = config.get('images.preferred_stock_provider', 'unsplash')
+        outline.segments = fetcher.fetch_for_segments(outline.segments, preferred)
+    else:
+        logger.info("no stock image api keys available")
+    # update pipeline data
+    pipeline_data.video_outline = outline
+    pipeline_data.update_stage(PipelineStage.CONTENT_ANALYSIS, PipelineStatus.COMPLETED)
+    # save pipeline data
+    await pipelines_collection.update_one(
+        {"_id": ObjectId(pipeline_id)},
+        {"$set": pipeline_data.model_dump(mode="json")}
+    )
+
+@router.get("/get_pipeline_context_chunks/{pipeline_id}", name="get pipeline context chunks")
+async def get_pipeline_context_chunks(pipeline_id: str) -> List[ContextChunk]:
+    logger.info("received request to get pipeline context chunks")
+    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
+    if not pipeline_data:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    pipeline_data: PipelineData = PipelineData(**pipeline_data)    
+    return pipeline_data.chunks
+
+@router.get("/get_pipeline_video_outline/{pipeline_id}", name="get pipeline video outline")
+async def get_pipeline_video_outline(pipeline_id: str) -> VideoOutline:
+    logger.info("received request to get pipeline video outline")
+    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
+    if not pipeline_data:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    pipeline_data: PipelineData = PipelineData(**pipeline_data)
+    return pipeline_data.video_outline
+
+@router.get("/get_pipeline_video_outline_segments/{pipeline_id}", name="get pipeline video outline segments")
+async def get_pipeline_video_outline_segments(pipeline_id: str) -> List[VideoSegment]:
+    logger.info("received request to get pipeline video outline segments")
+    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
+    if not pipeline_data:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    pipeline_data: PipelineData = PipelineData(**pipeline_data)
+    return pipeline_data.video_outline.segments
+
+@router.post("/add_pipeline_video_outline_segment/{pipeline_id}", name="add pipeline video outline segment")
+async def add_pipeline_video_outline_segment(pipeline_id: str, segment: VideoSegment) -> VideoSegment:
+    logger.info("received request to add pipeline video outline segment")
+    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
+    if not pipeline_data:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    pipeline_data: PipelineData = PipelineData(**pipeline_data)
+    pipeline_data.video_outline.segments.append(segment)
+    pipeline_data_json: Dict[str, Any] = pipeline_data.model_dump(mode="json")
+    await pipelines_collection.update_one(
+        {"_id": ObjectId(pipeline_id)},
+        {"$set": {"video_outline": pipeline_data_json["video_outline"]}}
+    )
+    return VideoSegment(**segment)
+
+@router.put("/update_pipeline_video_outline_segment/{pipeline_id}", name="update pipeline video outline segment")
+async def update_pipeline_video_outline_segment(pipeline_id: str, index: int, segment: VideoSegment) -> VideoSegment:
+    logger.info("received request to update pipeline video outline segment")
+    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
+    if not pipeline_data:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    pipeline_data: PipelineData = PipelineData(**pipeline_data)
+    pipeline_data.video_outline.segments[index] = segment
+    
+    await pipelines_collection.update_one(
+        {"_id": ObjectId(pipeline_id)},
+        {"$set": {"video_outline": pipeline_data.model_dump(mode="json")["video_outline"]}}
+    )
+    return VideoSegment(**segment)
+
+@router.delete("/delete_pipeline_video_outline_segment/{pipeline_id}", name="delete pipeline video outline segment")
+async def delete_pipeline_video_outline_segment(pipeline_id: str, index: int) -> VideoSegment:
+    logger.info("received request to delete pipeline video outline segment")
+    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
+    if not pipeline_data:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    pipeline_data: PipelineData = PipelineData(**pipeline_data)
+    segment = pipeline_data.video_outline.segments.pop(index)
+    await pipelines_collection.update_one(
+        {"_id": ObjectId(pipeline_id)},
+        {"$set": {"video_outline": pipeline_data.model_dump(mode="json")["video_outline"]}}
+    )
+    return VideoSegment(**segment)
+
+async def generate_images_for_pipeline_segments(pipeline_id: str, indexes: List[str]):
+    pass
 
 # class GenerateScriptsAndVoiceoversRequest(BaseModel):
 #     provider: Optional[str] = None

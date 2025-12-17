@@ -7,41 +7,14 @@ and matches images to appropriate segments.
 """
 
 import json
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 from openai import OpenAI
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from pathlib import Path
-from pydantic import BaseModel
+from core.pipeline_data import VideoOutline
 from utils.logger import get_logger
 
 logger = get_logger("content_analyzer")
-
-
-class SegmentImage(BaseModel):
-    """pydantic model for segment image."""
-    source: str  # "pdf", "stock", or "ai_generated"
-    query: Optional[str] = None  # search keyword if stock, or prompt if ai_generated
-    path: Optional[str] = None  # path to pdf image if pdf, or path to generated image if ai_generated
-
-
-class VideoSegment(BaseModel):
-    """pydantic model for a video segment."""
-    title: str
-    purpose: str
-    content: str
-    key_points: List[str]
-    visual_keywords: List[str]
-    duration: int
-    image: Optional[SegmentImage] = None  # image to show with segment
-
-
-class VideoOutline(BaseModel):
-    """pydantic model for video outline."""
-    title: str
-    total_segments: int
-    estimated_duration: int
-    segments: List[VideoSegment]
-
 
 class ContentAnalyzer:
     """analyze and structure content for video creation."""
@@ -65,7 +38,7 @@ class ContentAnalyzer:
         # set openai model
         self.model = "gpt-4o-2024-08-06"
         
-        # Initialize jinja2 environment for prompt templates
+        # initialize jinja2 environment for prompt templates
         if prompts_dir is None:
             from utils.config_loader import get_config
             config = get_config()
@@ -79,7 +52,15 @@ class ContentAnalyzer:
     
     def analyze_content(self, document_title: str, chunks: List[Dict], 
                        images_metadata: Optional[List[Dict]] = None) -> Dict:
-        """analyze content and create video segments."""
+        """
+        analyze content and create video segments.
+        args:
+            document_title: title of the document
+            chunks: list of context chunks
+            images_metadata: list of image metadata
+        returns:
+            video outline
+        """
         logger.info("starting content analysis")
         
         # create video outline (image matching is now handled by the model)
@@ -164,24 +145,20 @@ class ContentAnalyzer:
         """
         try:
             # parse json string
-            outline_data = json.loads(outline_json)
+            outline: Dict[str, Any] = json.loads(outline_json)
             
             # validate and parse with pydantic
-            outline_model = VideoOutline(**outline_data)
-            
-            # convert to dict and add missing fields for backward compatibility
-            outline_dict = outline_model.model_dump()
+            outline: VideoOutline = VideoOutline(**outline)
             
             # ensure title matches
-            if not outline_dict.get('title'):
-                outline_dict['title'] = document_title
+            if not outline.title:
+                outline.title = document_title
             
             # validate minimum segments
-            if outline_dict['total_segments'] < 3:
+            if outline.total_segments < 3:
                 logger.warning("outline has too few segments, using fallback")
                 raise ValueError("Too few segments generated")
-            
-            return outline_dict
+            return outline
             
         except json.JSONDecodeError as e:
             logger.error(f"failed to parse json: {str(e)}")
@@ -240,7 +217,7 @@ class ContentAnalyzer:
         return prompt
     
 
-    def _convert_image_format(self, outline: Dict) -> Dict:
+    def _convert_image_format(self, outline: VideoOutline) -> VideoOutline:
         """
         convert image field to backward-compatible format.
         args:
@@ -248,20 +225,16 @@ class ContentAnalyzer:
         returns:
             outline with pdf_images and stock_image_query fields
         """
-        for segment in outline['segments']:
-            # initialize backward-compatible fields
-            segment['pdf_images'] = []
-            segment['stock_image_query'] = None
-            
+        for segment in outline.segments:           
             # convert image field if present
-            if segment.get('image'):
-                img = segment['image']
-                if img['source'] == 'pdf' and img.get('path'):
+            if segment.image:
+                img = segment.image
+                if img.source == 'pdf' and img.path:
                     # add to pdf_images list
-                    segment['pdf_images'] = [{'filepath': img['path']}]
-                elif img['source'] == 'stock' and img.get('query'):
+                    segment.image.path = img.path
+                elif img.source == 'stock' and img.query:
                     # set stock_image_query
-                    segment['stock_image_query'] = img['query']
+                    segment.stock_image_query = img.query
         
         return outline
     
