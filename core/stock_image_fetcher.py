@@ -73,7 +73,7 @@ class StockImageFetcher:
         """
         fetch stock images for video segments.
         args:
-            segments: list of video segments with stock_image_query
+            segments: list of video segments with image field
             preferred_provider: "unsplash" or "pexels"
         returns:
             updated segments with segment image
@@ -88,7 +88,7 @@ class StockImageFetcher:
         providers += [p for p in all_providers if p != preferred_provider]
         
         for i, segment in enumerate(segments, 1):
-            query = segment.stock_image_query
+            query = segment.image.query if segment.image else None
             if not query:
                 logger.debug(f"Segment {i} has no stock image query: {segment.title}")
                 continue

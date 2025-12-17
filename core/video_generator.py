@@ -11,7 +11,7 @@ creates presentation-style explainer videos with:
 import os
 from typing import Dict, Optional
 import numpy as np
-
+from core.pipeline_data import ScriptData, VideoSegment, ImageSource
 # pillow 10.0.0+ compatibility fix for moviepy
 from PIL import Image
 if not hasattr(Image, 'ANTIALIAS'):
@@ -24,10 +24,12 @@ from moviepy.editor import (
 from moviepy.video.fx.fadein import fadein
 from moviepy.video.fx.fadeout import fadeout
 
+from core.pipeline_data import BackgroundType
 from utils.video_utils import VideoUtils
 from utils.font_loader import FontLoader
 from utils.logger import get_logger
 from utils.config_loader import Config
+from typing import Tuple
 
 logger = get_logger("video_generator")
 
@@ -35,34 +37,44 @@ logger = get_logger("video_generator")
 class VideoGenerator:
     """unified video generator based on slideshow style."""
     
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, 
+                 video_title: Optional[str] = 'Untitled',
+                 subtitle: Optional[str] = 'Explainer Video by Vidinie',
+                 resolution: Optional[Tuple[int, int]] = [1920, 1080],
+                 fps: Optional[int] = 30,
+                 title_duration: Optional[float] = 3.0,
+                 end_duration: Optional[float] = 3.0,
+                 transition_duration: Optional[float] = 0.5,
+                 background_type: Optional[BackgroundType] = BackgroundType.GRADIENT,
+                 enable_animations: Optional[bool] = False):
         """
         initialize video generator.
         args:
             config: configuration object
         """
         self.config = config
-        resolution = config.get('video.resolution', [1920, 1080])
         self.width = resolution[0]
         self.height = resolution[1]
-        self.fps = config.get('video.fps', 30)
-        
-        self.transition_duration = config.get('styles.slideshow.transition_duration', 0.5)
-        self.background_type = config.get('styles.slideshow.background_type', 'gradient')
-        self.enable_animations = config.get('styles.slideshow.enable_animations', False)
+        self.fps = fps
+        self.subtitle = subtitle
+        self.title_duration = title_duration
+        self.end_duration = end_duration
+        self.transition_duration = transition_duration
+        self.background_type = background_type
+        self.enable_animations = enable_animations
         
         # initialize font loader
         self.font_loader = FontLoader(config) # TODO: allow for setting of multiple font folders to load from
         VideoUtils.set_font_loader(self.font_loader)
         # video title will be set when generate_video is called
-        self.video_title = "Untitled"
+        self.video_title = video_title
         logger.info(f"initialized video generator: {self.width}x{self.height} @ {self.fps}fps")
         # log available fonts
         available_fonts = self.font_loader.list_available_fonts()
         if available_fonts:
             logger.info(f"available fonts: {', '.join(available_fonts)}")
     
-    def generate_video(self, script_with_audio: Dict, output_path: str) -> str:
+    def generate_video(self, script_data: ScriptData, output_path: str) -> str:
         """
         generate video from script and audio data.
         args:
@@ -75,15 +87,15 @@ class VideoGenerator:
         clips = []
         
         # store video title for use in all segments
-        self.video_title = script_with_audio.get('title', 'Untitled')
+        self.video_title = self.video_title if self.video_title else script_data.title
         
         # create title card
         title_clip = self._create_title_card(self.video_title)
         clips.append(title_clip)
         
         # create clips for each segment
-        for i, segment in enumerate(script_with_audio['segments'], 1):
-            logger.info(f"creating slide {i}/{len(script_with_audio['segments'])}: {segment['title']}")
+        for i, segment in enumerate(script_data.segments, 1):
+            logger.info(f"creating slide {i}/{len(script_data.segments)}: {segment.title}")
             
             segment_clip = self._create_segment_clip(segment, i)
             if segment_clip is not None:
@@ -116,12 +128,11 @@ class VideoGenerator:
         logger.info(f"video generated successfully: {output_path}")
         return output_path
     
-    def _create_title_card(self, title: str, duration: float = 3.0) -> VideoClip:
+    def _create_title_card(self, title: str) -> VideoClip:
         """
         create title card clip. 
         args:
             title: video title
-            duration: duration in seconds
         returns:
             video clip for title card
         """
@@ -131,19 +142,17 @@ class VideoGenerator:
             self.width,
             self.height,
             title,
-            subtitle="Explainer Video by Vidinie"
+            subtitle=self.subtitle
         )
         
-        clip = ImageClip(title_card).set_duration(duration)
+        clip = ImageClip(title_card).set_duration(self.title_duration)
         clip = clip.fx(fadein, 0.5).fx(fadeout, 0.5)
         
         return clip
     
-    def _create_end_card(self, duration: float = 3.0) -> VideoClip:
+    def _create_end_card(self) -> VideoClip:
         """
         create end card clip.
-        args:
-            duration: duration in seconds
         returns:
             video clip for end card
         """
@@ -155,23 +164,25 @@ class VideoGenerator:
             message="Thank you for watching!"
         )
         
-        clip = ImageClip(end_card).set_duration(duration)
+        clip = ImageClip(end_card).set_duration(self.end_duration)
         clip = clip.fx(fadein, 0.5).fx(fadeout, 0.5)
         
         return clip
     
-    def _create_segment_clip(self, segment: Dict, segment_number: int) -> Optional[VideoClip]:
+    def _create_segment_clip(self, 
+                            segment: VideoSegment, 
+                            segment_number: int) -> Optional[VideoClip]:
         """
         create video clip for a segment.
         args:
-            segment: segment data dictionary
+            segment: video segment data
             segment_number: segment number
         returns:
             video clip for segment or None if failed
         """
         try:
             # get duration from audio or estimate
-            duration = segment.get('audio_duration', segment.get('duration', 45))
+            duration = segment.audio_duration if segment.audio_duration else 45
             
             # create background
             background = self._create_background(segment)
@@ -188,7 +199,7 @@ class VideoGenerator:
             clip = ImageClip(background).set_duration(duration)
             
             # add audio if available
-            audio_file = segment.get('audio_file')
+            audio_file = segment.audio_file
             if audio_file and os.path.exists(audio_file):
                 audio = AudioFileClip(audio_file)
                 clip = clip.set_audio(audio)
@@ -205,7 +216,7 @@ class VideoGenerator:
             logger.error(f"error creating segment clip {segment_number}: {str(e)}", exc_info=True)
             return None
     
-    def _get_image_path(self, segment: Dict) -> Optional[str]:
+    def _get_image_path(self, segment: VideoSegment) -> Optional[str]:
         """
         get image path from segment.
         prioritizes: image field > pdf_images > stock_image (legacy support).
@@ -215,36 +226,18 @@ class VideoGenerator:
             path to image or None
         """
         # check new image field from content analyzer
-        if segment.get('image'):
-            img = segment['image']
-            if img.get('source') == 'pdf' and img.get('path'):
-                return img['path']
-            elif img.get('source') == 'stock' and segment.get('stock_image'):
+        if segment.image:
+            if segment.image.source == ImageSource.PDF and segment.image.path:
+                return segment.image.path
+            elif segment.image.source == ImageSource.STOCK and segment.image.query:
                 # stock image should have been fetched
-                return segment['stock_image'].get('filepath')
-            elif img.get('source') == 'ai_generated' and img.get('path'):
+                return segment.image.path
+            elif segment.image.source == ImageSource.AI_GENERATED and segment.image.path:
                 # ai-generated image path
-                return img['path']
-            elif img.get('source') == 'ai_generated' and segment.get('ai_generated_image'):
-                # fallback to ai_generated_image metadata
-                return segment['ai_generated_image'].get('filepath')
-        
-        # legacy support: check pdf_images and stock_image directly
-        if segment.get('pdf_images') and len(segment['pdf_images']) > 0:
-            img_data = segment['pdf_images'][0]
-            if isinstance(img_data, dict):
-                return img_data.get('filepath')
-            elif isinstance(img_data, str):
-                return img_data
-        
-        if segment.get('stock_image'):
-            stock_img = segment['stock_image']
-            if isinstance(stock_img, dict):
-                return stock_img.get('filepath')
-        
+                return segment.image.path
         return None
     
-    def _create_background(self, segment: Dict) -> np.ndarray:
+    def _create_background(self, segment: VideoSegment) -> np.ndarray:
         """
         create background for slide.
         args:
@@ -252,15 +245,27 @@ class VideoGenerator:
         returns:
             background as numpy array
         """
-        if self.background_type == 'gradient':
+        if self.background_type == BackgroundType.GRADIENT:
             return VideoUtils.create_gradient_background(
                 self.width, self.height,
+                color1=segment.background_colors[0] if segment.background_colors else None,
+                color2=segment.background_colors[1] if segment.background_colors else None
             )
-        else:
+        elif self.background_type == BackgroundType.SOLID:
             # solid color
             return VideoUtils.create_solid_background(
                 self.width, self.height,
+                segment.background_colors[0] if segment.background_colors else None
             )
+        elif self.background_type == BackgroundType.IMAGE:
+            # image background
+            return VideoUtils.create_image_background(
+                self.width, self.height,
+                segment.background_image_path if segment.background_image_path else None
+            )
+        else:
+            logger.warning(f"unsupported background type: {self.background_type}")
+            return None
     
     def _add_image_to_slide(self, background: np.ndarray, image_path: str) -> np.ndarray:
         """
@@ -287,14 +292,13 @@ class VideoGenerator:
         
         return background
     
-    def _add_text_overlay(self, background: np.ndarray, segment: Dict) -> np.ndarray:
+    def _add_text_overlay(self, background: np.ndarray, segment: VideoSegment) -> np.ndarray:
         """
         add text overlay to slide.
         video title is fixed at top, segment title below it, then bullet points.
         args:
             background: background with possible image
             segment: segment data
-            segment_number: segment number
         returns:
             background with text overlay
         """
@@ -330,7 +334,7 @@ class VideoGenerator:
         # segment title below video title (no segment number prefix)
         img, space_used = VideoUtils.add_text_to_image(
             img,
-            segment['title'],
+            segment.title,
             position=(position_x, position_y),
             font_size=50,
             color=(255, 255, 255),
@@ -341,7 +345,7 @@ class VideoGenerator:
         position_y += space_used + line_spacing
         
         # add key points (first 3) with better spacing
-        key_points = segment.get('key_points', [])[:3]
+        key_points = segment.key_points[:3]
         if key_points:
             position_y += 20          
             for point in key_points:
@@ -359,18 +363,3 @@ class VideoGenerator:
                 position_y += space_used + line_spacing
         
         return np.array(img)
-
-
-def generate_video(script_with_audio: Dict, config: Config, output_path: str) -> str:
-    """
-    convenience function to generate video.
-    args:
-        script_with_audio: script data with audio
-        config: configuration object
-        output_path: output video path
-    returns:
-        path to generated video
-    """
-    generator = VideoGenerator(config)
-    return generator.generate_video(script_with_audio, output_path)
-

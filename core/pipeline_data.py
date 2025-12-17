@@ -19,7 +19,7 @@ import pickle
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 from pydantic import BaseModel, Field
 from utils.logger import get_logger
 from enum import Enum
@@ -156,12 +156,28 @@ class ContextProcessorInfo(BaseModel):
     total_chunks: int
     total_content_length: int
 
+class ImageSource(str, Enum):
+    """
+    source of the image.
+    """
+    PDF = "pdf"
+    STOCK = "stock"
+    AI_GENERATED = "ai_generated"
+    USER_UPLOADED = "user_uploaded"
 
 class SegmentImage(BaseModel):
     """pydantic model for segment image."""
-    source: str  # "pdf", "stock", or "ai_generated"
+    source: ImageSource
     query: Optional[str] = None  # search keyword if stock, or prompt if ai_generated
     path: Optional[str] = None  # path to pdf image if pdf, or path to generated image if ai_generated
+
+class BackgroundType(str, Enum):
+    """
+    type of the background.
+    """
+    GRADIENT = "gradient"
+    SOLID = "solid"
+    IMAGE = "image"
 
 class VideoSegment(BaseModel):
     """pydantic model for a video segment."""
@@ -170,9 +186,19 @@ class VideoSegment(BaseModel):
     content: str
     key_points: List[str]
     visual_keywords: List[str]
+    script: Optional[str] = None
+    word_count: Optional[int] = None
     duration: int
     image: Optional[SegmentImage] = None  # image to show with segment
-    stock_image_query: Optional[str] = None  # TODO: remove this field and use image.query instead
+    transition_to: Optional[str] = None
+    transition_type: Optional[str] = None
+    audio_file: Optional[str] = None
+    audio_duration: Optional[float] = None
+    voiceover_provider: Optional[str] = None
+    # video generation settings
+    background_colors: Optional[List[Tuple[int, int, int]]] = Field(default_factory=lambda: [(254, 234, 201), (255, 205, 201)])
+    background_type: Optional[BackgroundType] = Field(default=BackgroundType.GRADIENT)
+    background_image_path: Optional[str] = None
 
 class VideoOutline(BaseModel):
     """pydantic model for video outline."""
@@ -180,6 +206,14 @@ class VideoOutline(BaseModel):
     total_segments: int
     estimated_duration: int
     segments: List[VideoSegment]
+
+
+class ScriptData(BaseModel):
+    """pydantic model for script data."""
+    title: str = Field(default="")
+    total_segments: int = Field(default=0)
+    segments: List[VideoSegment] = Field(default_factory=list)
+    full_script: str = Field(default="")
 
 class PipelineData(BaseModel):
     """
@@ -214,9 +248,10 @@ class PipelineData(BaseModel):
     video_outline: Optional[VideoOutline] = None  # video structure and segment plan
     
     # script_generation operation
-    script_data: Optional[Dict[str, Any]] = None  # generated narration scripts
-    script_with_audio: Optional[Dict[str, Any]] = None  # scripts with voiceover audio paths
-    
+    script_data: Optional[ScriptData] = None  # generated narration scripts
+    full_audio_path: Optional[str] = None  # path to generated full audio file
+    full_audio_duration: Optional[float] = None  # duration of generated full audio file
+  
     # video_generation operation
     video_path: Optional[str] = None  # path to generated video file
     output_path: Optional[str] = None  # final output video path

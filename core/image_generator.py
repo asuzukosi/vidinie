@@ -5,11 +5,12 @@ generates images using ai models (dall-e) for video segments.
 
 import os
 import requests
-from typing import Optional, Dict, List
+from typing import Optional, List
 from pathlib import Path
 from openai import OpenAI
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from utils.logger import get_logger
+from core.pipeline_data import VideoSegment, SegmentImage
 
 logger = get_logger(__name__)
 
@@ -56,7 +57,7 @@ class ImageGenerator:
             autoescape=select_autoescape(['html', 'xml'])
         )
     
-    def generate_image(self, segment: Dict, output_filename: Optional[str] = None) -> Optional[Dict]:
+    def generate_image(self, segment: VideoSegment, output_filename: Optional[str] = None) -> Optional[SegmentImage]:
         """
         generate an image for a video segment.
         
@@ -104,46 +105,41 @@ class ImageGenerator:
             
             logger.info(f"generated image saved to: {output_path}")
             
-            return {
-                'filepath': str(output_path),
-                'url': image_url,
-                'source': 'ai_generated',
-                'model': self.model,
-                'prompt': prompt
-            }
+            return SegmentImage(
+                source='ai_generated',
+                query=prompt,
+                path=str(output_path)
+            )
             
         except Exception as e:
             logger.error(f"failed to generate image: {str(e)}", exc_info=True)
             return None
     
-    def _create_image_prompt(self, segment: Dict) -> str:
+    def _create_image_prompt(self, segment: VideoSegment) -> str:
         """
         create image generation prompt from segment data.
-        
         args:
-            segment: segment dictionary
+            segment: video segment
         
         returns:
             prompt string for image generation
         """
         # load and render template
         template = self.jinja_env.get_template('image_generation_instruction.j2')
-        prompt = template.render(segment=segment)
+        prompt = template.render(segment=segment.model_dump(mode="json"))
         
         return prompt.strip()
     
-    def generate_for_segments(self, segments: List[Dict], 
-                              pipeline_id: Optional[str] = None) -> List[Dict]:
+    def generate_for_segments(self, segments: List[VideoSegment], 
+                              pipeline_id: Optional[str] = None) -> List[VideoSegment]:
         """
         generate images for multiple segments.
         only generates images for segments that specify ai_generated source.
-        
         args:
-            segments: list of segment dictionaries
+            segments: list of video segments
             pipeline_id: optional pipeline id for organizing output
-        
         returns:
-            updated segments with generated image metadata
+            updated segments with generated segment image
         """
         original_output_dir = self.output_dir
         
@@ -157,27 +153,22 @@ class ImageGenerator:
             generated_count = 0
             for i, segment in enumerate(segments, 1):
                 # check if segment needs ai-generated image
-                image_info = segment.get('image')
-                if image_info and image_info.get('source') == 'ai_generated':
-                    logger.info(f"generating ai image for segment {i}/{len(segments)}: {segment.get('title')}")
-                    
-                    output_filename = f"segment_{i:02d}_{segment.get('title', 'image')[:30]}.png"
+                image_info = segment.image
+                if image_info and image_info.source == 'ai_generated':
+                    logger.info(f"generating ai image for segment {i}/{len(segments)}: {segment.title}")
+                    output_filename = f"segment_{i:02d}_{segment.title[:30]}.png"
                     output_filename = "".join(c for c in output_filename if c.isalnum() or c in (' ', '-', '_', '.'))
-                    
-                    image_metadata = self.generate_image(segment, output_filename)
-                    
-                    if image_metadata:
+                    logger.info(f"output filename: {output_filename}")
+                    segment_image = self.generate_image(segment, output_filename)
+                    if segment_image:
                         # update segment with generated image path
-                        segment['image']['path'] = image_metadata['filepath']
-                        segment['ai_generated_image'] = image_metadata
+                        segment.image = segment_image
                         generated_count += 1
                     else:
-                        logger.warning(f"failed to generate image for segment: {segment.get('title')}")
+                        logger.warning(f"failed to generate image for segment: {segment.title}")
                         # remove ai_generated source if generation failed
-                        segment['image'] = None
-            
+                        segment.image = None
             logger.info(f"generated {generated_count} ai images for {len(segments)} segments")
-            
         finally:
             # restore original output directory
             self.output_dir = original_output_dir
@@ -187,7 +178,6 @@ class ImageGenerator:
     def is_available(self) -> bool:
         """
         check if image generation is available.
-        
         returns:
             True if api key is configured
         """

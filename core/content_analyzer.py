@@ -223,7 +223,7 @@ class ContentAnalyzer:
         args:
             outline: video outline with image field
         returns:
-            outline with pdf_images and stock_image_query fields
+            outline with image field
         """
         for segment in outline.segments:           
             # convert image field if present
@@ -233,8 +233,8 @@ class ContentAnalyzer:
                     # add to pdf_images list
                     segment.image.path = img.path
                 elif img.source == 'stock' and img.query:
-                    # set stock_image_query
-                    segment.stock_image_query = img.query
+                    # set image query
+                    segment.image.query = img.query
         
         return outline
     
