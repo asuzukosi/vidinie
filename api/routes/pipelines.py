@@ -1,4 +1,6 @@
-from fastapi import APIRouter, File, UploadFile, Form, HTTPException
+from fastapi import APIRouter, File, UploadFile, Form, HTTPException, Request
+import re
+from fastapi.responses import StreamingResponse, FileResponse
 from core.pipeline_data import PipelineData, SourceType, PipelineStage,\
                                PipelineStatus, ParsedContent, VideoSegment, \
                                 ParsedContentMetadata, ParsedContentSection, \
@@ -25,6 +27,7 @@ from core.video_generator import VideoGenerator
 from bson.objectid import ObjectId
 from datetime import datetime
 from typing import Optional, Tuple, List
+from enum import Enum
 from pydantic import Field
 import shutil
 import requests
@@ -747,8 +750,25 @@ async def update_pipeline_script_data(pipeline_id: str, script_data: ScriptData)
     )
     return pipeline_data.script_data
 
+class VideoResolution(Tuple[int, int], Enum):
+    """video resolution."""
+    RESOLUTION_4K = (3840, 2160)
+    RESOLUTION_1080P = (1920, 1080)
+    RESOLUTION_720P = (1280, 720)
+    RESOLUTION_480P = (640, 480)
+
+class VideoGenerationRequest(BaseModel):
+    title: Optional[str] = None
+    subtitle: Optional[str] = None
+    resolution: Optional[VideoResolution] = VideoResolution.RESOLUTION_720P
+    fps: Optional[int] = 30
+    title_duration: Optional[float] = 3.0
+    end_duration: Optional[float] = 3.0
+    transition_duration: Optional[float] = 0.5
+    background_type: Optional[BackgroundType] = BackgroundType.GRADIENT
+
 @router.post("/generate_video/{pipeline_id}", name="generate video")
-async def generate_video(pipeline_id: str) -> PipelineData:
+async def generate_video(pipeline_id: str, request: VideoGenerationRequest) -> PipelineData:
     logger.info("received request to generate video")
     pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
     if not pipeline_data:
@@ -767,7 +787,7 @@ async def generate_video(pipeline_id: str) -> PipelineData:
     script_data = pipeline_data.script_data
     video_gen = VideoGenerator(api_key=config.openai_api_key,
                                model=config.get('video.generator.model', 'gpt-4o-mini'),
-                               prompts_dir=config.get_prompts_directory())
+                               prompts_dir=config.get_prompts_directory(), **request.model_dump())
     generated_video_path = video_gen.generate_video(script_data, video_path)
     pipeline_data.video_path = generated_video_path
     pipeline_data.update_stage(PipelineStage.VIDEO_GENERATION, PipelineStatus.COMPLETED)
@@ -801,4 +821,109 @@ async def update_video_segment_background(pipeline_id: str, index: int, backgrou
     logger.info(f"video segment background updated successfully: {pipeline_data.video_outline.segments[index].background_colors}, {pipeline_data.video_outline.segments[index].background_type}, {pipeline_data.video_outline.segments[index].background_image_path}")
     return pipeline_data.video_outline
 
-# TODO: work on vidoe streaming endpoint to stream the video to the client
+
+async def regenerate_audio_for_pipeline_segments(pipeline_id: str, provider: Optional[str] = 'elevenlabs') -> PipelineData:
+    logger.info("received request to regenerate audio for pipeline segments")
+    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
+    if not pipeline_data:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    pipeline_data: PipelineData = PipelineData(**pipeline_data)
+    script_data = pipeline_data.script_data
+    if not script_data:
+        raise HTTPException(status_code=500, detail="Script data not found")
+    output_dir = os.path.join(config.get('output.temp_directory', 'temp'), pipeline_data.path_id, 'audio')
+    os.makedirs(output_dir, exist_ok=True)
+    voiceover_gen = VoiceoverGenerator(
+        provider=provider,
+        api_key=config.elevenlabs_api_key,
+        voice_id=config.get('voiceover.voice_id'),
+        output_dir=output_dir
+    )
+    script_data_with_audio: ScriptData = voiceover_gen.generate_voiceovers(script_data)
+    pipeline_data.script_data = script_data_with_audio
+    logger.info(f"generated voiceovers for {len(script_data_with_audio.segments)} segments")
+    # generate combined audio
+    combined_audio_path = os.path.join(output_dir, 'full_voiceover.mp3')
+    total_duration = voiceover_gen.generate_full_audio(script_data_with_audio, combined_audio_path)
+    pipeline_data.full_audio_path = combined_audio_path
+    pipeline_data.full_audio_duration = total_duration
+    logger.info(f"combined audio generated: {combined_audio_path} ({total_duration:.1f}s)")
+    # update pipeline data
+    await pipelines_collection.update_one(
+        {"_id": ObjectId(pipeline_id)},
+        {"$set": pipeline_data.model_dump(mode="json")}
+    )
+    logger.info(f"audio regenerated successfully. pipeline ID: {pipeline_data.id}")
+    return pipeline_data
+
+@router.get("/download_video/{pipeline_id}", name="download video")
+async def download_video(pipeline_id: str) -> FileResponse:
+    logger.info("received request to download video")
+    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
+    if not pipeline_data:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    pipeline_data: PipelineData = PipelineData(**pipeline_data)
+    video_path = pipeline_data.video_path
+    if not video_path:
+        raise HTTPException(status_code=500, detail="Video path not found")
+    
+    return FileResponse(
+        path=video_path,
+        media_type='video/mp4',
+        filename=f"{pipeline_data.script_data.title}-{datetime.now().strftime('%Y%m%d%H%M%S')}.mp4"
+    )
+
+def parse_range_header(range_header: str, file_size: int) -> Tuple[int, int]:
+    """ parse the range header coming from the client request"""
+    byte_range = re.search(r'bytes=(\d+)-(\d+)', range_header)
+    if not byte_range:
+        return 0, file_size - 1
+    start = int(byte_range.group(1))
+    end = int(byte_range.group(2)) if byte_range.group(2) else file_size - 1
+    return start, end
+
+@router.get("/stream_video/{pipeline_id}", name="stream video")
+async def stream_video(pipeline_id: str, request: Request) -> StreamingResponse:
+    logger.info("received request to stream video")
+    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
+    if not pipeline_data:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    pipeline_data: PipelineData = PipelineData(**pipeline_data)
+    video_path = pipeline_data.video_path
+    if not video_path:
+        raise HTTPException(status_code=500, detail="Video path not found")
+    file_size = os.path.getsize(video_path)
+    range_header = request.headers.get('range')
+    
+    if not range_header:
+        start = 0
+        end = int(0.9 * file_size)
+    else:
+        start, end = parse_range_header(range_header, file_size)
+    content_length = end - start + 1
+
+    def iter_video_file():
+        """ 
+        generator to stream file in chunks
+        """
+        with open(video_path, 'rb') as f:
+            f.seek(start)
+            remaining = content_length
+            while remaining > 0:
+                chunk_size = min(8192, remaining)
+                data = f.read(chunk_size)
+                if not data:
+                    break
+                remaining -= len(data)
+                yield data
+    return StreamingResponse(
+        iter_video_file(),
+        status_code=206,
+        media_type='video/mp4',
+        headers={
+            'Content-Range': f'bytes {start}-{end}/{file_size}',
+            'Accept-Ranges': 'bytes',
+            'Content-Length': str(content_length),
+            'Content-Type': 'video/mp4'
+        }
+    )

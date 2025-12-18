@@ -57,15 +57,15 @@ def generate_video(pipeline_id: str,
     
     pipeline_data.update_stage("video_generation", "in_progress")
     
-    if not pipeline_data.script_with_audio:
-        logger.error("script with audio not found in pipeline data")
+    if not pipeline_data.full_audio_path:
+        logger.error("full audio path not found in pipeline data")
         logger.error("run stage3_script.py first")
         pipeline_data.update_stage(PipelineStage.VIDEO_GENERATION, PipelineStatus.FAILED)
         return pipeline_data
     
     try:
-        script_with_audio = pipeline_data.script_with_audio
-        logger.info(f"using script with audio for {len(script_with_audio['segments'])} segments in total")
+        script_data = pipeline_data.script_data
+        logger.info(f"using script data for {len(script_data.segments)} segments in total")
         
         # determine output path (use pipeline id for filename)
         if not output_path:
@@ -81,7 +81,7 @@ def generate_video(pipeline_id: str,
         
         # generate video
         video_gen = VideoGenerator(config)
-        video_path = video_gen.generate_video(script_with_audio, output_path)
+        video_path = video_gen.generate_video(script_data, output_path)
         
         if os.path.exists(video_path):
             pipeline_data.video_path = video_path

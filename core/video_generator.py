@@ -45,8 +45,7 @@ class VideoGenerator:
                  title_duration: Optional[float] = 3.0,
                  end_duration: Optional[float] = 3.0,
                  transition_duration: Optional[float] = 0.5,
-                 background_type: Optional[BackgroundType] = BackgroundType.GRADIENT,
-                 enable_animations: Optional[bool] = False):
+                 background_type: Optional[BackgroundType] = BackgroundType.GRADIENT):
         """
         initialize video generator.
         args:
@@ -61,7 +60,6 @@ class VideoGenerator:
         self.end_duration = end_duration
         self.transition_duration = transition_duration
         self.background_type = background_type
-        self.enable_animations = enable_animations
         
         # initialize font loader
         self.font_loader = FontLoader(config) # TODO: allow for setting of multiple font folders to load from
