@@ -2,6 +2,14 @@
 
 import { useState, useRef } from "react";
 import { IconPlus, IconUpload, IconFileText, IconX, IconFile } from "@tabler/icons-react";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
 
 // Task stages
 type TaskStage = "parsing" | "content" | "script" | "video";
@@ -9,8 +17,10 @@ type TaskStage = "parsing" | "content" | "script" | "video";
 interface Task {
     id: string;
     name: string;
+    description: string;
     stage: TaskStage;
     createdAt: Date;
+    videoUrl?: string;
 }
 
 const stageLabels: Record<TaskStage, { label: string; step: number; color: string }> = {
@@ -236,6 +246,7 @@ function useTaskSimulation() {
         const newTask: Task = {
             id: Date.now().toString(),
             name,
+            description: "Processing video content from uploaded document",
             stage: "parsing",
             createdAt: new Date(),
         };
@@ -299,21 +310,39 @@ export default function TasksPage() {
                     </p>
                 </div>
             ) : (
-                <div className="space-y-4">
-                    {tasks.map((task) => (
-                        <div
-                            key={task.id}
-                            className="flex items-center justify-between rounded-xl border border-zinc-200 bg-white p-4 shadow-sm transition-all dark:border-zinc-800 dark:bg-zinc-900"
-                        >
-                            <div>
-                                <h3 className="font-medium text-zinc-900 dark:text-white">{task.name}</h3>
-                                <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                                    Created {task.createdAt.toLocaleDateString()}
-                                </p>
-                            </div>
-                            <StageIndicator stage={task.stage} />
-                        </div>
-                    ))}
+                <div className="rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className="font-semibold">Name</TableHead>
+                                <TableHead className="font-semibold">Description</TableHead>
+                                <TableHead className="font-semibold">Date</TableHead>
+                                <TableHead className="font-semibold">Status</TableHead>
+                                <TableHead className="font-semibold">Video</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {tasks.map((task) => (
+                                <TableRow key={task.id}>
+                                    <TableCell className="font-medium text-zinc-900 dark:text-white">
+                                        {task.name}
+                                    </TableCell>
+                                    <TableCell className="text-zinc-600 dark:text-zinc-400">
+                                        {task.description}
+                                    </TableCell>
+                                    <TableCell className="text-zinc-600 dark:text-zinc-400">
+                                        {task.createdAt.toLocaleDateString()}
+                                    </TableCell>
+                                    <TableCell>
+                                        <StageIndicator stage={task.stage} />
+                                    </TableCell>
+                                    <TableCell className="text-zinc-600 dark:text-zinc-400">
+                                        {task.videoUrl || "N/A"}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
                 </div>
             )}
 

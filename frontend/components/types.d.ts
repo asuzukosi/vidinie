@@ -36,7 +36,7 @@ export interface ProjectItem {
 export interface SidebarData {
   user: User;
   navMain: NavItem[];
-  navCollapsible: {
+  navCollapsible?: {
     tags: TagItem[];
     teams: TeamItem[];
     projects: ProjectItem[];
