@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { IconPlus, IconUpload, IconFileText, IconX, IconFile } from "@tabler/icons-react";
 import {
     Table,
@@ -279,6 +280,7 @@ function useTaskSimulation() {
 }
 
 export default function TasksPage() {
+    const router = useRouter();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const { tasks, createTask } = useTaskSimulation();
 
@@ -323,7 +325,11 @@ export default function TasksPage() {
                         </TableHeader>
                         <TableBody>
                             {tasks.map((task) => (
-                                <TableRow key={task.id}>
+                                <TableRow
+                                    key={task.id}
+                                    className="cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                                    onClick={() => router.push(`/tasks/${task.id}`)}
+                                >
                                     <TableCell className="font-medium text-zinc-900 dark:text-white">
                                         {task.name}
                                     </TableCell>
