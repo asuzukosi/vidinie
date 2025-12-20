@@ -21,8 +21,7 @@ body {
         overflow-x: hidden;
         overflow-y: auto !important;
         height: auto !important;
-        background: #F5F5F7 url('noisybackground.jpg') center top / 200% auto no-repeat;
-        background-attachment: scroll !important;
+        background: #F5F5F7;
     }
     
     .page-container {
@@ -39,7 +38,8 @@ body {
         height: auto !important;
         min-height: 100vh;
         overflow: visible !important;
-        background: transparent !important;
+        background: #F5F5F7 url('noisybackground.jpg') center center / 200% auto no-repeat;
+        background-attachment: scroll;
     }
     
     .page.active {
