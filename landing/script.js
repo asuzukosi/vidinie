@@ -6,12 +6,12 @@ const logo = document.querySelector('.logo');
 let currentPage = 'home';
 let isTransitioning = false;
 
-// Page order for scroll navigation
+// page order for scrolling navigation
 const pageOrder = ['home', 'pricing', 'features', 'support', 'faq'];
 let scrollTimeout = null;
 let isScrolling = false;
 
-// Navigate to a page
+// navigate to a page
 function navigateToPage(pageId) {
     if (isTransitioning || pageId === currentPage) return;
     
@@ -20,14 +20,14 @@ function navigateToPage(pageId) {
     const currentPageEl = document.getElementById(currentPage);
     const nextPageEl = document.getElementById(pageId);
     
-    // Start transition
+    // start transition
     currentPageEl.classList.add('transitioning-out');
     
     setTimeout(() => {
         currentPageEl.classList.remove('active', 'transitioning-out');
         nextPageEl.classList.add('transitioning-in');
         
-        // Reset scroll position of content pages
+        // reset scroll position of content pages
         const contentPage = nextPageEl.querySelector('.content-page');
         if (contentPage) {
             contentPage.scrollTop = 0;
@@ -42,7 +42,7 @@ function navigateToPage(pageId) {
     }, 300);
 }
 
-// Navigation click handlers
+// navigation click handlers
 navLinks.forEach(link => {
     link.addEventListener('click', (e) => {
         e.preventDefault();
@@ -51,12 +51,12 @@ navLinks.forEach(link => {
     });
 });
 
-// Logo click - go home
+// logo click - go home
 logo.addEventListener('click', () => {
     navigateToPage('home');
 });
 
-// Scroll-based page navigation
+// scroll-based page navigation
 function getCurrentPageIndex() {
     return pageOrder.indexOf(currentPage);
 }
@@ -79,29 +79,30 @@ function navigateToPreviousPage() {
 function handleScroll(e) {
     if (isTransitioning || isScrolling) return;
     
-    // Check if we're on a content page with scrollable content
+    // check if we're on a content page with scrollable content
     const currentPageEl = document.getElementById(currentPage);
     const contentPage = currentPageEl.querySelector('.content-page');
     
     if (contentPage) {
-        // For content pages, only navigate if at top (scrolling up) or bottom (scrolling down)
+        // for content pages, only navigate if at top (scrolling up) or bottom (scrolling down)
         const isAtTop = contentPage.scrollTop <= 0;
-        const isAtBottom = contentPage.scrollTop + contentPage.clientHeight >= contentPage.scrollHeight - 10;
+        // TODO: adjusted scroll height to 100px to see behaviour on mobile
+        const isAtBottom = contentPage.scrollTop + contentPage.clientHeight >= contentPage.scrollHeight - 100;
         
         if (e.deltaY > 0 && isAtBottom) {
-            // Scrolling down and at bottom - go to next page
+            // scrolling down and at bottom - go to next page
             e.preventDefault();
             isScrolling = true;
             navigateToNextPage();
             setTimeout(() => { isScrolling = false; }, 1000);
         } else if (e.deltaY < 0 && isAtTop) {
-            // Scrolling up and at top - go to previous page
+            // scrolling up and at top - go to previous page
             e.preventDefault();
             isScrolling = true;
             navigateToPreviousPage();
             setTimeout(() => { isScrolling = false; }, 1000);
         }
-        // Otherwise, allow normal scrolling within the content page
+        // otherwise, allow normal scrolling within the content page
     } else {
         // For home page (no scrollable content), navigate directly
         e.preventDefault();
@@ -125,7 +126,7 @@ function handleScroll(e) {
 // Add wheel event listener
 window.addEventListener('wheel', handleScroll, { passive: false });
 
-// Also handle touch events for mobile
+// also handle touch events for mobile
 let touchStartY = 0;
 let touchEndY = 0;
 
@@ -148,28 +149,28 @@ window.addEventListener('touchend', (e) => {
         const isAtBottom = contentPage.scrollTop + contentPage.clientHeight >= contentPage.scrollHeight - 10;
         
         if (swipeDistance < -minSwipeDistance && isAtBottom) {
-            // Swipe down - go to next page
+            // swipe down - go to next page
             isScrolling = true;
             navigateToNextPage();
             setTimeout(() => { isScrolling = false; }, 1000);
         } else if (swipeDistance > minSwipeDistance && isAtTop) {
-            // Swipe up - go to previous page
+            // swipe up - go to previous page
             isScrolling = true;
             navigateToPreviousPage();
             setTimeout(() => { isScrolling = false; }, 1000);
         }
     } else {
         if (swipeDistance < -minSwipeDistance) {
-            // Swipe down - go to next page
+            // swipe down - go to next page
             navigateToNextPage();
         } else if (swipeDistance > minSwipeDistance) {
-            // Swipe up - go to previous page
+            // swipe up - go to previous page
             navigateToPreviousPage();
         }
     }
 }, { passive: true });
 
-// Smooth fade-in on load
+// smooth fade-in on load
 window.addEventListener('load', () => {
     document.body.style.opacity = '0';
     document.body.style.transition = 'opacity 0.6s ease';
@@ -179,7 +180,7 @@ window.addEventListener('load', () => {
     }, 100);
 });
 
-// Card hover effects (only on home page)
+// card hover effects (only on home page)
 const cards = document.querySelectorAll('.card');
 const cardVisual = document.querySelector('.card-visual');
 
@@ -222,7 +223,7 @@ if (cardVisual) {
     });
 }
 
-// Animate elements on scroll (for content pages)
+// animate elements on scroll (for content pages)
 const observerOptions = {
     threshold: 0.1,
     rootMargin: '0px 0px -50px 0px'
@@ -243,7 +244,7 @@ const observer = new IntersectionObserver((entries) => {
     });
 }, observerOptions);
 
-// Observe pricing cards
+// observe pricing cards
 setTimeout(() => {
     const pricingCards = document.querySelectorAll('.pricing-card');
     pricingCards.forEach(card => observer.observe(card));
@@ -258,7 +259,7 @@ setTimeout(() => {
     faqItems.forEach(item => observer.observe(item));
 }, 100);
 
-// Button interactions
+// button interactions
 const allButtons = document.querySelectorAll('button, .app-store, .google-play');
 
 allButtons.forEach(button => {
@@ -279,7 +280,7 @@ allButtons.forEach(button => {
     });
 });
 
-// FAQ accordion functionality
+// faq accordion functionality
 const faqItems = document.querySelectorAll('.faq-item');
 
 faqItems.forEach(item => {
@@ -288,7 +289,7 @@ faqItems.forEach(item => {
     answer.style.overflow = 'hidden';
     answer.style.transition = 'max-height 0.3s ease';
     
-    let isOpen = true; // Start open
+    let isOpen = true; // start open
     answer.style.maxHeight = answer.scrollHeight + 'px';
     
     item.addEventListener('click', () => {
@@ -303,7 +304,7 @@ faqItems.forEach(item => {
     });
 });
 
-// Keyboard navigation
+// keyboard navigation
 document.addEventListener('keydown', (e) => {
     // Escape key to go home
     if (e.key === 'Escape') {
