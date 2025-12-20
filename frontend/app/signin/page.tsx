@@ -1,7 +1,7 @@
 "use client";
 import { Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { LoginForm } from "@/components/login-form";
+import { LoginForm } from "@/components/LoginForm";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
 

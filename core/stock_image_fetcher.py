@@ -8,6 +8,7 @@ from typing import Optional, List, Dict
 from pathlib import Path
 from utils.logger import get_logger
 from utils.stock_image_utils import fetch_from_unsplash, fetch_from_pexels
+from core.pipeline_data import VideoSegment, SegmentImage
 
 logger = get_logger(__name__)
 
@@ -43,55 +44,63 @@ class StockImageFetcher:
             'pexels': bool(self.pexels_key)
         }
     
-    def fetch_image(self, query: str, provider: str = "unsplash") -> Optional[Dict]:
+    def fetch_image(self, query: str, provider: str = "unsplash") -> Optional[SegmentImage]:
         """
         fetch a single stock image for a query.
         args:
             query: search query
             provider: "unsplash" or "pexels"
         returns:
-            image metadata dictionary or None if failed
+            segment image or None if failed
         """
         if provider == "unsplash" and self.unsplash_key:
-            return fetch_from_unsplash(query, self.unsplash_key, self.output_dir)
+            data = fetch_from_unsplash(query, self.unsplash_key, self.output_dir)
+            if data:
+                return SegmentImage(source=provider, query=query, path=data['filepath'])
+            else:
+                return None
         elif provider == "pexels" and self.pexels_key:
-            return fetch_from_pexels(query, self.pexels_key, self.output_dir)
+            data = fetch_from_pexels(query, self.pexels_key, self.output_dir)
+            if data:
+                return SegmentImage(source=provider, query=query, path=data['filepath'])
+            else:
+                return None
         else:
-            logger.warning(f"{provider} API key not available")
+            logger.warning(f"stock image provider {provider} api key is not available")
             return None
     
-    def fetch_for_segments(self, segments: List[Dict], preferred_provider: str = "unsplash") -> List[Dict]:
+    def fetch_for_segments(self, segments: List[VideoSegment], preferred_provider: str = "unsplash") -> List[VideoSegment]:
         """
         fetch stock images for video segments.
         args:
-            segments: list of segment dictionaries with 'stock_image_query'
+            segments: list of video segments with image field
             preferred_provider: "unsplash" or "pexels"
         returns:
-            updated segments with stock_image metadata
+            updated segments with segment image
         """
         logger.info(f"fetching stock images for {len(segments)} segments")
         
         # determine provider order
-        providers = []
+        providers: List[str] = []
         all_providers = ["unsplash", "pexels"]
         if preferred_provider in all_providers:
             providers.append(preferred_provider)
         providers += [p for p in all_providers if p != preferred_provider]
         
         for i, segment in enumerate(segments, 1):
-            query = segment.get('stock_image_query')
+            query = segment.image.query if segment.image else None
             if not query:
-                logger.debug(f"Segment {i} has no stock image query: {segment['title']}")
+                logger.debug(f"Segment {i} has no stock image query: {segment.title}")
                 continue
             
-            image_data = None
+            image_data: Optional[SegmentImage] = None
             for provider in providers:
                 try:
                     image_data = self.fetch_image(query, provider)
-                    segment['stock_image'] = image_data
+                    segment.image = image_data
                     break
                 except Exception as e:
-                    logger.error(f"Error fetching stock image for segment {i} with provider {provider}: {str(e)}")
+                    logger.error(f"error fetching stock image for segment {i} with provider {provider}: {str(e)}")
                     continue   
 
-        return segments 
+        return segments

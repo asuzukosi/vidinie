@@ -7,12 +7,13 @@ uses openai to convert structured content into engaging voiceover scripts.
 
 import os
 import json
-from typing import List, Dict, Optional
+from typing import List, Optional
 from openai import OpenAI
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from pathlib import Path
 from utils.logger import get_logger
-
+from core.pipeline_data import VideoOutline, ScriptData
+from core.pipeline_data import VideoSegment
 logger = get_logger("script_generator")
 
 
@@ -43,7 +44,7 @@ class ScriptGenerator:
             autoescape=select_autoescape(['html', 'xml'])
         )
     
-    def generate_script(self, video_outline: Dict) -> Dict:
+    def generate_script(self, video_outline: VideoOutline) -> ScriptData:
         """
         generate complete voiceover script from video outline.
         args:
@@ -51,45 +52,39 @@ class ScriptGenerator:
         returns:
             dictionary with generated scripts for each segment
         """
-        logger.info(f"generating script for {len(video_outline['segments'])} segments")
-        
-        segments_with_scripts = []
-        
-        for i, segment in enumerate(video_outline['segments'], 1):
-            logger.info(f"generating script for segment {i}: {segment['title']}")
+        logger.info(f"generating script for {len(video_outline.segments)} segments")
+        for i, segment in enumerate(video_outline.segments, 1):
+            logger.info(f"generating script for segment {i}: {segment.title}")
             
             script_text = self._generate_segment_script(
                 segment,
                 i,
-                len(video_outline['segments']),
-                video_outline.get('title', '')
+                len(video_outline.segments),
+                video_outline.title
             )
             # add script to segment
-            segment_with_script = segment.copy()
-            segment_with_script['script'] = script_text
-            segment_with_script['word_count'] = len(script_text.split())
+            segment.script = script_text
+            segment.word_count = len(script_text.split())
             
-            segments_with_scripts.append(segment_with_script)
         
         # generate transitions
-        segments_with_scripts = self._add_transitions(segments_with_scripts)
+        video_outline.segments = self._add_transitions(video_outline.segments)
         
-        result = {
-            'title': video_outline.get('title', 'Untitled'),
-            'total_segments': len(segments_with_scripts),
-            'segments': segments_with_scripts,
-            'full_script': self._compile_full_script(segments_with_scripts)
-        }
-        
+        script_data = ScriptData(
+            title=video_outline.title,
+            total_segments=len(video_outline.segments),
+            segments=video_outline.segments,
+            full_script=self._compile_full_script(video_outline.segments)
+        )
         logger.info("script generation complete")
-        return result
+        return script_data
     
-    def _generate_segment_script(self, segment: Dict, segment_num: int, 
+    def _generate_segment_script(self, segment: VideoSegment, segment_num: int, 
                                  total_segments: int, video_title: str) -> str:
         """
         generate script for a single segment.
         args:
-            segment: segment dictionary
+            segment: video segment
             segment_num: segment number
             total_segments: total number of segments
             video_title: overall video title
@@ -131,12 +126,12 @@ class ScriptGenerator:
             # fallback to basic script
             return self._create_fallback_script(segment)
     
-    def _create_script_prompt(self, segment: Dict, segment_num: int, 
+    def _create_script_prompt(self, segment: VideoSegment, segment_num: int, 
                              total_segments: int, video_title: str) -> str:
         """
         create prompt for script generation.
         args:
-            segment: segment dictionary
+            segment: video segment
             segment_num: segment number
             total_segments: total number of segments
             video_title: overall video title
@@ -151,7 +146,7 @@ class ScriptGenerator:
         # load and render template
         template = self.jinja_env.get_template('script_instruction.j2')
         prompt = template.render(
-            segment=segment,
+            segment=segment.model_dump(mode="json"),
             segment_num=segment_num,
             total_segments=total_segments,
             video_title=video_title,
@@ -187,17 +182,17 @@ class ScriptGenerator:
         
         return ' '.join(lines)
     
-    def _create_fallback_script(self, segment: Dict) -> str:
+    def _create_fallback_script(self, segment: VideoSegment) -> str:
         """
         create a basic script as fallback.
         args:
-            segment: segment dictionary
+            segment: video segment
         returns:
             basic script text
         """
-        title = segment['title']
-        purpose = segment.get('purpose', '')
-        key_points = segment.get('key_points', [])
+        title = segment.title
+        purpose = segment.purpose
+        key_points = segment.key_points
         
         script_parts = [f"Let's talk about {title}."]
         
@@ -209,46 +204,46 @@ class ScriptGenerator:
         
         return ' '.join(script_parts)
     
-    def _add_transitions(self, segments: List[Dict]) -> List[Dict]:
+    def _add_transitions(self, segments: List[VideoSegment]) -> List[VideoSegment]:
         """
         add smooth transitions between segments.
         args:
-            segments: list of segments with scripts
+            segments: list of video segments
         returns:
             updated segments with transitions
         """
         for i in range(len(segments) - 1):
-            current = segments[i]
-            next_seg = segments[i + 1]
+            current: VideoSegment = segments[i]
+            next_seg: VideoSegment = segments[i + 1]
             
             # add transition hint (can be used in video generation)
-            current['transition_to'] = next_seg['title']
-            current['transition_type'] = 'fade'  # default transition
+            current.transition_to = next_seg.title
+            current.transition_type = 'fade'  # default transition
         
         return segments
     
-    def _compile_full_script(self, segments: List[Dict]) -> str:
+    def _compile_full_script(self, segments: List[VideoSegment]) -> str:
         """
         compile full script from all segments.
         args:
-            segments: list of segments with scripts
+            segments: list of video segments
         returns:
             full script text
         """
         full_script_parts = []
         
         for i, segment in enumerate(segments, 1):
-            full_script_parts.append(f"[SEGMENT {i}: {segment['title']}]")
-            full_script_parts.append(segment.get('script', ''))
+            full_script_parts.append(f"[SEGMENT {i}: {segment.title}]")
+            full_script_parts.append(segment.script)
             full_script_parts.append("")  # empty line between segments
         
         return '\n'.join(full_script_parts)
     
-    def save_script(self, script_data: Dict, output_path: str):
+    def save_script(self, script_data: ScriptData, output_path: str):
         """
         save script data to JSON file.
         args:
-            script_data: script data dictionary
+            script_data: script data
             output_path: path to save JSON
         """
         with open(output_path, 'w') as f:
@@ -256,17 +251,17 @@ class ScriptGenerator:
         
         logger.info(f"saved script to {output_path}")
     
-    def export_script_text(self, script_data: Dict, output_path: str):
+    def export_script_text(self, script_data: ScriptData, output_path: str):
         """
         export script as plain text file.
         args:
-            script_data: script data dictionary
+            script_data: script data
             output_path: path to save text file
         """
         with open(output_path, 'w') as f:
-            f.write(f"SCRIPT: {script_data['title']}\n")
+            f.write(f"SCRIPT: {script_data.title}\n")
             f.write("=" * 80 + "\n\n")
-            f.write(script_data['full_script'])
+            f.write(script_data.full_script)
         
         logger.info(f"exported script text to {output_path}")
 

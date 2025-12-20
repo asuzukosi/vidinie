@@ -1,13 +1,8 @@
 "use client";
 
 import { useState, useRef } from "react";
-import {
-  IconPlus,
-  IconUpload,
-  IconFileText,
-  IconX,
-  IconFile,
-} from "@tabler/icons-react";
+import { useRouter } from "next/navigation";
+import { IconPlus, IconUpload, IconFileText, IconX, IconFile } from "@tabler/icons-react";
 import {
   Table,
   TableBody,
@@ -303,8 +298,9 @@ function useTaskSimulation() {
 }
 
 export default function TasksPage() {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const { tasks, createTask } = useTaskSimulation();
+    const router = useRouter();
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const { tasks, createTask } = useTaskSimulation();
 
   return (
     <div>
@@ -327,52 +323,54 @@ export default function TasksPage() {
         </button>
       </div>
 
-      {/* Tasks List */}
-      {tasks.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-300 bg-zinc-50 py-16 dark:border-zinc-700 dark:bg-zinc-900/50">
-          <p className="mb-2 text-zinc-600 dark:text-zinc-400">
-            No ongoing tasks
-          </p>
-          <p className="text-sm text-zinc-500 dark:text-zinc-500">
-            Click the + button to create a new task
-          </p>
-        </div>
-      ) : (
-        <div className="rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="font-semibold">Name</TableHead>
-                <TableHead className="font-semibold">Description</TableHead>
-                <TableHead className="font-semibold">Date</TableHead>
-                <TableHead className="font-semibold">Status</TableHead>
-                <TableHead className="font-semibold">Video</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {tasks.map((task) => (
-                <TableRow key={task.id}>
-                  <TableCell className="font-medium text-zinc-900 dark:text-white">
-                    {task.name}
-                  </TableCell>
-                  <TableCell className="text-zinc-600 dark:text-zinc-400">
-                    {task.description}
-                  </TableCell>
-                  <TableCell className="text-zinc-600 dark:text-zinc-400">
-                    {task.createdAt.toLocaleDateString()}
-                  </TableCell>
-                  <TableCell>
-                    <StageIndicator stage={task.stage} />
-                  </TableCell>
-                  <TableCell className="text-zinc-600 dark:text-zinc-400">
-                    {task.videoUrl || "N/A"}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+            {/* Tasks List */}
+            {tasks.length === 0 ? (
+                <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-300 bg-zinc-50 py-16 dark:border-zinc-700 dark:bg-zinc-900/50">
+                    <p className="mb-2 text-zinc-600 dark:text-zinc-400">No ongoing tasks</p>
+                    <p className="text-sm text-zinc-500 dark:text-zinc-500">
+                        Click the + button to create a new task
+                    </p>
+                </div>
+            ) : (
+                <div className="rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className="font-semibold">Name</TableHead>
+                                <TableHead className="font-semibold">Description</TableHead>
+                                <TableHead className="font-semibold">Date</TableHead>
+                                <TableHead className="font-semibold">Status</TableHead>
+                                <TableHead className="font-semibold">Video</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {tasks.map((task) => (
+                                <TableRow
+                                    key={task.id}
+                                    className="cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                                    onClick={() => router.push(`/tasks/${task.id}`)}
+                                >
+                                    <TableCell className="font-medium text-zinc-900 dark:text-white">
+                                        {task.name}
+                                    </TableCell>
+                                    <TableCell className="text-zinc-600 dark:text-zinc-400">
+                                        {task.description}
+                                    </TableCell>
+                                    <TableCell className="text-zinc-600 dark:text-zinc-400">
+                                        {task.createdAt.toLocaleDateString()}
+                                    </TableCell>
+                                    <TableCell>
+                                        <StageIndicator stage={task.stage} />
+                                    </TableCell>
+                                    <TableCell className="text-zinc-600 dark:text-zinc-400">
+                                        {task.videoUrl || "N/A"}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
+            )}
 
       {/* Modal */}
       <CreateTaskModal

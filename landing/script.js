@@ -6,6 +6,72 @@ const logo = document.querySelector('.logo');
 let currentPage = 'home';
 let isTransitioning = false;
 
+// Check if mobile
+let isMobile = window.innerWidth <= 768;
+
+// Initialize mobile layout
+function initMobileLayout() {
+    if (isMobile) {
+        // Make all pages visible and stacked
+        pages.forEach(page => {
+            page.classList.add('active');
+            page.style.position = 'relative';
+            page.style.opacity = '1';
+            page.style.visibility = 'visible';
+        });
+        
+        // Disable body overflow hidden
+        document.body.style.overflowY = 'auto';
+        document.body.style.height = 'auto';
+        
+        // Make page container scrollable
+        const pageContainer = document.querySelector('.page-container');
+        if (pageContainer) {
+            pageContainer.style.height = 'auto';
+            pageContainer.style.overflow = 'visible';
+            pageContainer.style.position = 'relative';
+        }
+    }
+}
+
+// Initialize when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initMobileLayout);
+} else {
+    initMobileLayout();
+}
+
+// Also handle window resize
+window.addEventListener('resize', () => {
+    const wasMobile = isMobile;
+    isMobile = window.innerWidth <= 768;
+    if (wasMobile !== isMobile) {
+        if (isMobile) {
+            initMobileLayout();
+        } else {
+            // Reset to desktop layout
+            pages.forEach((page, index) => {
+                if (index === 0) {
+                    page.classList.add('active');
+                } else {
+                    page.classList.remove('active');
+                }
+                page.style.position = '';
+                page.style.opacity = '';
+                page.style.visibility = '';
+            });
+            document.body.style.overflowY = '';
+            document.body.style.height = '';
+            const pageContainer = document.querySelector('.page-container');
+            if (pageContainer) {
+                pageContainer.style.height = '';
+                pageContainer.style.overflow = '';
+                pageContainer.style.position = '';
+            }
+        }
+    }
+});
+
 // Page order for scroll navigation
 const pageOrder = ['home', 'pricing', 'features', 'support', 'faq'];
 let scrollTimeout = null;
@@ -13,6 +79,23 @@ let isScrolling = false;
 
 // Navigate to a page
 function navigateToPage(pageId) {
+    // On mobile, scroll to page instead of transitioning
+    if (isMobile) {
+        const targetPage = document.getElementById(pageId);
+        if (targetPage) {
+            const navbar = document.querySelector('.navbar');
+            const navbarHeight = navbar ? navbar.offsetHeight : 0;
+            const targetPosition = targetPage.offsetTop - navbarHeight;
+            
+            window.scrollTo({
+                top: targetPosition,
+                behavior: 'smooth'
+            });
+            currentPage = pageId;
+        }
+        return;
+    }
+    
     if (isTransitioning || pageId === currentPage) return;
     
     isTransitioning = true;
@@ -77,6 +160,9 @@ function navigateToPreviousPage() {
 
 // Handle scroll events
 function handleScroll(e) {
+    // Disable scroll navigation on mobile
+    if (isMobile) return;
+    
     if (isTransitioning || isScrolling) return;
     
     // Check if we're on a content page with scrollable content
@@ -125,16 +211,17 @@ function handleScroll(e) {
 // Add wheel event listener
 window.addEventListener('wheel', handleScroll, { passive: false });
 
-// Also handle touch events for mobile
+// Also handle touch events for mobile (only on desktop for page navigation)
 let touchStartY = 0;
 let touchEndY = 0;
 
-window.addEventListener('touchstart', (e) => {
-    touchStartY = e.touches[0].clientY;
-}, { passive: true });
+if (!isMobile) {
+    window.addEventListener('touchstart', (e) => {
+        touchStartY = e.touches[0].clientY;
+    }, { passive: true });
 
-window.addEventListener('touchend', (e) => {
-    if (isTransitioning || isScrolling) return;
+    window.addEventListener('touchend', (e) => {
+        if (isTransitioning || isScrolling) return;
     
     touchEndY = e.changedTouches[0].clientY;
     const swipeDistance = touchStartY - touchEndY;
@@ -168,6 +255,7 @@ window.addEventListener('touchend', (e) => {
         }
     }
 }, { passive: true });
+}
 
 // Smooth fade-in on load
 window.addEventListener('load', () => {

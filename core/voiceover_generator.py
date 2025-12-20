@@ -6,10 +6,12 @@ handles audio file creation and timing metadata.
 
 import os
 import json
-from typing import Dict, Optional, Tuple
+from typing import  Optional, Tuple
 from pathlib import Path
 from utils.logger import get_logger
+from elevenlabs import save
 from pydub import AudioSegment
+from core.pipeline_data import ScriptData
 
 
 logger = get_logger(__name__)
@@ -78,7 +80,7 @@ class VoiceoverGenerator:
             logger.error("gtts package not installed. install with: pip install gtts")
             raise
     
-    def generate_voiceovers(self, script_data: Dict) -> Dict:
+    def generate_voiceovers(self, script_data: ScriptData) -> ScriptData:
         """
         generate voiceover audio for all segments.
         args:
@@ -86,37 +88,27 @@ class VoiceoverGenerator:
         returns:
             updated script data with audio file paths and metadata
         """
-        logger.info(f"generating voiceovers for {len(script_data['segments'])} segments using {self.provider}")
-        
-        segments_with_audio = []
-        
-        for i, segment in enumerate(script_data['segments'], 1):
+        logger.info(f"generating voiceovers for {len(script_data.segments)} segments using {self.provider}")
+                
+        for i, segment in enumerate(script_data.segments, 1):
             logger.info(f"generating audio for segment {i}: {segment['title']}")
             
-            script_text = segment.get('script', '')
+            script_text = segment.script
             if not script_text:
                 logger.warning(f"no script found for segment {i}")
-                segments_with_audio.append(segment)
                 continue
             
             # generate audio
             audio_path, duration = self._generate_segment_audio(script_text, i, segment['title'])
             
             # update segment with audio info
-            segment_with_audio = segment.copy()
-            segment_with_audio['audio_file'] = audio_path
-            segment_with_audio['audio_duration'] = duration
-            segment_with_audio['voiceover_provider'] = self.provider
-            
-            segments_with_audio.append(segment_with_audio)
+            segment.audio_file = audio_path
+            segment.audio_duration = duration
+            segment.voiceover_provider = self.provider
         
-        result = script_data.copy()
-        result['segments'] = segments_with_audio
-        result['total_audio_duration'] = sum(s.get('audio_duration', 0) for s in segments_with_audio)
+        logger.info(f"Generated {len(script_data.segments)} voiceovers, total duration: {sum(s.audio_duration for s in script_data.segments):.1f}s")
         
-        logger.info(f"Generated {len(segments_with_audio)} voiceovers, total duration: {result['total_audio_duration']:.1f}s")
-        
-        return result
+        return script_data
     
     def _generate_segment_audio(self, text: str, segment_num: int, title: str) -> Tuple[str, float]:
         """
@@ -152,8 +144,6 @@ class VoiceoverGenerator:
             duration in seconds
         """
         try:
-            from elevenlabs import save
-            
             # generate audio
             # using eleven_turbo_v2_5 which is available on free tier
             audio_generator = self.client.text_to_speech.convert(
@@ -204,11 +194,11 @@ class VoiceoverGenerator:
             logger.error(f"Error generating gTTS audio: {str(e)}")
             raise
     
-    def generate_full_audio(self, script_data: Dict, output_path: str) -> float:
+    def generate_full_audio(self, script_data: ScriptData, output_path: str) -> float:
         """
         generate a single audio file combining all segments.
         args:
-            script_data: script data with audio files
+            script_data: script data
             output_path: path to save combined audio
         returns:
             total duration in seconds
@@ -216,8 +206,8 @@ class VoiceoverGenerator:
         logger.info("**** combining all segments into single audio file ****")
             
         combined = AudioSegment.empty()
-        for segment in script_data['segments']:
-            audio_file = segment.get('audio_file')
+        for segment in script_data.segments:
+            audio_file = segment.audio_file
             if audio_file and os.path.exists(audio_file):
                 audio = AudioSegment.from_mp3(audio_file)
                 combined += audio
@@ -225,77 +215,16 @@ class VoiceoverGenerator:
                 combined += silence
         combined.export(output_path, format="mp3")
         duration = len(combined) / 1000.0
-        logger.info(f"Created combined audio: {output_path} ({duration:.1f}s)")
+        logger.info(f"combined audio generated: {output_path} ({duration:.1f}s)")
         return duration
     
-    def save_metadata(self, script_data_with_audio: Dict, output_path: str):
+    def save_metadata(self, script_data: ScriptData, output_path: str):
         """
         save script data with audio metadata.
         args:
-            script_data_with_audio: script data with audio info
+            script_data: script data with audio info
             output_path: path to save JSON
         """
         with open(output_path, 'w') as f:
-            json.dump(script_data_with_audio, f, indent=2)
-        
-        logger.info(f"Saved audio metadata to {output_path}")
-
-
-def generate_voiceovers(script_data: Dict, provider: str = "elevenlabs") -> Dict:
-    """
-    convenience function to generate voiceovers.
-    args:
-        script_data: script data dictionary
-        provider: "elevenlabs" or "gtts"
-    returns:
-        script data with audio files
-    """
-    generator = VoiceoverGenerator(provider)
-    return generator.generate_voiceovers(script_data)
-
-
-if __name__ == "__main__":
-    # test the generator
-    import sys
-    
-    if len(sys.argv) < 2:
-        print("usage: python voiceover_generator.py <video_script.json> [provider]")
-        print("provider: elevenlabs (default) or gtts")
-        sys.exit(1)
-    
-    script_path = sys.argv[1]
-    provider = sys.argv[2] if len(sys.argv) > 2 else "elevenlabs"
-    
-    print(f"**** loading script ****")
-    with open(script_path, 'r') as f:
-        script_data = json.load(f)
-    
-    print(f"loaded script with {len(script_data['segments'])} segments\n")
-    
-    print(f"**** generating voiceovers with {provider.upper()} ****\n")
-    
-    generator = VoiceoverGenerator(provider)
-    result = generator.generate_voiceovers(script_data)
-    
-    print(f"**** voiceover generation complete ****")
-    print(f"total segments: {len(result['segments'])}")
-    print(f"total duration: {result.get('total_audio_duration', 0):.1f}s")
-    print(f"**** segment audio files ****")
-    
-    for i, segment in enumerate(result['segments'], 1):
-        audio_file = segment.get('audio_file', 'N/A')
-        duration = segment.get('audio_duration', 0)
-        print(f"  {i}. {segment['title']}: {os.path.basename(audio_file) if audio_file != 'N/A' else 'N/A'} ({duration:.1f}s)")
-    
-    # save metadata
-    output_path = "temp/script_with_audio.json"
-    generator.save_metadata(result, output_path)
-    
-    # try to create combined audio
-    combined_path = "temp/full_voiceover.mp3"
-    total_duration = generator.generate_full_audio(result, combined_path)
-    if total_duration > 0:
-        print(f"combined audio: {combined_path} ({total_duration:.1f}s)")
-    
-    print(f"audio metadata saved to: {output_path}")
-
+            json.dump(script_data.model_dump(mode="json"), f, indent=2)
+        logger.info(f"saved audio metadata to {output_path}")

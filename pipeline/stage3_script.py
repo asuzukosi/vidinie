@@ -21,7 +21,7 @@ from utils.logger import setup_logging, get_logger
 from utils.config_loader import get_config
 from core.script_generator import ScriptGenerator
 from core.voiceover_generator import VoiceoverGenerator
-from core.pipeline_data import PipelineData, PipelineStage, PipelineStatus
+from core.pipeline_data import PipelineData, PipelineStage, PipelineStatus, ScriptData
 
 setup_logging(log_dir='temp')
 logger = get_logger('stage3_script')
@@ -61,14 +61,14 @@ def generate_scripts_and_voiceovers(pipeline_id: str,
     
     try:
         outline = pipeline_data.video_outline
-        logger.info(f"using outline with {len(outline['segments'])} segments")
+        logger.info(f"using outline with {len(outline.segments)} segments")
         
         # generate scripts
         logger.info("generating scripts")
         script_gen = ScriptGenerator(api_key=config.openai_api_key, prompts_dir=config.get_prompts_directory())
-        script_data = script_gen.generate_script(outline)
+        script_data: ScriptData = script_gen.generate_script(outline)
         pipeline_data.script_data = script_data
-        logger.info(f"generated scripts for {len(script_data['segments'])} segments")
+        logger.info(f"generated scripts for {len(script_data.segments)} segments")
         
         # generate voiceovers
         voiceover_provider = provider or config.get('voiceover.provider', 'elevenlabs')
@@ -84,13 +84,13 @@ def generate_scripts_and_voiceovers(pipeline_id: str,
             output_dir=audio_dir
         )
         
-        script_with_audio = voiceover_gen.generate_voiceovers(script_data)
-        pipeline_data.script_with_audio = script_with_audio
-        logger.info(f"generated voiceovers for {len(script_with_audio['segments'])} segments")
+        script_data_with_audio: ScriptData = voiceover_gen.generate_voiceovers(script_data)
+        pipeline_data.script_data = script_data_with_audio
+        logger.info(f"generated voiceovers for {len(script_data_with_audio.segments)} segments")
         
         # generate combined audio
         combined_audio_path = os.path.join(audio_dir, 'full_voiceover.mp3')
-        total_duration = voiceover_gen.generate_full_audio(script_with_audio, combined_audio_path)
+        total_duration = voiceover_gen.generate_full_audio(script_data_with_audio,combined_audio_path)
         logger.info(f"combined audio generated: {combined_audio_path} ({total_duration:.1f}s)")
         
         # save pipeline data
