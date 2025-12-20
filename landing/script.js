@@ -6,13 +6,28 @@ const logo = document.querySelector('.logo');
 let currentPage = 'home';
 let isTransitioning = false;
 
+// check if mobile view
+function isMobileView() {
+    return window.innerWidth <= 768;
+}
+
 // Page order for scroll navigation
 const pageOrder = ['home', 'pricing', 'features', 'support', 'faq'];
 let scrollTimeout = null;
 let isScrolling = false;
 
-// Navigate to a page
+// navigate to a page
 function navigateToPage(pageId) {
+    if (isMobileView()) {
+        // on mobile, just scroll to the section
+        const nextPageEl = document.getElementById(pageId);
+        if (nextPageEl) {
+            nextPageEl.scrollIntoView({ behavior: 'smooth' });
+            currentPage = pageId;
+        }
+        return;
+    }
+    
     if (isTransitioning || pageId === currentPage) return;
     
     isTransitioning = true;
@@ -75,8 +90,13 @@ function navigateToPreviousPage() {
     }
 }
 
-// Handle scroll events
+// handle scroll ev ents
 function handleScroll(e) {
+    // disable scroll-based navigation on mobile
+    if (isMobileView()) {
+        return;
+    }
+    
     if (isTransitioning || isScrolling) return;
     
     // Check if we're on a content page with scrollable content
@@ -134,6 +154,11 @@ window.addEventListener('touchstart', (e) => {
 }, { passive: true });
 
 window.addEventListener('touchend', (e) => {
+    // disable touch-based navigation on mobile - allow normal scrolling
+    if (isMobileView()) {
+        return;
+    }
+    
     if (isTransitioning || isScrolling) return;
     
     touchEndY = e.changedTouches[0].clientY;
@@ -169,17 +194,45 @@ window.addEventListener('touchend', (e) => {
     }
 }, { passive: true });
 
-// Smooth fade-in on load
+// smooth fade-in on load (only on desktop)
 window.addEventListener('load', () => {
-    document.body.style.opacity = '0';
-    document.body.style.transition = 'opacity 0.6s ease';
-    
-    setTimeout(() => {
-        document.body.style.opacity = '1';
-    }, 100);
+    if (!isMobileView()) {
+        document.body.style.opacity = '0';
+        document.body.style.transition = 'opacity 0.6s ease';
+        
+        setTimeout(() => {
+            document.body.style.opacity = '1';
+        }, 100);
+    }
 });
 
-// Card hover effects (only on home page)
+// initialize mobile layout - make all pages visible on mobile
+function initializeMobileLayout() {
+    if (isMobileView()) {
+        // make all pages visible and stacked on mobile
+        pages.forEach(page => {
+            page.classList.add('active');
+            page.style.opacity = '1';
+            page.style.visibility = 'visible';
+            page.style.position = 'relative';
+        });
+    }
+}
+
+// initialize on load
+window.addEventListener('load', initializeMobileLayout);
+
+// initialize immediately (in case dom is already loaded)
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeMobileLayout);
+} else {
+    initializeMobileLayout();
+}
+
+// handle window resize
+window.addEventListener('resize', initializeMobileLayout);
+
+// card hover effects (only on home page)
 const cards = document.querySelectorAll('.card');
 const cardVisual = document.querySelector('.card-visual');
 
@@ -222,13 +275,24 @@ if (cardVisual) {
     });
 }
 
-// Animate elements on scroll (for content pages)
+// animate elements on scroll (for content pages) - only on desktop
 const observerOptions = {
     threshold: 0.1,
     rootMargin: '0px 0px -50px 0px'
 };
 
 const observer = new IntersectionObserver((entries) => {
+    // skip animations on mobile
+    if (isMobileView()) {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.opacity = '1';
+                entry.target.style.transform = 'none';
+            }
+        });
+        return;
+    }
+    
     entries.forEach((entry, index) => {
         if (entry.isIntersecting) {
             entry.target.style.opacity = '0';
@@ -246,16 +310,40 @@ const observer = new IntersectionObserver((entries) => {
 // Observe pricing cards
 setTimeout(() => {
     const pricingCards = document.querySelectorAll('.pricing-card');
-    pricingCards.forEach(card => observer.observe(card));
+    pricingCards.forEach(card => {
+        if (isMobileView()) {
+            card.style.opacity = '1';
+            card.style.transform = 'none';
+        }
+        observer.observe(card);
+    });
     
     const featureItems = document.querySelectorAll('.feature-item');
-    featureItems.forEach(item => observer.observe(item));
+    featureItems.forEach(item => {
+        if (isMobileView()) {
+            item.style.opacity = '1';
+            item.style.transform = 'none';
+        }
+        observer.observe(item);
+    });
     
     const supportCards = document.querySelectorAll('.support-card');
-    supportCards.forEach(card => observer.observe(card));
+    supportCards.forEach(card => {
+        if (isMobileView()) {
+            card.style.opacity = '1';
+            card.style.transform = 'none';
+        }
+        observer.observe(card);
+    });
     
     const faqItems = document.querySelectorAll('.faq-item');
-    faqItems.forEach(item => observer.observe(item));
+    faqItems.forEach(item => {
+        if (isMobileView()) {
+            item.style.opacity = '1';
+            item.style.transform = 'none';
+        }
+        observer.observe(item);
+    });
 }, 100);
 
 // Button interactions

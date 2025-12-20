@@ -1,6 +1,6 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { SignupForm } from "@/components/signup-form";
+import { SignupForm } from "@/components/SignUpForm";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
 
