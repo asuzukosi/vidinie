@@ -19,9 +19,10 @@ import { Input } from "@/components/ui/input";
 
 interface SignupFormProps extends React.ComponentProps<typeof Card> {
   onSignup?: (name: string, email: string, password: string) => Promise<void>;
+  onGoogleSignup?: () => Promise<void>;
 }
 
-export function SignupForm({ onSignup, ...props }: SignupFormProps) {
+export function SignupForm({ onSignup, onGoogleSignup, ...props }: SignupFormProps) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -118,7 +119,12 @@ export function SignupForm({ onSignup, ...props }: SignupFormProps) {
                 <Button type="submit" disabled={isLoading}>
                   {isLoading ? "Creating Account..." : "Create Account"}
                 </Button>
-                <Button variant="outline" type="button">
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={onGoogleSignup}
+                  disabled={isLoading}
+                >
                   Sign up with Google
                 </Button>
                 <FieldDescription className="px-6 text-center">
