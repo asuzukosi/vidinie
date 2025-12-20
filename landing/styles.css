@@ -19,42 +19,39 @@ body {
 @media (max-width: 768px) {
     body {
         overflow-x: hidden;
-        overflow-y: auto;
-        height: auto;
+        overflow-y: auto !important;
+        height: auto !important;
     }
     
-    /* Stack all pages vertically on mobile */
     .page-container {
-        position: relative;
-        height: auto;
-        overflow: visible;
+        position: relative !important;
+        height: auto !important;
+        overflow: visible !important;
     }
     
     .page {
-        position: relative;
-        opacity: 1;
-        visibility: visible;
-        height: auto;
+        position: relative !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        height: auto !important;
         min-height: 100vh;
-        overflow: visible;
+        overflow: visible !important;
     }
     
     .page.active {
-        position: relative;
+        position: relative !important;
     }
     
-    /* Hero section should also be full height and scrollable */
     .hero {
         min-height: 100vh;
         height: auto;
         overflow: visible;
     }
     
-    /* Remove individual page scrolling on mobile */
     .content-page {
-        height: auto;
+        height: auto !important;
         min-height: 100vh;
-        overflow: visible;
+        overflow: visible !important;
         padding: 120px 20px 60px;
     }
 }
