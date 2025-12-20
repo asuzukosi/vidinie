@@ -24,26 +24,26 @@ const navMain = [
   {
     id: "overview",
     title: "Overview",
-    url: "#",
+    url: "/overview",
     icon: LayoutDashboard,
     isActive: true,
   },
   {
     id: "tasks",
     title: "Tasks",
-    url: "#",
+    url: "/tasks",
     icon: IconListDetails,
   },
   {
     id: "completed",
     title: "Completed",
-    url: "#",
+    url: "/completed",
     icon: IconProgressCheck,
   },
   {
     id: "notifications",
     title: "Notifications",
-    url: "#",
+    url: "/notifications",
     icon: IconBellRinging,
   },
 ];
