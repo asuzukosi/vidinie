@@ -11,11 +11,83 @@ const pageOrder = ['home', 'pricing', 'features', 'support', 'faq'];
 let scrollTimeout = null;
 let isScrolling = false;
 
-// Detect Safari mobile (which may have inverted scroll behavior)
-const isSafariMobile = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
+// Detect if we're on mobile
+let isMobile = window.matchMedia('(max-width: 768px)').matches;
+
+// Function to initialize mobile layout
+function initializeMobileLayout() {
+    if (isMobile) {
+        // Make all pages visible and stacked
+        pages.forEach(page => {
+            page.classList.add('active');
+            page.style.position = 'relative';
+            page.style.opacity = '1';
+            page.style.visibility = 'visible';
+        });
+    } else {
+        // Reset to desktop layout
+        pages.forEach((page, index) => {
+            if (index === 0) {
+                page.classList.add('active');
+            } else {
+                page.classList.remove('active');
+            }
+            page.style.position = '';
+            page.style.opacity = '';
+            page.style.visibility = '';
+        });
+    }
+}
+
+// Initialize on load
+initializeMobileLayout();
+
+// Handle window resize
+window.addEventListener('resize', () => {
+    const wasMobile = isMobile;
+    isMobile = window.matchMedia('(max-width: 768px)').matches;
+    
+    // Only reinitialize if mobile state changed
+    if (wasMobile !== isMobile) {
+        initializeMobileLayout();
+        
+        // Reinitialize page navigation if switching to desktop
+        if (!isMobile) {
+            currentPage = 'home';
+            const homePage = document.getElementById('home');
+            if (homePage) {
+                pages.forEach(page => {
+                    if (page.id === 'home') {
+                        page.classList.add('active');
+                    } else {
+                        page.classList.remove('active');
+                    }
+                });
+            }
+        }
+    }
+});
 
 // Navigate to a page
 function navigateToPage(pageId) {
+    if (isMobile) {
+        // On mobile, scroll to the page instead of transitioning
+        const targetPage = document.getElementById(pageId);
+        if (targetPage) {
+            // Account for fixed navbar height
+            const navbar = document.querySelector('.navbar');
+            const navbarHeight = navbar ? navbar.offsetHeight : 0;
+            const targetPosition = targetPage.offsetTop - navbarHeight;
+            
+            window.scrollTo({
+                top: targetPosition,
+                behavior: 'smooth'
+            });
+            currentPage = pageId;
+        }
+        return;
+    }
+    
     if (isTransitioning || pageId === currentPage) return;
     
     isTransitioning = true;
@@ -41,9 +113,6 @@ function navigateToPage(pageId) {
             nextPageEl.classList.remove('transitioning-in');
             currentPage = pageId;
             isTransitioning = false;
-            
-            // Set up scroll listeners for the new page
-            setupContentPageScrollListeners();
         }, 50);
     }, 300);
 }
@@ -81,47 +150,29 @@ function navigateToPreviousPage() {
     }
 }
 
-// Helper to check if we can navigate in a direction
-function canNavigateNext() {
-    return getCurrentPageIndex() < pageOrder.length - 1;
-}
-
-function canNavigatePrevious() {
-    return getCurrentPageIndex() > 0;
-}
-
-// Handle scroll events
+// Handle scroll events (only on desktop)
 function handleScroll(e) {
+    // Disable scroll navigation on mobile
+    if (isMobile) return;
+    
     if (isTransitioning || isScrolling) return;
     
     // Check if we're on a content page with scrollable content
     const currentPageEl = document.getElementById(currentPage);
     const contentPage = currentPageEl.querySelector('.content-page');
     
-    let deltaY = e.deltaY;
-    
-    // On Safari mobile, sometimes deltaY is inverted. We'll use the actual value
-    // but add extra validation for the home page to prevent wrong navigation
-    
     if (contentPage) {
         // For content pages, only navigate if at top (scrolling up) or bottom (scrolling down)
-        const scrollTop = contentPage.scrollTop;
-        const scrollHeight = contentPage.scrollHeight;
-        const clientHeight = contentPage.clientHeight;
-        const isAtTop = scrollTop <= 5; // Small threshold for better detection
-        const isAtBottom = scrollTop + clientHeight >= scrollHeight - 5;
+        const isAtTop = contentPage.scrollTop <= 0;
+        const isAtBottom = contentPage.scrollTop + contentPage.clientHeight >= contentPage.scrollHeight - 10;
         
-        // Use deltaY to detect scroll direction
-        const scrollDown = deltaY > 0;
-        const scrollUp = deltaY < 0;
-        
-        if (scrollDown && isAtBottom) {
+        if (e.deltaY > 0 && isAtBottom) {
             // Scrolling down and at bottom - go to next page
             e.preventDefault();
             isScrolling = true;
             navigateToNextPage();
             setTimeout(() => { isScrolling = false; }, 1000);
-        } else if (scrollUp && isAtTop) {
+        } else if (e.deltaY < 0 && isAtTop) {
             // Scrolling up and at top - go to previous page
             e.preventDefault();
             isScrolling = true;
@@ -131,10 +182,6 @@ function handleScroll(e) {
         // Otherwise, allow normal scrolling within the content page
     } else {
         // For home page (no scrollable content), navigate directly
-        // But be extra careful - only navigate if we're actually at the home page
-        // and the direction makes sense
-        const currentIndex = getCurrentPageIndex();
-        
         e.preventDefault();
         
         if (scrollTimeout) {
@@ -142,210 +189,68 @@ function handleScroll(e) {
         }
         
         scrollTimeout = setTimeout(() => {
-            // Only navigate if we're on home and scrolling down, or not on home and scrolling in valid direction
-            if (deltaY > 0) {
-                // Positive deltaY should mean scroll down = next page
-                // But if we're on home (index 0) and this triggers, it should go to pricing
-                if (currentIndex === 0) {
-                    // On home page, positive deltaY = scroll down = go to next (pricing)
-                    navigateToNextPage();
-                } else if (canNavigateNext()) {
-                    navigateToNextPage();
-                }
-            } else if (deltaY < 0) {
-                // Negative deltaY should mean scroll up = previous page
-                // But if we're on home, there's no previous page, so do nothing
-                if (canNavigatePrevious()) {
-                    navigateToPreviousPage();
-                }
-                // If on home (index 0), don't navigate - there's nowhere to go
+            if (e.deltaY > 0) {
+                // Scrolling down
+                navigateToNextPage();
+            } else if (e.deltaY < 0) {
+                // Scrolling up
+                navigateToPreviousPage();
             }
         }, 50);
     }
 }
 
-// Add wheel event listener (only for non-touch devices to avoid conflicts)
-// On mobile, touch events handle navigation
-const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-if (!isTouchDevice) {
+// Add wheel event listener (only on desktop)
+if (!isMobile) {
     window.addEventListener('wheel', handleScroll, { passive: false });
 }
 
-// Handle scroll events on content pages for better mobile support
-function handleContentPageScroll(e) {
-    if (isTransitioning || isScrolling) return;
-    
-    const contentPage = e.target;
-    const scrollTop = contentPage.scrollTop;
-    const scrollHeight = contentPage.scrollHeight;
-    const clientHeight = contentPage.clientHeight;
-    const isAtTop = scrollTop <= 5;
-    const isAtBottom = scrollTop + clientHeight >= scrollHeight - 5;
-    
-    // Store scroll direction for potential page navigation
-    if (!contentPage.lastScrollTop) {
-        contentPage.lastScrollTop = scrollTop;
-    }
-    
-    const scrollingDown = scrollTop > contentPage.lastScrollTop;
-    const scrollingUp = scrollTop < contentPage.lastScrollTop;
-    
-    contentPage.lastScrollTop = scrollTop;
-    
-    // If user tries to scroll past boundaries, allow page navigation
-    // This will be handled by the touch/wheel events, but we track state here
-    contentPage._isAtTop = isAtTop;
-    contentPage._isAtBottom = isAtBottom;
-    contentPage._scrollingDown = scrollingDown;
-    contentPage._scrollingUp = scrollingUp;
-}
+// Handle touch events for page navigation (only on desktop)
+// On mobile, we use normal scrolling, so we don't need these handlers
+if (!isMobile) {
+    let touchStartY = 0;
+    let touchEndY = 0;
 
-// Set up scroll listeners on content pages after page navigation
-let currentScrollListener = null;
+    window.addEventListener('touchstart', (e) => {
+        touchStartY = e.touches[0].clientY;
+    }, { passive: true });
 
-function setupContentPageScrollListeners() {
-    // Remove previous listener if it exists
-    if (currentScrollListener) {
-        const prevPageEl = document.querySelector('.content-page');
-        if (prevPageEl) {
-            prevPageEl.removeEventListener('scroll', currentScrollListener);
-        }
-    }
-    
-    const currentPageEl = document.getElementById(currentPage);
-    const contentPage = currentPageEl?.querySelector('.content-page');
-    
-    if (contentPage) {
-        // Reset scroll tracking
-        contentPage.lastScrollTop = contentPage.scrollTop;
-        currentScrollListener = handleContentPageScroll;
-        contentPage.addEventListener('scroll', handleContentPageScroll, { passive: true });
-    } else {
-        currentScrollListener = null;
-    }
-}
-
-// Initialize scroll listeners
-setupContentPageScrollListeners();
-
-// Also handle touch events for mobile
-let touchStartY = 0;
-let touchEndY = 0;
-let touchStartTime = 0;
-let lastTouchY = 0;
-let touchMoved = false;
-
-window.addEventListener('touchstart', (e) => {
-    touchStartY = e.touches[0].clientY;
-    lastTouchY = touchStartY;
-    touchStartTime = Date.now();
-    touchMoved = false;
-}, { passive: true });
-
-window.addEventListener('touchmove', (e) => {
-    // Track if user is actually scrolling within content
-    const currentPageEl = document.getElementById(currentPage);
-    const contentPage = currentPageEl.querySelector('.content-page');
-    
-    if (contentPage) {
-        const currentY = e.touches[0].clientY;
-        const deltaY = lastTouchY - currentY;
-        lastTouchY = currentY;
+    window.addEventListener('touchend', (e) => {
+        if (isTransitioning || isScrolling) return;
         
-        // Check scroll boundaries
-        const scrollTop = contentPage.scrollTop;
-        const scrollHeight = contentPage.scrollHeight;
-        const clientHeight = contentPage.clientHeight;
-        const isAtTop = scrollTop <= 5;
-        const isAtBottom = scrollTop + clientHeight >= scrollHeight - 5;
+        touchEndY = e.changedTouches[0].clientY;
+        const swipeDistance = touchStartY - touchEndY;
+        const minSwipeDistance = 50;
         
-        // If there's significant vertical movement, mark as moved
-        if (Math.abs(deltaY) > 5) {
-            touchMoved = true;
+        const currentPageEl = document.getElementById(currentPage);
+        const contentPage = currentPageEl.querySelector('.content-page');
+        
+        if (contentPage) {
+            const isAtTop = contentPage.scrollTop <= 0;
+            const isAtBottom = contentPage.scrollTop + contentPage.clientHeight >= contentPage.scrollHeight - 10;
             
-            // If at boundary and trying to scroll past it, allow the gesture
-            // This helps with Safari mobile's momentum scrolling
-            if ((isAtTop && deltaY < 0) || (isAtBottom && deltaY > 0)) {
-                // User is trying to scroll past boundary - this is a navigation gesture
-                // Don't prevent default here, let touchend handle it
+            if (swipeDistance < -minSwipeDistance && isAtBottom) {
+                // Swipe down - go to next page
+                isScrolling = true;
+                navigateToNextPage();
+                setTimeout(() => { isScrolling = false; }, 1000);
+            } else if (swipeDistance > minSwipeDistance && isAtTop) {
+                // Swipe up - go to previous page
+                isScrolling = true;
+                navigateToPreviousPage();
+                setTimeout(() => { isScrolling = false; }, 1000);
             }
-        }
-    } else {
-        // On home page, any movement is a navigation gesture
-        const currentY = e.touches[0].clientY;
-        const deltaY = lastTouchY - currentY;
-        if (Math.abs(deltaY) > 5) {
-            touchMoved = true;
-        }
-        lastTouchY = currentY;
-    }
-}, { passive: true });
-
-window.addEventListener('touchend', (e) => {
-    if (isTransitioning || isScrolling) return;
-    
-    touchEndY = e.changedTouches[0].clientY;
-    const swipeDistance = touchStartY - touchEndY;
-    const swipeTime = Date.now() - touchStartTime;
-    const minSwipeDistance = 50;
-    const maxSwipeTime = 600; // Max time for a swipe gesture
-    
-    const currentPageEl = document.getElementById(currentPage);
-    const contentPage = currentPageEl.querySelector('.content-page');
-    
-    if (contentPage) {
-        // Re-check scroll position at touchend (might have changed during touch)
-        const scrollTop = contentPage.scrollTop;
-        const scrollHeight = contentPage.scrollHeight;
-        const clientHeight = contentPage.clientHeight;
-        const isAtTop = scrollTop <= 10; // Slightly larger threshold for better detection
-        const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10;
-        
-        // Only navigate if at boundaries and it's a clear swipe gesture
-        // Swipe down (finger moves down screen) = negative swipeDistance = should scroll down = go to next page
-        // Swipe up (finger moves up screen) = positive swipeDistance = should scroll up = go to previous page
-        if (swipeDistance < -minSwipeDistance && isAtBottom && swipeTime < maxSwipeTime) {
-            // Swipe down and at bottom - go to next page
-            e.preventDefault();
-            e.stopPropagation();
-            isScrolling = true;
-            navigateToNextPage();
-            setTimeout(() => { isScrolling = false; }, 1000);
-        } else if (swipeDistance > minSwipeDistance && isAtTop && swipeTime < maxSwipeTime) {
-            // Swipe up and at top - go to previous page
-            e.preventDefault();
-            e.stopPropagation();
-            isScrolling = true;
-            navigateToPreviousPage();
-            setTimeout(() => { isScrolling = false; }, 1000);
-        }
-    } else {
-        // For home page, allow swipes to navigate (quick swipes only)
-        if (swipeTime < maxSwipeTime && Math.abs(swipeDistance) > minSwipeDistance) {
+        } else {
             if (swipeDistance < -minSwipeDistance) {
-                // Swipe down (finger moves down) - go to next page (pricing)
-                e.preventDefault();
-                e.stopPropagation();
+                // Swipe down - go to next page
                 navigateToNextPage();
             } else if (swipeDistance > minSwipeDistance) {
-                // Swipe up (finger moves up) - go to previous page
-                // But on home page, there's no previous, so do nothing
-                // This prevents the bug where scrolling up on home goes to pricing
-                if (canNavigatePrevious()) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    navigateToPreviousPage();
-                }
+                // Swipe up - go to previous page
+                navigateToPreviousPage();
             }
         }
-    }
-    
-    // Reset touch tracking
-    touchMoved = false;
-    touchStartY = 0;
-    touchEndY = 0;
-    lastTouchY = 0;
-}, { passive: false });
+    }, { passive: true });
+}
 
 // Smooth fade-in on load
 window.addEventListener('load', () => {
