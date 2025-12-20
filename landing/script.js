@@ -11,48 +11,8 @@ const pageOrder = ['home', 'pricing', 'features', 'support', 'faq'];
 let scrollTimeout = null;
 let isScrolling = false;
 
-// Check if we're on mobile
-function isMobile() {
-    return window.innerWidth <= 768;
-}
-
-// Initialize mobile layout
-function initMobileLayout() {
-    if (isMobile()) {
-        // Make all pages visible and active on mobile
-        pages.forEach(page => {
-            page.classList.add('active');
-        });
-    }
-}
-
-// Initialize on DOM ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initMobileLayout);
-} else {
-    initMobileLayout();
-}
-
-// Re-initialize on resize
-let resizeTimeout;
-window.addEventListener('resize', () => {
-    clearTimeout(resizeTimeout);
-    resizeTimeout = setTimeout(() => {
-        initMobileLayout();
-    }, 250);
-});
-
 // Navigate to a page
 function navigateToPage(pageId) {
-    // On mobile, use smooth scroll instead
-    if (isMobile()) {
-        const targetPage = document.getElementById(pageId);
-        if (targetPage) {
-            targetPage.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-        return;
-    }
-    
     if (isTransitioning || pageId === currentPage) return;
     
     isTransitioning = true;
@@ -92,8 +52,7 @@ navLinks.forEach(link => {
 });
 
 // Logo click - go home
-logo.addEventListener('click', (e) => {
-    e.preventDefault();
+logo.addEventListener('click', () => {
     navigateToPage('home');
 });
 
@@ -116,11 +75,8 @@ function navigateToPreviousPage() {
     }
 }
 
-// Handle scroll events (only for desktop)
+// Handle scroll events
 function handleScroll(e) {
-    // Disable page navigation on mobile
-    if (isMobile()) return;
-    
     if (isTransitioning || isScrolling) return;
     
     // Check if we're on a content page with scrollable content
@@ -166,56 +122,52 @@ function handleScroll(e) {
     }
 }
 
-// Add wheel event listener (only for desktop)
-if (!isMobile()) {
-    window.addEventListener('wheel', handleScroll, { passive: false });
-}
+// Add wheel event listener
+window.addEventListener('wheel', handleScroll, { passive: false });
 
-// Also handle touch events for mobile (only for desktop page navigation)
+// Also handle touch events for mobile
 let touchStartY = 0;
 let touchEndY = 0;
 
-if (!isMobile()) {
-    window.addEventListener('touchstart', (e) => {
-        touchStartY = e.touches[0].clientY;
-    }, { passive: true });
+window.addEventListener('touchstart', (e) => {
+    touchStartY = e.touches[0].clientY;
+}, { passive: true });
 
-    window.addEventListener('touchend', (e) => {
-        if (isTransitioning || isScrolling) return;
+window.addEventListener('touchend', (e) => {
+    if (isTransitioning || isScrolling) return;
+    
+    touchEndY = e.changedTouches[0].clientY;
+    const swipeDistance = touchStartY - touchEndY;
+    const minSwipeDistance = 50;
+    
+    const currentPageEl = document.getElementById(currentPage);
+    const contentPage = currentPageEl.querySelector('.content-page');
+    
+    if (contentPage) {
+        const isAtTop = contentPage.scrollTop <= 0;
+        const isAtBottom = contentPage.scrollTop + contentPage.clientHeight >= contentPage.scrollHeight - 10;
         
-        touchEndY = e.changedTouches[0].clientY;
-        const swipeDistance = touchStartY - touchEndY;
-        const minSwipeDistance = 50;
-        
-        const currentPageEl = document.getElementById(currentPage);
-        const contentPage = currentPageEl.querySelector('.content-page');
-        
-        if (contentPage) {
-            const isAtTop = contentPage.scrollTop <= 0;
-            const isAtBottom = contentPage.scrollTop + contentPage.clientHeight >= contentPage.scrollHeight - 10;
-            
-            if (swipeDistance < -minSwipeDistance && isAtBottom) {
-                // Swipe down - go to next page
-                isScrolling = true;
-                navigateToNextPage();
-                setTimeout(() => { isScrolling = false; }, 1000);
-            } else if (swipeDistance > minSwipeDistance && isAtTop) {
-                // Swipe up - go to previous page
-                isScrolling = true;
-                navigateToPreviousPage();
-                setTimeout(() => { isScrolling = false; }, 1000);
-            }
-        } else {
-            if (swipeDistance < -minSwipeDistance) {
-                // Swipe down - go to next page
-                navigateToNextPage();
-            } else if (swipeDistance > minSwipeDistance) {
-                // Swipe up - go to previous page
-                navigateToPreviousPage();
-            }
+        if (swipeDistance < -minSwipeDistance && isAtBottom) {
+            // Swipe down - go to next page
+            isScrolling = true;
+            navigateToNextPage();
+            setTimeout(() => { isScrolling = false; }, 1000);
+        } else if (swipeDistance > minSwipeDistance && isAtTop) {
+            // Swipe up - go to previous page
+            isScrolling = true;
+            navigateToPreviousPage();
+            setTimeout(() => { isScrolling = false; }, 1000);
         }
-    }, { passive: true });
-}
+    } else {
+        if (swipeDistance < -minSwipeDistance) {
+            // Swipe down - go to next page
+            navigateToNextPage();
+        } else if (swipeDistance > minSwipeDistance) {
+            // Swipe up - go to previous page
+            navigateToPreviousPage();
+        }
+    }
+}, { passive: true });
 
 // Smooth fade-in on load
 window.addEventListener('load', () => {

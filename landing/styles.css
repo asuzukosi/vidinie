@@ -19,10 +19,6 @@ body {
 @media (max-width: 768px) {
     body {
         overflow-x: hidden;
-        overflow-y: auto;
-        height: auto;
-        min-height: 100vh;
-        background: #F5F5F7 url('noisybackground.jpg') center center / 150% auto no-repeat scroll;
     }
 }
 
@@ -38,14 +34,6 @@ h1, h2, h3, h4, h5, h6 {
     overflow: hidden;
 }
 
-@media (max-width: 768px) {
-    .page-container {
-        height: auto;
-        overflow: visible;
-        background: transparent;
-    }
-}
-
 .page {
     position: absolute;
     top: 0;
@@ -59,28 +47,10 @@ h1, h2, h3, h4, h5, h6 {
                 visibility 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-@media (max-width: 768px) {
-    .page {
-        position: relative;
-        height: auto;
-        min-height: 100vh;
-        opacity: 1;
-        visibility: visible;
-        overflow: visible;
-        background: transparent;
-    }
-}
-
 .page.active {
     opacity: 1;
     visibility: visible;
     position: relative;
-}
-
-@media (max-width: 768px) {
-    .page.active {
-        position: relative;
-    }
 }
 
 .page.transitioning-out {
@@ -117,13 +87,6 @@ h1, h2, h3, h4, h5, h6 {
     background: transparent;
     backdrop-filter: blur(5px);
     -webkit-backdrop-filter: blur(5px);
-}
-
-@media (max-width: 768px) {
-    .navbar {
-        position: fixed;
-        background: rgba(245, 245, 247, 0.8);
-    }
 }
 
 .logo {
@@ -210,16 +173,6 @@ h1, h2, h3, h4, h5, h6 {
     z-index: 10;
     padding: 120px 40px 40px;
     overflow: hidden;
-}
-
-@media (max-width: 768px) {
-    .hero {
-        min-height: 100vh;
-        height: auto;
-        padding: 100px 20px 60px;
-        overflow: visible;
-        background: transparent;
-    }
 }
 
 .card-visual {
@@ -397,16 +350,6 @@ h1 {
     height: 100vh;
     overflow-y: auto;
     overflow-x: hidden;
-}
-
-@media (max-width: 768px) {
-    .content-page {
-        height: auto;
-        min-height: 100vh;
-        overflow: visible;
-        padding: 120px 20px 60px;
-        background: transparent;
-    }
 }
 
 .content-page::-webkit-scrollbar {
@@ -701,13 +644,6 @@ h1 {
     overflow-x: hidden;
 }
 
-@media (max-width: 768px) {
-    .faq-section {
-        max-height: none;
-        overflow: visible;
-    }
-}
-
 .faq-section::-webkit-scrollbar {
     width: 8px;
 }
@@ -938,8 +874,7 @@ h1 {
     }
     
     .faq-section {
-        max-height: none;
-        overflow: visible;
+        max-height: calc(100vh - 250px);
     }
 }
 
@@ -1070,8 +1005,7 @@ h1 {
     }
     
     .faq-section {
-        max-height: none;
-        overflow: visible;
+        max-height: calc(100vh - 200px);
     }
     
     .support-btn,
