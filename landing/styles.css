@@ -21,13 +21,15 @@ body {
         overflow-x: hidden;
         overflow-y: auto !important;
         height: auto !important;
-        background: #F5F5F7 url('noisybackground.jpg') center center / 200% auto no-repeat fixed;
+        background: #F5F5F7 url('noisybackground.jpg') center top / 200% auto no-repeat;
+        background-attachment: scroll !important;
     }
     
     .page-container {
         position: relative !important;
         height: auto !important;
         overflow: visible !important;
+        background: transparent !important;
     }
     
     .page {
@@ -37,6 +39,7 @@ body {
         height: auto !important;
         min-height: 100vh;
         overflow: visible !important;
+        background: transparent !important;
     }
     
     .page.active {
@@ -47,6 +50,7 @@ body {
         min-height: 100vh;
         height: auto;
         overflow: visible;
+        background: transparent !important;
     }
     
     .content-page {
@@ -54,6 +58,7 @@ body {
         min-height: 100vh;
         overflow: visible !important;
         padding: 120px 20px 60px;
+        background: transparent !important;
     }
 }
 
