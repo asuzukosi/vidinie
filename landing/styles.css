@@ -22,9 +22,7 @@ body {
         overflow-y: auto;
         height: auto;
         min-height: 100vh;
-        background-attachment: scroll;
-        background-size: 150% auto;
-        background-position: center center;
+        background: #F5F5F7 url('noisybackground.jpg') center center / 150% auto no-repeat scroll;
     }
 }
 
@@ -44,6 +42,7 @@ h1, h2, h3, h4, h5, h6 {
     .page-container {
         height: auto;
         overflow: visible;
+        background: transparent;
     }
 }
 
@@ -68,6 +67,7 @@ h1, h2, h3, h4, h5, h6 {
         opacity: 1;
         visibility: visible;
         overflow: visible;
+        background: transparent;
     }
 }
 
@@ -218,6 +218,7 @@ h1, h2, h3, h4, h5, h6 {
         height: auto;
         padding: 100px 20px 60px;
         overflow: visible;
+        background: transparent;
     }
 }
 
@@ -404,6 +405,7 @@ h1 {
         min-height: 100vh;
         overflow: visible;
         padding: 120px 20px 60px;
+        background: transparent;
     }
 }
 
