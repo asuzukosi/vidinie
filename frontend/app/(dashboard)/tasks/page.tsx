@@ -22,7 +22,6 @@ interface Task {
   description: string;
   stage: TaskStage;
   createdAt: Date;
-  videoUrl?: string;
 }
 
 const stageLabels: Record<
@@ -303,7 +302,7 @@ export default function TasksPage() {
     const { tasks, createTask } = useTaskSimulation();
 
   return (
-    <div>
+    <div className="p-6">
       {/* Header */}
       <div className="mb-8 flex items-center justify-between">
         <div>
@@ -340,7 +339,6 @@ export default function TasksPage() {
                                 <TableHead className="font-semibold">Description</TableHead>
                                 <TableHead className="font-semibold">Date</TableHead>
                                 <TableHead className="font-semibold">Status</TableHead>
-                                <TableHead className="font-semibold">Video</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -361,9 +359,6 @@ export default function TasksPage() {
                                     </TableCell>
                                     <TableCell>
                                         <StageIndicator stage={task.stage} />
-                                    </TableCell>
-                                    <TableCell className="text-zinc-600 dark:text-zinc-400">
-                                        {task.videoUrl || "N/A"}
                                     </TableCell>
                                 </TableRow>
                             ))}
