@@ -19,9 +19,6 @@ body {
 @media (max-width: 768px) {
     body {
         overflow-x: hidden;
-        overflow-y: auto;
-        height: auto;
-        min-height: 100vh;
     }
 }
 
@@ -73,44 +70,6 @@ h1, h2, h3, h4, h5, h6 {
     to {
         opacity: 1;
         transform: translateY(0);
-    }
-}
-
-@media (max-width: 768px) {
-    .page-container {
-        position: relative;
-        height: auto;
-        overflow: visible;
-    }
-
-    /* make all pages visible and stacked on mobile */
-    .page {
-        position: relative !important;
-        opacity: 1 !important;
-        visibility: visible !important;
-        height: auto;
-        min-height: 100vh;
-        overflow: visible;
-        transition: none !important;
-        animation: none !important;
-    }
-
-    .page.active,
-    .page.transitioning-out,
-    .page.transitioning-in {
-        position: relative !important;
-        opacity: 1 !important;
-        visibility: visible !important;
-        animation: none !important;
-        transform: none !important;
-    }
-
-    /* disable page transition animations */
-    @keyframes fadeInFlush {
-        from, to {
-            opacity: 1;
-            transform: none;
-        }
     }
 }
 
@@ -214,15 +173,6 @@ h1, h2, h3, h4, h5, h6 {
     z-index: 10;
     padding: 120px 40px 40px;
     overflow: hidden;
-}
-
-@media (max-width: 768px) {
-    .hero {
-        min-height: 100vh;
-        height: auto;
-        padding: 100px 20px 60px;
-        overflow: visible;
-    }
 }
 
 .card-visual {
@@ -400,15 +350,6 @@ h1 {
     height: 100vh;
     overflow-y: auto;
     overflow-x: hidden;
-}
-
-@media (max-width: 768px) {
-    .content-page {
-        height: auto;
-        min-height: 100vh;
-        overflow: visible;
-        padding: 120px 20px 60px;
-    }
 }
 
 .content-page::-webkit-scrollbar {
