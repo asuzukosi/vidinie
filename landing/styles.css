@@ -22,6 +22,9 @@ body {
         overflow-y: auto;
         height: auto;
         min-height: 100vh;
+        background-attachment: scroll;
+        background-size: 150% auto;
+        background-position: center center;
     }
 }
 
