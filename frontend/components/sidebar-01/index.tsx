@@ -5,7 +5,7 @@ import {
 } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/sidebar-01/app-sidebar";
 
-export default function Sidebar({ children }: { children?: React.ReactNode }) {
+export default function Sidebar01() {
   return (
     <SidebarProvider>
       <AppSidebar />
@@ -15,9 +15,7 @@ export default function Sidebar({ children }: { children?: React.ReactNode }) {
             <SidebarTrigger className="sm:hidden" />
           </div>
         </header>
-        {children}
       </SidebarInset>
     </SidebarProvider>
   );
 }
-  

@@ -1,6 +1,6 @@
 import { MongoClient, Db, MongoClientOptions } from "mongodb";
 
-const MONGODB_URI = process.env.DATABASE || "mongodb://localhost:27017";
+const MONGODB_URI = process.env.DATABASE;
 const MONGODB_DB = process.env.DB_NAME || "mydatabase";
 
 //Global namespace defaults.
@@ -9,6 +9,8 @@ declare global {
 }
 if (!MONGODB_URI) {
   throw new Error("Mongo_URI is not found. Please put it in the enviroment.");
+} else {
+  console.log("MongoDB URI found.");
 }
 const options: MongoClientOptions = {
   maxPoolSize: 10,

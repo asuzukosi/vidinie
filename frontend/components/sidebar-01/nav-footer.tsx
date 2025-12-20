@@ -30,14 +30,6 @@ import {
   Settings,
   User,
 } from "lucide-react";
-function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
-}
 
 export function NavFooter({
   user,
@@ -48,11 +40,6 @@ export function NavFooter({
     avatar: string;
   };
 }) {
-  const handleLogout = () => {
-    // TODO: Implement logout
-    console.log("Logout clicked");
-  };
-
   return (
     <SidebarFooter className="p-4">
       <SidebarMenu>
@@ -63,7 +50,9 @@ export function NavFooter({
                 <DropdownMenuTrigger asChild>
                   <Avatar className="h-8 w-8 rounded-full">
                     <AvatarImage src={user.avatar} alt={user.name} />
-                    <AvatarFallback className="rounded-full">{getInitials(user.name)}</AvatarFallback>
+                    <AvatarFallback className="rounded-full">
+                      CN
+                    </AvatarFallback>
                   </Avatar>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="m-2">
@@ -79,12 +68,8 @@ export function NavFooter({
                     />
                     Settings
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleLogout}>
-                    <LogOut
-                      size={16}
-                      className="opacity-80"
-                      aria-hidden="true"
-                    />
+                  <DropdownMenuItem>
+                    <LogOut size={16} className="opacity-80" aria-hidden="true" />
                     Logout
                   </DropdownMenuItem>
                 </DropdownMenuContent>
