@@ -85,8 +85,9 @@ function handleScroll(e) {
     
     if (contentPage) {
         // For content pages, only navigate if at top (scrolling up) or bottom (scrolling down)
-        const isAtTop = contentPage.scrollTop <= 0;
-        const isAtBottom = contentPage.scrollTop + contentPage.clientHeight >= contentPage.scrollHeight - 10;
+        // Use more lenient threshold to allow easier navigation
+        const isAtTop = contentPage.scrollTop <= 5;
+        const isAtBottom = contentPage.scrollTop + contentPage.clientHeight >= contentPage.scrollHeight - 20;
         
         if (e.deltaY > 0 && isAtBottom) {
             // Scrolling down and at bottom - go to next page
@@ -128,10 +129,47 @@ window.addEventListener('wheel', handleScroll, { passive: false });
 // Also handle touch events for mobile
 let touchStartY = 0;
 let touchEndY = 0;
+let touchCurrentY = 0;
+let isTouchMoving = false;
 
 window.addEventListener('touchstart', (e) => {
     touchStartY = e.touches[0].clientY;
+    touchCurrentY = touchStartY;
+    isTouchMoving = false;
 }, { passive: true });
+
+window.addEventListener('touchmove', (e) => {
+    if (isTransitioning || isScrolling) return;
+    
+    touchCurrentY = e.touches[0].clientY;
+    isTouchMoving = true;
+    
+    const currentPageEl = document.getElementById(currentPage);
+    const contentPage = currentPageEl.querySelector('.content-page');
+    
+    if (contentPage) {
+        // Check if user is trying to scroll past boundaries
+        const isAtTop = contentPage.scrollTop <= 5;
+        const isAtBottom = contentPage.scrollTop + contentPage.clientHeight >= contentPage.scrollHeight - 20;
+        const swipeDistance = touchStartY - touchCurrentY;
+        const minSwipeDistance = 30;
+        
+        // If at bottom and swiping down, or at top and swiping up, allow navigation
+        if (isAtBottom && swipeDistance < -minSwipeDistance) {
+            // Trying to scroll down past bottom - go to next page
+            e.preventDefault();
+            isScrolling = true;
+            navigateToNextPage();
+            setTimeout(() => { isScrolling = false; }, 1000);
+        } else if (isAtTop && swipeDistance > minSwipeDistance) {
+            // Trying to scroll up past top - go to previous page
+            e.preventDefault();
+            isScrolling = true;
+            navigateToPreviousPage();
+            setTimeout(() => { isScrolling = false; }, 1000);
+        }
+    }
+}, { passive: false });
 
 window.addEventListener('touchend', (e) => {
     if (isTransitioning || isScrolling) return;
@@ -144,8 +182,9 @@ window.addEventListener('touchend', (e) => {
     const contentPage = currentPageEl.querySelector('.content-page');
     
     if (contentPage) {
-        const isAtTop = contentPage.scrollTop <= 0;
-        const isAtBottom = contentPage.scrollTop + contentPage.clientHeight >= contentPage.scrollHeight - 10;
+        // Use more lenient threshold for mobile
+        const isAtTop = contentPage.scrollTop <= 5;
+        const isAtBottom = contentPage.scrollTop + contentPage.clientHeight >= contentPage.scrollHeight - 20;
         
         if (swipeDistance < -minSwipeDistance && isAtBottom) {
             // Swipe down - go to next page
@@ -167,6 +206,8 @@ window.addEventListener('touchend', (e) => {
             navigateToPreviousPage();
         }
     }
+    
+    isTouchMoving = false;
 }, { passive: true });
 
 // Smooth fade-in on load
