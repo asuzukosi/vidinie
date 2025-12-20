@@ -48,7 +48,6 @@ class StartPipelineRequest(BaseModel):
     tags: Optional[List[str]] = None
     projects: Optional[List[str]] = None
 
-
 class SummaryPipelineDataResponse(BaseModel):
     # identification
     id: str
@@ -198,7 +197,6 @@ async def start_pipeline_with_url(request: StartPipelineRequest) -> SummaryPipel
             {"$set": {"id": pipeline_data.id}}
         )
     return SummaryPipelineDataResponse(**pipeline_data.model_dump(mode="json"))
-
 
 @router.get("/get_all_pipelines", name="get all pipelines")
 async def get_all_pipelines() -> List[SummaryPipelineDataResponse]:
@@ -927,3 +925,24 @@ async def stream_video(pipeline_id: str, request: Request) -> StreamingResponse:
             'Content-Type': 'video/mp4'
         }
     )
+
+
+class PipelineReviewRequest(BaseModel):
+    rating: Optional[int] = None
+    feedback: Optional[str] = None
+
+@router.post("/add_pipeline_review/{pipeline_id}", name="add pipeline review")
+async def add_pipeline_review(pipeline_id: str, request: PipelineReviewRequest) -> PipelineData:
+    logger.info("received request to add pipeline review")
+    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
+    if not pipeline_data:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    pipeline_data: PipelineData = PipelineData(**pipeline_data)
+    pipeline_data.rating = request.rating
+    pipeline_data.feedback = request.feedback
+    await pipelines_collection.update_one(
+        {"_id": ObjectId(pipeline_id)},
+        {"$set": pipeline_data.model_dump(mode="json")}
+    )
+    logger.info(f"pipeline review added successfully: {pipeline_data.rating}, {pipeline_data.feedback}")
+    return pipeline_data
