@@ -23,6 +23,7 @@ import {
 import {
   BookmarkPlus,
   CircleHelp,
+  LogOut,
   Plus,
   PlusCircle,
   Puzzle,
@@ -58,7 +59,9 @@ export function NavFooter({
                 <DropdownMenuTrigger asChild>
                   <Avatar className="h-8 w-8 rounded-full">
                     <AvatarImage src={user.avatar} alt={user.name} />
-                    <AvatarFallback className="rounded-full">{getInitials(user.name)}</AvatarFallback>
+                    <AvatarFallback className="rounded-full">
+                      {getInitials(user.name)}
+                    </AvatarFallback>
                   </Avatar>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="m-2">
@@ -73,6 +76,10 @@ export function NavFooter({
                       aria-hidden="true"
                     />
                     Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <LogOut size={16} className="opacity-80" aria-hidden="true" />
+                    Logout
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
