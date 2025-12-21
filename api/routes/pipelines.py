@@ -477,15 +477,16 @@ async def delete_pipeline_section(pipeline_id: str, index: int) -> DeletePipelin
     pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
     if not pipeline_data:
         raise HTTPException(status_code=404, detail="Pipeline not found")
-    section_data = pipeline_data["parsed_content"]["sections"].pop(index)
+    pipeline_data: PipelineData = PipelineData(**pipeline_data)
+    section_data = pipeline_data.parsed_content.sections.pop(index)
     await pipelines_collection.update_one(
         {"_id": ObjectId(pipeline_id)},
-        {"$set": {"parsed_content": pipeline_data["parsed_content"]}}
+        {"$set": {"parsed_content": pipeline_data.parsed_content.model_dump(mode="json")}}
     )
     return DeletePipelineSectionResponse(pipeline_id=pipeline_id,
                                          index=index,
-                                         message=f"Section {section_data["title"]} deleted successfully",
-                                         title=section_data["title"])
+                                         message=f"Section {section_data.title} deleted successfully",
+                                         title=section_data.title)
 
 
 class CreateVideoOutlineRequest(BaseModel):
@@ -748,12 +749,19 @@ async def update_pipeline_script_data(pipeline_id: str, script_data: ScriptData)
     )
     return pipeline_data.script_data
 
-class VideoResolution(Tuple[int, int], Enum):
+class VideoResolution(str, Enum):
     """video resolution."""
-    RESOLUTION_4K = (3840, 2160)
-    RESOLUTION_1080P = (1920, 1080)
-    RESOLUTION_720P = (1280, 720)
-    RESOLUTION_480P = (640, 480)
+    RESOLUTION_4K = "4K"
+    RESOLUTION_1080P = "1080P"
+    RESOLUTION_720P = "720P"
+    RESOLUTION_480P = "480P"
+
+resolution_map = {
+    VideoResolution.RESOLUTION_4K: (3840, 2160),
+    VideoResolution.RESOLUTION_1080P: (1920, 1080),
+    VideoResolution.RESOLUTION_720P: (1280, 720),
+    VideoResolution.RESOLUTION_480P: (640, 480),
+}
 
 class VideoGenerationRequest(BaseModel):
     title: Optional[str] = None
@@ -883,11 +891,12 @@ def parse_range_header(range_header: str, file_size: int) -> Tuple[int, int]:
 @router.get("/stream_video/{pipeline_id}", name="stream video")
 async def stream_video(pipeline_id: str, request: Request) -> StreamingResponse:
     logger.info("received request to stream video")
-    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
-    if not pipeline_data:
-        raise HTTPException(status_code=404, detail="Pipeline not found")
-    pipeline_data: PipelineData = PipelineData(**pipeline_data)
-    video_path = pipeline_data.video_path
+    # pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
+    # if not pipeline_data:
+    #     raise HTTPException(status_code=404, detail="Pipeline not found")
+    # pipeline_data: PipelineData = PipelineData(**pipeline_data)
+    # TODO: temporary video path for testing
+    video_path = "/Users/kosisochukwuasuzu/Developer/vidinie/output/video_be8b085c-2c4f-4b1f-af7c-187058adc3a3.mp4"
     if not video_path:
         raise HTTPException(status_code=500, detail="Video path not found")
     file_size = os.path.getsize(video_path)
@@ -918,8 +927,7 @@ async def stream_video(pipeline_id: str, request: Request) -> StreamingResponse:
         iter_video_file(),
         status_code=206,
         media_type='video/mp4',
-        headers={
-            'Content-Range': f'bytes {start}-{end}/{file_size}',
+        headers={ 'Content-Range': f'bytes {start}-{end}/{file_size}',
             'Accept-Ranges': 'bytes',
             'Content-Length': str(content_length),
             'Content-Type': 'video/mp4'
