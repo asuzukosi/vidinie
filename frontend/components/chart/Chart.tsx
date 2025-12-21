@@ -1,7 +1,7 @@
-import { SiteHeader } from "@/app/chart/SiteHeader";
-import { SectionCards } from "@/app/chart/SectionCards";
-import { ChartAreaInteractive } from "@/app/chart/ChartAreaInteractive";
-import { DataTable } from "@/app/chart/DataTable";
+import { SiteHeader } from "@/components/chart/SiteHeader";
+import { SectionCards } from "@/components/chart/SectionCards";
+import { ChartAreaInteractive } from "@/components/chart/ChartAreaInteractive";
+import { DataTable } from "@/components/chart/DataTable";
 import data from "@/app/chart/data.json";
 
 export function Chart() {

@@ -1,5 +1,5 @@
 
-import { Chart } from "@/app/chart/Chart";
+import { Chart } from "@/components/chart/Chart";
 
 export default function OverviewPage() {
     return (
