@@ -58,7 +58,9 @@ export function NavFooter({
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Avatar className="h-8 w-8 rounded-full">
-                    <AvatarImage src={user.avatar} alt={user.name} />
+                    {user.avatar && (
+                      <AvatarImage src={user.avatar} alt={user.name} />
+                    )}
                     <AvatarFallback className="rounded-full">
                       {getInitials(user.name)}
                     </AvatarFallback>

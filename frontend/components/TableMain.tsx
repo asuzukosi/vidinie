@@ -177,28 +177,17 @@ export default function TableMain() {
 
     return (
       <TableRow key={task.id} className="hover:bg-muted/50">
-        <TableCell className="h-16 px-4 font-medium">{task.title}</TableCell>
-        <TableCell className="h-16 px-4 text-sm text-muted-foreground">
+        <TableCell className="h-16 px-2 font-medium">{task.title}</TableCell>
+        <TableCell className="h-16 px-2 text-sm text-muted-foreground">
           {task.assignee}
         </TableCell>
-        <TableCell className="h-16 px-4">
+        <TableCell className="h-16 px-2 w-[90px]">
           {getStatusBadge(task.status)}
         </TableCell>
-
-        <TableCell className="h-16 px-4 text-sm text-muted-foreground">
+        <TableCell className="h-16 px-2 text-sm text-muted-foreground w-[90px]">
           {task.dueDate}
         </TableCell>
-        <TableCell className="h-16 px-4 max-w-[300px] text-sm text-muted-foreground">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="block cursor-help truncate">{task.notes}</span>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-md">{task.notes}</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </TableCell>
-        <TableCell className="h-16 px-4">
+        <TableCell className="h-16 px-2 w-[90px]">
           <TooltipProvider>
             <div className="flex items-center gap-1">
               {(task.status === "pending" || task.status === "blocked") && (
@@ -301,19 +290,19 @@ export default function TableMain() {
   };
 
   return (
-    <div className="rounded-lg border bg-card w-[95%]">
-      <Table>
+    <div className="rounded-lg border bg-card w-fit overflow-x-auto">
+      <Table className="min-w-[370px] w-[370px]">
         <TableHeader>
           <TableRow className="hover:bg-transparent border-b">
-            <TableHead className="h-12 px-4 font-medium">Title</TableHead>
-            <TableHead className="h-12 px-4 font-medium">Assignee</TableHead>
-            <TableHead className="h-12 px-4 font-medium w-[120px]">
+            <TableHead className="h-12 px-2 font-medium">Title</TableHead>
+            <TableHead className="h-12 px-2 font-medium">Assignee</TableHead>
+            <TableHead className="h-12 px-2 font-medium w-[90px]">
               Status
             </TableHead>
-
-            <TableHead className="h-12 px-4 font-medium">Due Date</TableHead>
-            <TableHead className="h-12 px-4 font-medium">Notes</TableHead>
-            <TableHead className="h-12 px-4 font-medium w-[180px]">
+            <TableHead className="h-12 px-2 font-medium w-[90px]">
+              Due Date
+            </TableHead>
+            <TableHead className="h-12 px-2 font-medium w-[90px]">
               Actions
             </TableHead>
           </TableRow>

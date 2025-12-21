@@ -3,25 +3,36 @@
 import { useState } from "react";
 import { IconPlus } from "@tabler/icons-react";
 import CreateTaskModal from "@/components/pipeline/CreateTaskModal";
-import { StartPipelineRequest } from "@/lib/sdk/types";
-
+import { StartPipelineRequest, SummaryPipelineDataResponse } from "@/lib/sdk/types";
+import TableMain from "@/components/TableMain";
+import client from "@/lib/sdk/client";
 export default function TasksPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
+
     
-    const createTask = (task: StartPipelineRequest) => {
-      console.log(task);
+    const createTask = async (task: StartPipelineRequest) => {
+      console.log("creating video:", task);
+      if (task.file) {
+        const result: SummaryPipelineDataResponse = await client.startPipelineWithFile(task.name, task.description, 
+          task.tags || [], task.projects || [], task.file);
+        console.log("result:", result);
+      } else {
+        task.file = undefined;
+        const result: SummaryPipelineDataResponse = await client.startPipelieWithUrl(task);
+        console.log("result:", result);
+      }
     };
 
   return (
     <div className="p-6">
-      {/* Header */}
+      {/* header */}
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">
             Videos
           </h1>
           <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-            Manage your ongoing videos.
+            Manage your videos.
           </p>
         </div>
         <button
@@ -32,7 +43,7 @@ export default function TasksPage() {
           New Video
         </button>
       </div>
-         place table here
+      <TableMain />
       {/* create task modal */}
       <CreateTaskModal
         isOpen={isModalOpen}

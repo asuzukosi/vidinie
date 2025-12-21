@@ -88,6 +88,10 @@ export default function CreateTaskModal({
         });
         setSelectedFile(null);
         setSelectedUrl("");
+        setName("");
+        setDescription("");
+        setTags([]);
+        setProjects([]);
         onClose();
       } else {
         toast.error("Please fill in all fields");
