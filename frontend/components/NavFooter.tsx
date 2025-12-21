@@ -23,15 +23,12 @@ import {
 import {
   BookmarkPlus,
   CircleHelp,
-  LogOut,
   Plus,
   PlusCircle,
   Puzzle,
   Settings,
   User,
 } from "lucide-react";
-import { signOut } from "@/lib/auth-client";
-import { useRouter } from "next/navigation";
 
 function getInitials(name: string): string {
   return name
@@ -51,18 +48,6 @@ export function NavFooter({
     avatar: string;
   };
 }) {
-  const router = useRouter();
-
-  const handleLogout = async () => {
-    await signOut({
-      fetchOptions: {
-        onSuccess: () => {
-          router.push("/signin");
-        },
-      },
-    });
-  };
-
   return (
     <SidebarFooter className="p-4">
       <SidebarMenu>
@@ -88,14 +73,6 @@ export function NavFooter({
                       aria-hidden="true"
                     />
                     Settings
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleLogout}>
-                    <LogOut
-                      size={16}
-                      className="opacity-80"
-                      aria-hidden="true"
-                    />
-                    Logout
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

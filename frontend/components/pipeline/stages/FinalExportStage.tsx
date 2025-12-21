@@ -11,7 +11,6 @@ interface FinalExportStageProps {
 export function FinalExportStage({
     videoDuration = "1-minute",
     onDownload,
-    onSaveToCloud,
 }: FinalExportStageProps) {
     return (
         <div className="space-y-8">

@@ -1,4 +1,4 @@
-import { MongoClient, Db, MongoClientOptions } from "mongodb";
+twimport { MongoClient, Db, MongoClientOptions } from "mongodb";
 
 const MONGODB_URI = process.env.DATABASE || "mongodb://localhost:27017";
 const MONGODB_DB = process.env.DB_NAME || "mydatabase";
