@@ -15,7 +15,7 @@ import {
 import { SidebarHeader } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { useEffect } from "react";
-import { SidebarData } from "@/components/sidebar-01/types";
+import { SidebarData } from "@/components/sidebar/types";
 
 interface NavHeaderProps {
   data: SidebarData;

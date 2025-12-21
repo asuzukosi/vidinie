@@ -13,10 +13,10 @@ import {
   IconSettingsCode,
 } from "@tabler/icons-react";
 import { LayoutDashboard, Package } from "lucide-react";
-import { NavCollapsible } from "@/components/sidebar-01/nav-collapsible";
-import { NavFooter } from "@/components/sidebar-01/nav-footer";
-import { NavHeader } from "@/components/sidebar-01/nav-header";
-import { NavMain } from "@/components/sidebar-01/nav-main";
+import { NavCollapsible } from "@/components/sidebar/NavCollapsible";
+import { NavFooter } from "@/components/sidebar/NavFooter";
+import { NavHeader } from "@/components/sidebar/NavHeader";
+import { NavMain } from "@/components/sidebar/NavMain";
 import type { SidebarData } from "./types";
 
 const data: SidebarData = {
@@ -124,7 +124,7 @@ const data: SidebarData = {
   },
 };
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export function AppSidebar({...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar {...props}>
       <NavHeader data={data} />

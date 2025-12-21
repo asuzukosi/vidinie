@@ -3,10 +3,10 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { SignupForm } from "@/components/SignUpForm";
+import { LoginForm } from "@/components/authentication/LoginForm";
 import { authClient } from "@/lib/auth-client";
 
-export default function SignUpPage() {
+export default function SignInPage() {
   const router = useRouter();
   const { data: session, isPending } = authClient.useSession();
 
@@ -16,16 +16,15 @@ export default function SignUpPage() {
     }
   }, [isPending, router, session]);
 
-  const handleSignup = async (name: string, email: string, password: string) => {
-    const { error } = await authClient.signUp.email({
-      name,
+  const handleLogin = async (email: string, password: string) => {
+    const { error } = await authClient.signIn.email({
       email,
       password,
       callbackURL: "/overview",
     });
 
     if (error) {
-      toast.error(error.message || "Signup failed.");
+      toast.error(error.message || "Login failed.");
       return;
     }
 
@@ -33,14 +32,14 @@ export default function SignUpPage() {
     router.refresh();
   };
 
-  const handleGoogleSignup = async () => {
+  const handleGoogleLogin = async () => {
     const { error } = await authClient.signIn.social({
       provider: "google",
       callbackURL: "/overview",
     });
 
     if (error) {
-      toast.error(error.message || "Google signup failed.");
+      toast.error(error.message || "Google login failed.");
     }
   };
 
@@ -50,7 +49,7 @@ export default function SignUpPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 dark:bg-black">
-      <SignupForm onSignup={handleSignup} onGoogleSignup={handleGoogleSignup} />
+      <LoginForm onLogin={handleLogin} onGoogleLogin={handleGoogleLogin} />
     </div>
   );
 }

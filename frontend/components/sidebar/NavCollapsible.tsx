@@ -17,7 +17,7 @@ import {
   FavoriteItem,
   TeamItem,
   TopicItem,
-} from "@/components/sidebar-01/types";
+} from "@/components/sidebar/types";
 
 interface NavCollapsibleProps {
   favorites: FavoriteItem[];

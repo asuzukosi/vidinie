@@ -3,7 +3,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/sidebar-01/app-sidebar";
+import { AppSidebar } from "@/components/sidebar/AppSidebar";
 
 export default function Sidebar({ children }: { children?: React.ReactNode }) {
   return (
@@ -15,7 +15,9 @@ export default function Sidebar({ children }: { children?: React.ReactNode }) {
             <SidebarTrigger className="sm:hidden" />
           </div>
         </header>
-        {children}
+        <div className="flex-1 p-4">
+          {children}
+          </div>
       </SidebarInset>
     </SidebarProvider>
   );

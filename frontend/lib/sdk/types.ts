@@ -239,3 +239,13 @@ export interface PipelineReviewRequest {
     rating: number;
     feedback: string;
 }
+
+
+export interface PipelineProcessingStage {
+    id: string;
+    title: string;
+    description: string;
+    completed: boolean;
+    actionLabel: string;
+    actionHref: string;
+}

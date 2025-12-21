@@ -6,7 +6,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import type { NavItem } from "./types";
+import type { NavItem } from "@/components/sidebar/types";
 import Link from "next/link";
 
 export function NavMain({ items }: { items: NavItem[] }) {
