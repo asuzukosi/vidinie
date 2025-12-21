@@ -1,5 +1,6 @@
 export interface StartPipelineRequest {
-    url: string;
+    url?: string;
+    file?: File;
     name: string;
     description: string;
     tags: string[];
