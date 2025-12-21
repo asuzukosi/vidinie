@@ -40,6 +40,14 @@ export function NavFooter({
     avatar: string;
   };
 }) {
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
   return (
     <SidebarFooter className="p-4">
       <SidebarMenu>
@@ -53,12 +61,7 @@ export function NavFooter({
                       <AvatarImage src={user.avatar} alt={user.name} />
                     )}
                     <AvatarFallback className="rounded-full">
-                      {user.name
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")
-                        .toUpperCase()
-                        .slice(0, 2)}
+                      {getInitials(user.name)}
                     </AvatarFallback>
                   </Avatar>
                 </DropdownMenuTrigger>
