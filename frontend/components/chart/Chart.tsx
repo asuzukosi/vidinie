@@ -2,7 +2,7 @@ import { SiteHeader } from "@/components/chart/SiteHeader";
 import { SectionCards } from "@/components/chart/SectionCards";
 import { ChartAreaInteractive } from "@/components/chart/ChartAreaInteractive";
 import { DataTable } from "@/components/chart/DataTable";
-import data from "@/app/chart/data.json";
+import data from "@/components/chart/data.json";
 
 export function Chart() {
     return (
