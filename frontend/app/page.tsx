@@ -1,6 +1,6 @@
 "use client";
 import Sidebar from "@/components/sidebar/Sidebar";
-// import { PipelineStagesManager } from "@/components/PipelineStagesManager";
+//  dimport { PipelineStagesManager } from "@/components/PipelineStagesManager";
 // import { VideoPlayer } from "@/components/VideoPlayer";
 // import CreatePipelineForm from "@/components/forms/create-pipeline/CreatePipelineForm";
 // import { FormTabs } from "@/components/forms/create-pipeline/FormTabs";
