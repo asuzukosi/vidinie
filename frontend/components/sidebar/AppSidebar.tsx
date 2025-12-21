@@ -23,7 +23,7 @@ const data: SidebarData = {
   user: {
     name: "ephraim",
     email: "ephraim@blocks.so",
-    avatar: "/avatar-01.png",
+    avatar: "https://ui-avatars.com/api/?name=Ephraim+Blocks&background=random",
   },
   navMain: [
     {

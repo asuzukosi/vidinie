@@ -76,42 +76,46 @@ export function MultiSelect({
           value.length === 0 && "text-muted-foreground"
         )}
       >
-        <div className="flex flex-1 flex-wrap gap-1 overflow-hidden text-left">
+        <div className="flex flex-1 flex-row items-center gap-1 overflow-hidden text-left">
           {value.length === 0 ? (
             <span className="text-muted-foreground">{placeholder}</span>
           ) : (
-            <div className="flex flex-wrap gap-1">
+            <>
               {selectedLabels.slice(0, 2).map((label, idx) => {
                 const option = options.find((opt) => opt.label === label);
                 return (
                   <span
                     key={option?.value || idx}
-                    className="inline-flex items-center gap-1 rounded bg-zinc-100 px-2 py-0.5 text-xs dark:bg-zinc-800"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRemove(option!.value, e);
-                    }}
+                    className="inline-flex items-center gap-1 rounded bg-zinc-100 px-2 py-0.5 text-xs dark:bg-zinc-800 whitespace-nowrap"
                   >
                     {label}
-                    <button
-                      type="button"
+                    <span
+                      role="button"
+                      tabIndex={0}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleRemove(option!.value, e);
                       }}
-                      className="ml-1 rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleRemove(option!.value, e as unknown as React.MouseEvent);
+                        }
+                      }}
+                      className="ml-1 cursor-pointer rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-700 focus:outline-none focus:ring-1 focus:ring-zinc-400"
                     >
                       <XIcon className="h-3 w-3" />
-                    </button>
+                    </span>
                   </span>
                 );
               })}
               {value.length > 2 && (
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
                   +{value.length - 2} more
                 </span>
               )}
-            </div>
+            </>
           )}
         </div>
         <ChevronDownIcon

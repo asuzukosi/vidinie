@@ -31,16 +31,27 @@ export class VidinieAPIClient {
         return this;
     }
 
-    async startPipelineWithFile(name: string, description: string, 
-                                tags: string[], projects: string[],
-                                file: File): Promise<SummaryPipelineDataResponse> {
+    async startPipelineWithFile(
+        name: string,
+        description: string,
+        tags: string[],
+        projects: string[],
+        file: File
+    ): Promise<SummaryPipelineDataResponse> {
+        const formData = new FormData();
+        formData.append('name', name);
+        formData.append('description', description);
+        tags.forEach(tag => formData.append('tags', tag));
+        projects.forEach(project => formData.append('projects', project));
+        formData.append('file', file);
+
         const response = await fetch(`${this.baseUrl}/pipelines/start_pipeline_with_file`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${this.apiKey}`,
-                'Content-Type': 'application/json'
+                // Note: Do not set Content-Type when using FormData; browser will set the correct boundary.
             },
-            body: JSON.stringify({ name, description, tags, projects, file })
+            body: formData
         });
         return response.json() as Promise<SummaryPipelineDataResponse>;
     }
@@ -384,7 +395,7 @@ export class VidinieAPIClient {
 }
 
 // create a singleton instance of the client
-const client = new VidinieAPIClient(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000',
+const client = new VidinieAPIClient(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
      process.env.NEXT_PUBLIC_API_KEY || '');
 
 export default client;
