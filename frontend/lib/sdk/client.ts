@@ -392,6 +392,21 @@ export class VidinieAPIClient {
         });
         return response.json() as Promise<PipelineData>;
     }
+
+    async getImageWithPath(path: string): Promise<Blob> {
+        const response = await fetch(`${this.baseUrl}/pipelines/get_image_with_path/${path}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${this.apiKey}`
+            }
+        });
+        return response.blob() as Promise<Blob>;
+    }
+
+    getLinkToImage(filePath: string): string {
+        filePath = filePath.replace("temp", "media");
+        return `${this.baseUrl}/${filePath}`;
+    }
 }
 
 // create a singleton instance of the client

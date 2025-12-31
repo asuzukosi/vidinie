@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   IconChevronRight,
 } from "@tabler/icons-react";
@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { CircularProgress } from "@/components/ui/circular-progress";
 import { StepIndicator } from "@/components/ui/step-indicator";
 import { pipelineProcessingStages } from "@/lib/sdk/constants";
-import { PipelineProcessingStage } from "@/lib/sdk/types";
+import { PipelineProcessingStage, PipelineStage, PipelineStageStatisticsManager } from "@/lib/sdk/types";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -18,37 +18,59 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-export function PipelineStagesManager() {
+
+interface PipelineStagesManagerProps {
+  pipelineStageStatistics: PipelineStageStatisticsManager;
+}
+export function PipelineStagesManager({ pipelineStageStatistics }: PipelineStagesManagerProps) {
   const [currentSteps, setCurrentSteps] = useState<PipelineProcessingStage[]>(pipelineProcessingStages);
-  const [openStepId, setOpenStepId] = useState<string | null>(() => {
-    const firstIncomplete = pipelineProcessingStages.find((s) => !s.completed);
-    return firstIncomplete?.id ?? pipelineProcessingStages[0]?.id ?? null;
-  });
+  const [openStepId, setOpenStepId] = useState<PipelineStage | null>(PipelineStage.DOCUMENT_PROCESSING);
+  const [completedCount, setCompletedCount] = useState(0);
 
-  const completedCount = currentSteps.filter((s) => s.completed).length;
-  const remainingCount = currentSteps.length - completedCount;
+  const updateCurrentSteps = () => {
+    const updatedSteps = pipelineProcessingStages.map((stage) => {
+      if (pipelineStageStatistics[stage.id as keyof PipelineStageStatisticsManager]) {
+        return {
+          ...stage,
+          completed: true,
+          start_time: pipelineStageStatistics[stage.id as keyof PipelineStageStatisticsManager]?.start_time,
+          end_time: pipelineStageStatistics[stage.id as keyof PipelineStageStatisticsManager]?.end_time,
+          duration: pipelineStageStatistics[stage.id as keyof PipelineStageStatisticsManager]?.duration,
+        };
+      }
+      return stage;
+    });
+    setCurrentSteps(updatedSteps);
+    setCompletedCount(updatedSteps.filter((step) => step.completed).length);
+  }
 
-  const handleStepClick = (stepId: string) => {
+  useEffect(() => {
+    updateCurrentSteps();
+  }, [pipelineStageStatistics]);
+
+  const remainingCount = useMemo(() => {
+    return currentSteps.length - completedCount;
+  }, [completedCount]);
+
+  const handleStepClick = (stepId: PipelineStage) => {
     setOpenStepId(openStepId === stepId ? null : stepId);
-  };
+  }
 
   const handleStepAction = (step: PipelineProcessingStage) => {
-    setCurrentSteps((prev) =>
-      prev.map((s) => (s.id === step.id ? { ...s, completed: true } : s))
-    );
-  };
+    console.log("handleStepAction", step);
+  }
   return (
-        <div className="rounded-lg border bg-card p-4 text-card-foreground shadow-xs">
-          <div className="mb-4 mr-2 flex flex-col justify-between sm:flex-row sm:items-center">
+        <div className="rounded-lg border bg-card p-4 text-card-foreground shadow-xs text-sm">
+          <div className="mb-4">
             <h3 className="ml-2 font-semibold text-foreground">
               Create with Vidinie
             </h3>
-            <div className="mt-2 flex items-center justify-end sm:mt-0">
+            <div className="mt-2 flex items-center mb-4">
               <CircularProgress
                 completed={remainingCount}
                 total={currentSteps.length}
               />
-              <div className="ml-1.5 mr-3 text-sm text-muted-foreground">
+              <div className="ml-1.5 mr-3 text-muted-foreground" >
                 <span className="font-medium text-foreground">
                   {remainingCount}
                 </span>{" "}
@@ -60,14 +82,13 @@ export function PipelineStagesManager() {
               </div>
             </div>
           </div>
-
+    
           <div className="space-y-0">
             {currentSteps.map((step, index) => {
               const isOpen = openStepId === step.id;
               const isFirst = index === 0;
               const prevStep = currentSteps[index - 1];
               const isPrevOpen = prevStep && openStepId === prevStep.id;
-
               const showBorderTop = !isFirst && !isOpen && !isPrevOpen;
 
               return (
@@ -82,11 +103,11 @@ export function PipelineStagesManager() {
                   <div
                     role="button"
                     tabIndex={0}
-                    onClick={() => handleStepClick(step.id)}
+                    onClick={() => handleStepClick(step.id as PipelineStage)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
-                        handleStepClick(step.id);
+                        handleStepClick(step.id as PipelineStage);
                       }
                     }}
                     className={cn(
@@ -125,6 +146,7 @@ export function PipelineStagesManager() {
                               <p className="mt-2 text-sm text-muted-foreground sm:max-w-64 md:max-w-xs">
                                 {step.description}
                               </p>
+                              {!step.completed && (
                               <div className="flex justify-end mt-auto pt-2">
                                 <TooltipProvider>
                                   <div className="flex items-end gap-1">
@@ -133,7 +155,7 @@ export function PipelineStagesManager() {
                                         <Button
                                           variant="outline"
                                           size="icon"
-                                          className="h-8 w-8 shadow-md p-2 rounded-md"
+                                          className="h-8 w-8"
                                           onClick={() => handleStepAction(step)}
                                         >
                                           <PlayIcon className="size-4" />
@@ -144,6 +166,7 @@ export function PipelineStagesManager() {
                                   </div>
                                 </TooltipProvider>
                               </div>
+                              )}
                             </div>
                           </div>
                         </div>

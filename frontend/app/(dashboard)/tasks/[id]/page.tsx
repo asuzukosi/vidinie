@@ -3,76 +3,56 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import {
-    PipelineStageNav,
-    PipelineFooter,
-    pipelineStages,
-    ParserStage,
-    ContentAnalyserStage,
-    NarrationStage,
-    FinalExportStage,
+    // PipelineStageNav,
+    // PipelineFooter,
+    // pipelineStages,
+    DocumentProcessing,
+    // ContentAnalyserStage,
+    // NarrationStage,
+    // FinalExportStage,
+    // PipelineStage,
 } from "@/components/pipeline";
+import client from "@/lib/sdk/client";
+import { PipelineData, PipelineStageStatisticsManager } from "@/lib/sdk/types";
+import { LoadingPage } from "@/components/LoadingPage";
+import { PipelineStagesManager } from "@/components/PipelineStagesManager";
+import { PipelineTaskDetails } from "@/components/PipelineTaskDetails";
 
 export default function TaskDetailPage() {
     const params = useParams();
     const taskId = params.id as string;
+    const [taskDetails, setTaskDetails] = useState<PipelineData | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const [currentStage, setCurrentStage] = useState(1);
-    const [progress, setProgress] = useState(0);
+    const fetchTaskDetails = async () => {
+        setIsLoading(true);
+        const result: PipelineData = await client.getPipelineDetails(taskId);
+        setTaskDetails(result);
+        setIsLoading(false);
+    };
 
-    // Simulate progress loading
     useEffect(() => {
-        const interval = setInterval(() => {
-            setProgress((prev) => (prev >= 100 ? 100 : prev + Math.random() * 5));
-        }, 500);
-        return () => clearInterval(interval);
-    }, []);
-
-    const handlePrev = () => {
-        if (currentStage > 1) setCurrentStage(currentStage - 1);
-    };
-
-    const handleNext = () => {
-        if (currentStage < pipelineStages.length) setCurrentStage(currentStage + 1);
-    };
-
-    // Render stage content based on current stage
-    const renderStageContent = () => {
-        switch (currentStage) {
-            case 1:
-                return <ParserStage />;
-            case 2:
-                return <ContentAnalyserStage />;
-            case 3:
-                return <NarrationStage />;
-            case 4:
-                return <FinalExportStage />;
-            default:
-                return null;
-        }
-    };
+        fetchTaskDetails().catch(console.error);
+    }, [taskId]);
 
     return (
-        <div className="flex h-[calc(100vh-2rem)] -m-6 overflow-hidden">
-            {/* Sidebar navigation */}
-            <PipelineStageNav
-                currentStage={currentStage}
-                onStageChange={setCurrentStage}
-                progress={Math.round(progress)}
-            />
-
-            {/* Main content area */}
-            <main className="flex-1 flex flex-col bg-white dark:bg-zinc-950 overflow-hidden">
-                {/* Stage content */}
-                <div className="flex-1 overflow-y-auto p-8">
-                    {renderStageContent()}
+        <div className="p-4">
+            {isLoading ? (
+                <LoadingPage />
+            ) : (
+                <div className="flex flex-row gap-4 mx-auto">
+                    <div className="w-1/3 flex flex-col gap-4">
+                        <PipelineStagesManager pipelineStageStatistics={taskDetails?.stage_statistics as PipelineStageStatisticsManager} />
+                        <PipelineTaskDetails name={taskDetails?.name || ""} description={taskDetails?.description || ""} tags={taskDetails?.tags || []} projects={taskDetails?.projects || []} />
+                    </div>
+                    <div className="w-2/3">
+                        <div className="text-sm whitespace-pre-wrap break-words max-w-full" style={{ wordBreak: "break-word" }}>
+                            <DocumentProcessing content={taskDetails?.parsed_content} images={taskDetails?.images_metadata} />
+                            
+                        </div>
+                    </div>
                 </div>
-
-                <PipelineFooter
-                    currentStage={currentStage}
-                    onPrev={handlePrev}
-                    onNext={handleNext}
-                />
-            </main>
+            )}
         </div>
     );
 }

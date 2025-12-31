@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from api.routes import users, pipelines
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
-
+from fastapi.staticfiles import StaticFiles
 
 app = FastAPI(title="Vidinie API", description="API for Vidinie", version="0.1.0", openapi_url="/openapi.json")
 app.add_middleware(
@@ -12,6 +12,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.mount("/media", StaticFiles(directory="temp"), name="media")
 
 # app.include_router(users.router, prefix="/users")
 app.include_router(pipelines.router, prefix="/pipelines")

@@ -53,9 +53,21 @@ export interface ParsedContent {
 export interface ImageMetadata {
     filename: string;
     filepath: string;
-    page_number: number;
-    width: number;
-    height: number;
+    page_number?: number;
+    width?: number;
+    height?: number;
+    format?: string;
+    mode?: string;
+    size_bytes?: number;
+    text_context?: string;
+    xref?: number;
+    index_on_page?: number;
+    label?: string;
+    description?: string;
+    relevance_score?: number;
+    image_type?: string;
+    key_elements?: string[];
+    ai_relevance?: string;
 }
 
 export interface ContextChunk {
@@ -139,6 +151,15 @@ export interface PipelineStageStatistics {
     status: PipelineStatus;
 }
 
+
+export interface PipelineStageStatisticsManager {
+    [PipelineStage.DOCUMENT_PROCESSING]?: PipelineStageStatistics;
+    [PipelineStage.IMAGE_PROCESSING]?: PipelineStageStatistics;
+    [PipelineStage.CONTENT_ANALYSIS]?: PipelineStageStatistics;
+    [PipelineStage.SCRIPT_GENERATION]?: PipelineStageStatistics;
+    [PipelineStage.VIDEO_GENERATION]?: PipelineStageStatistics;
+}
+
 export interface PipelineData {
     id: string;
     path_id: string;
@@ -163,6 +184,7 @@ export interface PipelineData {
     status?: PipelineStatus;
     rating?: number;
     feedback?: string;
+    stage_statistics?: PipelineStageStatisticsManager;
 }
 
 export interface PipelineStageDetails {
@@ -249,4 +271,7 @@ export interface PipelineProcessingStage {
     completed: boolean;
     actionLabel: string;
     actionHref: string;
+    start_time?: string;
+    end_time?: string;
+    duration?: number;
 }

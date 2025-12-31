@@ -15,9 +15,9 @@ export default function Sidebar({ children }: { children?: React.ReactNode }) {
             <SidebarTrigger className="sm:hidden" />
           </div>
         </header>
-        <div className="flex-1 p-4">
+        <div className="h-fit">
           {children}
-          </div>
+        </div>
       </SidebarInset>
     </SidebarProvider>
   );

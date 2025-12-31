@@ -13,15 +13,14 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import { SidebarHeader } from "@/components/ui/sidebar";
-import { cn } from "@/lib/utils";
 import { useEffect } from "react";
-import { SidebarData } from "@/components/sidebar/types";
+import { NavItem } from "@/lib/types";
 
 interface NavHeaderProps {
-  data: SidebarData;
+  navItems: NavItem[];
 }
 
-export function NavHeader({ data }: NavHeaderProps) {
+export function NavHeader({ navItems }: NavHeaderProps) {
   const [open, setOpen] = React.useState(false);
 
   useEffect(() => {
@@ -61,7 +60,7 @@ export function NavHeader({ data }: NavHeaderProps) {
         <CommandList>
           <CommandEmpty>No results found.</CommandEmpty>
           <CommandGroup heading="Navigation">
-            {data.navMain.map((item) => (
+            {navItems.map((item) => (
               <CommandItem
                 className="py-2!"
                 key={item.id}
@@ -74,51 +73,7 @@ export function NavHeader({ data }: NavHeaderProps) {
               </CommandItem>
             ))}
           </CommandGroup>
-          <CommandSeparator className="my-2" />
-          <CommandGroup heading="Favorites">
-            {data.navCollapsible.favorites.map((item) => (
-              <CommandItem
-                className="py-2!"
-                key={item.id}
-                onSelect={() => {
-                  setOpen(false);
-                }}
-              >
-                <div className={cn("mr-2 h-3 w-3 rounded-full", item.color)} />
-                <span>{item.title}</span>
-              </CommandItem>
-            ))}
-          </CommandGroup>
-          <CommandSeparator className="my-2" />
-          <CommandGroup heading="Teams">
-            {data.navCollapsible.teams.map((item) => (
-              <CommandItem
-                className="py-2!"
-                key={item.id}
-                onSelect={() => {
-                  setOpen(false);
-                }}
-              >
-                <item.icon className="mr-2 h-4 w-4" />
-                <span>{item.title}</span>
-              </CommandItem>
-            ))}
-          </CommandGroup>
-          <CommandSeparator className="my-2" />
-          <CommandGroup heading="Topics">
-            {data.navCollapsible.topics.map((item) => (
-              <CommandItem
-                className="py-2!"
-                key={item.id}
-                onSelect={() => {
-                  setOpen(false);
-                }}
-              >
-                <item.icon className="mr-2 h-4 w-4" />
-                <span>{item.title}</span>
-              </CommandItem>
-            ))}
-          </CommandGroup>
+          {/* <CommandSeparator className="my-2" /> */}
         </CommandList>
       </CommandDialog>
     </>

@@ -2,37 +2,22 @@
 
 import { Sidebar, SidebarContent } from "@/components/ui/sidebar";
 import {
-  IconAd2,
-  IconBellRinging,
-  IconCalendar,
-  IconCalendarStats,
+  IconSettings,
+  IconUser,
   IconListDetails,
-  IconNews,
-  IconNotebook,
-  IconProgressCheck,
-  IconSettingsCode,
 } from "@tabler/icons-react";
-import { LayoutDashboard, Package } from "lucide-react";
-import { NavCollapsible } from "@/components/sidebar/NavCollapsible";
 import { NavFooter } from "@/components/sidebar/NavFooter";
 import { NavHeader } from "@/components/sidebar/NavHeader";
 import { NavMain } from "@/components/sidebar/NavMain";
-import type { SidebarData } from "./types";
+import type { User, NavItem } from "@/lib/types";
 
-const data: SidebarData = {
-  user: {
-    name: "ephraim",
-    email: "ephraim@blocks.so",
-    avatar: "https://ui-avatars.com/api/?name=Ephraim+Blocks&background=random",
-  },
-  navMain: [
-    {
-      id: "overview",
-      title: "Overview",
-      url: "/overview",
-      icon: LayoutDashboard,
-      isActive: true,
-    },
+const user: User = {
+  name: "Kosi Asuzu",
+  email: "kosi@kosi.com",
+  avatar: "https://ui-avatars.com/api/?name=Kosi Asuzu&background=random",
+}
+
+const navItems: NavItem[] = [
     {
       id: "tasks",
       title: "Tasks",
@@ -40,103 +25,32 @@ const data: SidebarData = {
       icon: IconListDetails,
     },
     {
-      id: "meetings",
-      title: "Meetings",
-      url: "#",
-      icon: IconCalendarStats,
+      id: "settings",
+      title: "Settings",
+      url: "/settings",
+      icon: IconSettings,
     },
     {
-      id: "notes",
-      title: "Notes",
-      url: "#",
-      icon: IconNotebook,
+      id: "profile",
+      title: "Profile",
+      url: "/profile",
+      icon: IconUser,
     },
-    {
-      id: "calendar",
-      title: "Calendar",
-      url: "#",
-      icon: IconCalendar,
-    },
-    {
-      id: "completed",
-      title: "Completed",
-      url: "#",
-      icon: IconProgressCheck,
-    },
-    {
-      id: "notifications",
-      title: "Notifications",
-      url: "#",
-      icon: IconBellRinging,
-    },
-  ],
-  navCollapsible: {
-    favorites: [
-      {
-        id: "design",
-        title: "Design",
-        href: "#",
-        color: "bg-green-400 dark:bg-green-300",
-      },
-      {
-        id: "development",
-        title: "Development",
-        href: "#",
-        color: "bg-blue-400 dark:bg-blue-300",
-      },
-      {
-        id: "workshop",
-        title: "Workshop",
-        href: "#",
-        color: "bg-orange-400 dark:bg-orange-300",
-      },
-      {
-        id: "personal",
-        title: "Personal",
-        href: "#",
-        color: "bg-red-400 dark:bg-red-300",
-      },
-    ],
-    teams: [
-      {
-        id: "engineering",
-        title: "Engineering",
-        icon: IconSettingsCode,
-      },
-      {
-        id: "marketing",
-        title: "Marketing",
-        icon: IconAd2,
-      },
-    ],
-    topics: [
-      {
-        id: "product-updates",
-        title: "Product Updates",
-        icon: Package,
-      },
-      {
-        id: "company-news",
-        title: "Company News",
-        icon: IconNews,
-      },
-    ],
-  },
-};
+]
 
-export function AppSidebar({...props }: React.ComponentProps<typeof Sidebar>) {
+export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar {...props}>
-      <NavHeader data={data} />
+      <NavHeader navItems={navItems} />
       <SidebarContent>
-        <NavMain items={data.navMain} />
-        <NavCollapsible
+        <NavMain items={navItems} />
+        {/* <NavCollapsible # TODO: add when needed
           favorites={data.navCollapsible.favorites}
-          teams={data.navCollapsible.teams}
-          topics={data.navCollapsible.topics}
-        />
+          // teams={data.navCollapsible.teams}
+          // topics={data.navCollapsible.topics}
+        /> */}
       </SidebarContent>
-      <NavFooter user={data.user} />
+      <NavFooter user={user} />
     </Sidebar>
   );
 }

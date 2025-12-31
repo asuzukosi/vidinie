@@ -61,6 +61,9 @@ class SummaryPipelineDataResponse(BaseModel):
     updated_at: str = Field(default_factory=lambda: datetime.now().isoformat())
     created_at: str = Field(default_factory=lambda: datetime.now().isoformat())
     
+    #stage information
+    current_stage: str = Field(default="")
+    status: str  = Field(default="")
     # source document
     source_path: Optional[str] = None
     source_type: Optional[SourceType] = None
@@ -495,7 +498,7 @@ class CreateVideoOutlineRequest(BaseModel):
     segment_duration: int = 45
 
 @router.post("/process_content/{pipeline_id}", name="process context")
-async def process_content(pipeline_id: str, request: CreateVideoOutlineRequest):
+async def process_content(pipeline_id: str, request: CreateVideoOutlineRequest) -> PipelineData:
     pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
     if not pipeline_data:
         raise HTTPException(status_code=404, detail="Pipeline not found")
@@ -582,6 +585,7 @@ async def process_content(pipeline_id: str, request: CreateVideoOutlineRequest):
         {"_id": ObjectId(pipeline_id)},
         {"$set": pipeline_data.model_dump(mode="json")}
     )
+    return pipeline_data
 
 @router.get("/get_pipeline_context_chunks/{pipeline_id}", name="get pipeline context chunks")
 async def get_pipeline_context_chunks(pipeline_id: str) -> List[ContextChunk]:

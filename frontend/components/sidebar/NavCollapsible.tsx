@@ -17,18 +17,18 @@ import {
   FavoriteItem,
   TeamItem,
   TopicItem,
-} from "@/components/sidebar/types";
+} from "@/lib/types";
 
 interface NavCollapsibleProps {
   favorites: FavoriteItem[];
-  teams: TeamItem[];
-  topics: TopicItem[];
+  teams?: TeamItem[];
+  topics?: TopicItem[];
 }
 
 export function NavCollapsible({
   favorites,
-  teams,
-  topics,
+  teams = [],
+  topics = [],
 }: NavCollapsibleProps) {
   return (
     <div className="space-y-0">
