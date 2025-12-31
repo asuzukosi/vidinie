@@ -21,8 +21,18 @@ import {
 
 interface PipelineStagesManagerProps {
   pipelineStageStatistics: PipelineStageStatisticsManager;
+  onGenerateOutlineContent: () => void;
+  onScriptAndAudioGeneration: () => void;
+  onVideoGeneration: () => void;
+  onDownloadAndShare: () => void;
 }
-export function PipelineStagesManager({ pipelineStageStatistics }: PipelineStagesManagerProps) {
+export function PipelineStagesManager({ 
+  pipelineStageStatistics, 
+  onGenerateOutlineContent, 
+  onScriptAndAudioGeneration,
+  onVideoGeneration,
+  onDownloadAndShare,
+}: PipelineStagesManagerProps) {
   const [currentSteps, setCurrentSteps] = useState<PipelineProcessingStage[]>(pipelineProcessingStages);
   const [openStepId, setOpenStepId] = useState<PipelineStage | null>(PipelineStage.DOCUMENT_PROCESSING);
   const [completedCount, setCompletedCount] = useState(0);
@@ -57,7 +67,21 @@ export function PipelineStagesManager({ pipelineStageStatistics }: PipelineStage
   }
 
   const handleStepAction = (step: PipelineProcessingStage) => {
-    console.log("handleStepAction", step);
+    console.log("handling step action for step:", step);
+    switch (step.id) {
+      case "generate_content":
+        onGenerateOutlineContent();
+        break;
+      case "script_and_audio_generation":
+        onScriptAndAudioGeneration();
+        break;
+      case "video_generation":
+        onVideoGeneration();
+        break;
+      case "download_and_share":
+        onDownloadAndShare();
+        break;
+    }
   }
   return (
         <div className="rounded-lg border bg-card p-4 text-card-foreground shadow-xs text-sm">
