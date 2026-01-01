@@ -20,7 +20,7 @@ class LoginUserRequest(BaseModel):
     password: str
 
 class User(BaseModel):
-    _id: Optional[ObjectId] = None
+    id: str = None
     username: str
     email: EmailStr
     password: str
@@ -28,6 +28,15 @@ class User(BaseModel):
     updated_at: datetime = Field(default_factory=datetime.now)
     is_verified: bool = Field(default=False)
     current_subscription: Optional[Subscription] = Field(default=Subscription.FREE)
+
+class SafeUser(BaseModel):
+    id: str
+    username: str
+    email: EmailStr
+    created_at: datetime
+    updated_at: datetime
+    is_verified: bool
+    current_subscription: Optional[Subscription]
 
 class UserLoginResponse(User):
     token: str
