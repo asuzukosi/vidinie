@@ -1,43 +1,45 @@
-from fastapi import APIRouter
-from api.core.models import UserLoginRequest, UserRegisterRequest
-
+from fastapi import APIRouter, HTTPException, Depends
+from api.data.users import User,RegisterUserRequest, \
+                        LoginUserRequest, UserLoginResponse
+from api.core.db import users_collection
+from api.core.auth import get_hashed_password, verify_password, signJWT, JWTBearer
 router = APIRouter(tags=["users"])
 
-@router.post("/login")
-async def login(request: UserLoginRequest):
-    return {"message": "Login successful"}
-
 @router.post("/register")
-async def register(request: UserRegisterRequest):
-    return {"message": "Register successful"}
+async def register(request: RegisterUserRequest) -> User:
+    user = await users_collection.find_one({"email": request.email})
+    if user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    # hash password
+    hashed_password = get_hashed_password(request.password)
+    # create user object
+    user = User(username=request.username, 
+                email=request.email, 
+                password=hashed_password)
+    # insert user into database
+    db_user = await users_collection.insert_one(user.model_dump(mode="json"))
+    # update user id
+    await users_collection.update_one(
+        {"_id": db_user.inserted_id},
+        {"$set": {"_id": str(db_user.inserted_id)}}
+    )
+    # return user
+    user._id = str(db_user.inserted_id)
+    return User(**user.model_dump(mode="json"))
 
+@router.post("/login")
+async def login(request: LoginUserRequest) -> User:
+    user = await users_collection.find_one({"email": request.email})
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid email or password")
+    if not verify_password(request.password, user["password"]):
+        raise HTTPException(status_code=400, detail="Invalid email or password")
+    token = signJWT(user["_id"])
+    return UserLoginResponse(**user, token=token)
 
-async def get_user(user_id: str):
-    pass
-
-async def update_user(user_id: str, request):
-    pass
-
-async def delete_user(user_id: str):
-    pass
-
-async def update_user_password(user_id: str, request):
-    pass
-
-async def get_subscription(user_id: str):
-    pass
-
-async def update_subscription(user_id: str, request):
-    pass
-
-async def delete_subscription(user_id: str):
-    pass
-
-async def get_payment_history(user_id: str):
-    pass
-
-async def get_billing_info(user_id: str):
-    pass
-
-async def get_all_users():
-    pass
+@router.get("/me", dependencies=[Depends(JWTBearer())])
+async def me(user_id: str = Depends(JWTBearer())) -> User:
+    user = await users_collection.find_one({"_id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return User(**user)

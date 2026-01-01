@@ -23,8 +23,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils.logger import setup_logging, get_logger
 from utils.config_loader import get_config
-from core.video_generator import VideoGenerator
-from core.pipeline_data import PipelineData, PipelineStage, PipelineStatus
+from core.operations.video_generator import VideoGenerator
+from core.data.pipeline import PipelineData, PipelineStage, PipelineStatus
 
 setup_logging(log_dir='temp')
 logger = get_logger('stage4_video')

@@ -8,7 +8,7 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from openai import OpenAI
 from utils.logger import get_logger
-from core.pipeline_data import ContextChunk
+from core.data.pipeline import ContextChunk
 logger = get_logger(__name__)
 
 

@@ -228,6 +228,7 @@ class PipelineData(BaseModel):
     # identification
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     path_id: Optional[str] = None # id used by mongodb for internal use
+    user_id: Optional[str] = None # id of the user who created the pipeline
     name: str = Field(default="")
     description: str = Field(default="")
     tags: List[str] = Field(default_factory=list)  # tags of the pipeline

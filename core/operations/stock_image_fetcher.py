@@ -8,7 +8,7 @@ from typing import Optional, List, Dict
 from pathlib import Path
 from utils.logger import get_logger
 from utils.stock_image_utils import fetch_from_unsplash, fetch_from_pexels
-from core.pipeline_data import VideoSegment, SegmentImage
+from core.data.pipeline import VideoSegment, SegmentImage
 
 logger = get_logger(__name__)
 

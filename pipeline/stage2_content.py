@@ -21,11 +21,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils.logger import setup_logging, get_logger
 from utils.config_loader import get_config
-from core.context_processor import ContextProcessor
-from core.content_analyzer import ContentAnalyzer
-from core.stock_image_fetcher import StockImageFetcher
-from core.image_generator import ImageGenerator
-from core.pipeline_data import PipelineData, PipelineStage, PipelineStatus, ContextProcessorInfo, ContextChunk, ParsedContent, VideoOutline
+from core.operations.context_processor import ContextProcessor
+from core.operations.content_analyzer import ContentAnalyzer
+from core.operations.stock_image_fetcher import StockImageFetcher
+from core.operations.image_generator import ImageGenerator
+from core.data.pipeline import PipelineData, PipelineStage, PipelineStatus, ContextProcessorInfo, ContextChunk, ParsedContent, VideoOutline
 
 setup_logging(log_dir='temp')
 logger = get_logger('stage2_content')

@@ -10,7 +10,7 @@ from pathlib import Path
 from openai import OpenAI
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from utils.logger import get_logger
-from core.pipeline_data import VideoSegment, SegmentImage
+from core.data.pipeline import VideoSegment, SegmentImage
 
 logger = get_logger(__name__)
 

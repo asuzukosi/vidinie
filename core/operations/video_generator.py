@@ -9,9 +9,9 @@ creates presentation-style explainer videos with:
 """
 
 import os
-from typing import Dict, Optional
+from typing import Optional
 import numpy as np
-from core.pipeline_data import ScriptData, VideoSegment, ImageSource
+from core.data.pipeline import ScriptData, VideoSegment, ImageSource
 # pillow 10.0.0+ compatibility fix for moviepy
 from PIL import Image
 if not hasattr(Image, 'ANTIALIAS'):
@@ -24,7 +24,7 @@ from moviepy.editor import (
 from moviepy.video.fx.fadein import fadein
 from moviepy.video.fx.fadeout import fadeout
 
-from core.pipeline_data import BackgroundType
+from core.data.pipeline import BackgroundType
 from utils.video_utils import VideoUtils
 from utils.font_loader import FontLoader
 from utils.logger import get_logger

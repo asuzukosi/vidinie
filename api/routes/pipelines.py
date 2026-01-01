@@ -1,36 +1,39 @@
 from fastapi import APIRouter, File, UploadFile, Form, HTTPException, Request
 import re
 from fastapi.responses import StreamingResponse, FileResponse
-from core.pipeline_data import PipelineData, SourceType, PipelineStage,\
+from core.data.pipeline import PipelineData, SourceType, PipelineStage,\
                                PipelineStatus, ParsedContent, VideoSegment, \
-                                ParsedContentMetadata, ParsedContentSection, \
-                                ImageMetadata, ContextChunk, ContextProcessorInfo, \
-                                ScriptData, BackgroundType,\
-                               PipelineStageStatistics, get_next_stage, get_previous_stage, VideoOutline
+                               ParsedContentSection, \
+                               ImageMetadata, ContextChunk, ContextProcessorInfo, \
+                               ScriptData, get_next_stage, get_previous_stage, VideoOutline
 from utils.logger import setup_logging, get_logger
-from pydantic import BaseModel
-from core.image_labeler import ImageLabeler
+from core.operations.image_labeler import ImageLabeler
 from typing import List, Any, Dict, Union
 import os
 from pathlib import Path
 from api.core.db import pipelines_collection
+from api.data.pipeline import StartPipelineRequest, SummaryPipelineDataResponse, \
+                               DeletePipelineResponse, PipelineStageDetails, \
+                               UpdatePipelineImageMetadataRequest, DeletePipelineImageResponse, \
+                               ParsedContentDataMinimal, DeletePipelineSectionResponse, \
+                               CreateVideoOutlineRequest, VideoGenerationRequest, \
+                               VideoSegmentBackground, PipelineReviewRequest, VideoResolution
 from utils.config_loader import get_config
 from core.processors.pdf_processor import PDFProcessor
 from core.processors.html_processor import HTMLProcessor
-from core.context_processor import ContextProcessor
-from core.content_analyzer import ContentAnalyzer
-from core.stock_image_fetcher import StockImageFetcher
-from core.image_generator import ImageGenerator
-from core.script_generator import ScriptGenerator
-from core.voiceover_generator import VoiceoverGenerator
-from core.video_generator import VideoGenerator
+from core.operations.context_processor import ContextProcessor
+from core.operations.content_analyzer import ContentAnalyzer
+from core.operations.stock_image_fetcher import StockImageFetcher
+from core.operations.image_generator import ImageGenerator
+from core.operations.script_generator import ScriptGenerator
+from core.operations.voiceover_generator import VoiceoverGenerator
+from core.operations.video_generator import VideoGenerator
 from bson.objectid import ObjectId
 from datetime import datetime
 from typing import Optional, Tuple, List
-from enum import Enum
-from pydantic import Field
 import shutil
 import requests
+
 
 # setup logging
 setup_logging(log_dir='temp')
@@ -41,32 +44,7 @@ config = get_config()
 
 router = APIRouter(tags=["pipelines"])
 
-class StartPipelineRequest(BaseModel):
-    url: str
-    name: str
-    description: str
-    tags: Optional[List[str]] = None
-    projects: Optional[List[str]] = None
 
-class SummaryPipelineDataResponse(BaseModel):
-    # identification
-    id: str
-    path_id: Optional[str] = None # id used by mongodb for internal use
-    name: str = Field(default="")
-    description: str = Field(default="")
-    tags: List[str] = Field(default_factory=list, nullable=True)  # tags of the pipeline
-    projects: List[str] = Field(default_factory=list, nullable=True)  # projects of the pipeline
-    
-    # timing information
-    updated_at: str = Field(default_factory=lambda: datetime.now().isoformat())
-    created_at: str = Field(default_factory=lambda: datetime.now().isoformat())
-    
-    #stage information
-    current_stage: str = Field(default="")
-    status: str  = Field(default="")
-    # source document
-    source_path: Optional[str] = None
-    source_type: Optional[SourceType] = None
 
 @router.post("/start_pipeline_with_file", name="start pipeline with file")
 async def start_pipeline_with_file(
@@ -209,9 +187,7 @@ async def get_all_pipelines() -> List[SummaryPipelineDataResponse]:
         pipelines.append(SummaryPipelineDataResponse(**pipeline))
     return pipelines
 
-class DeletePipelineResponse(BaseModel):
-    pipeline_id: str
-    message: str
+
 
 @router.delete("/delete_pipeline/{pipeline_id}", name="delete pipeline")
 async def delete_pipeline(pipeline_id: str) -> DeletePipelineResponse:
@@ -243,12 +219,7 @@ async def get_pipeline_details(pipeline_id: str) -> PipelineData:
         raise HTTPException(status_code=404, detail="Pipeline not found")
     return PipelineData(**pipeline_data)
 
-class PipelineStageDetails(BaseModel):
-    stage: str
-    status: str
-    next_stage: str
-    previous_stage: str
-    stage_statistics: PipelineStageStatistics
+
 
 @router.get("/get_pipeline_stage_details/{pipeline_id}", name="get pipeline stage details")
 async def get_pipeline_stage_details(pipeline_id: str) -> PipelineStageDetails:
@@ -329,16 +300,7 @@ async def add_pipeline_image(pipeline_id: str, image: UploadFile,
     )
     return image_metadata
 
-class UpdatePipelineImageMetadataRequest(BaseModel):
-    index: int
-    filename: Optional[str] = None
-    text_context: Optional[str] = None
-    label: Optional[bool] = False
-    description: Optional[str] = None
-    relevance_score: Optional[float] = None
-    image_type: Optional[str] = None
-    key_elements: Optional[List[str]] = None
-    ai_relevance: Optional[str] = None
+
 
 def clean_dict(dict: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -373,11 +335,7 @@ async def update_pipeline_image_metadata(pipeline_id: str, request: UpdatePipeli
     response = ImageMetadata(**image_metadata)
     return response
 
-class DeletePipelineImageResponse(BaseModel):
-    pipeline_id: str
-    filename: str
-    message: str
-    path_id: Optional[str] = None
+
 
 @router.delete("/delete_pipeline_image/{pipeline_id}", name="delete pipeline image")
 async def delete_pipeline_image(pipeline_id: str, index: int) -> DeletePipelineImageResponse:
@@ -404,11 +362,7 @@ async def delete_pipeline_image(pipeline_id: str, index: int) -> DeletePipelineI
                                            path_id=pipeline_data.path_id)
     return response
 
-class ParsedContentDataMinimal(BaseModel):
-    title: Optional[str] = None
-    total_pages: Optional[int] = None
-    num_sections: Optional[int] = None
-    metadata: Optional[ParsedContentMetadata] = None
+
 
 @router.get("/get_pipeline_parsed_content_info/{pipeline_id}", name="get pipeline parsed content info")
 async def get_pipeline_parsed_content_info(pipeline_id: str) -> ParsedContentDataMinimal:
@@ -468,11 +422,7 @@ async def update_pipeline_section(pipeline_id: str, index: int, section: ParsedC
     )
     return ParsedContentSection(**section_data)
 
-class DeletePipelineSectionResponse(BaseModel):
-    pipeline_id: str
-    index: int
-    message: str
-    title: Optional[str] = None
+
 
 @router.delete("/delete_pipeline_section/{pipeline_id}", name="delete pipeline section")
 async def delete_pipeline_section(pipeline_id: str, index: int) -> DeletePipelineSectionResponse:
@@ -492,10 +442,7 @@ async def delete_pipeline_section(pipeline_id: str, index: int) -> DeletePipelin
                                          title=section_data.title)
 
 
-class CreateVideoOutlineRequest(BaseModel):
-    skip_stock: bool = False
-    target_segments: int = 7
-    segment_duration: int = 45
+
 
 @router.post("/process_content/{pipeline_id}", name="process context")
 async def process_content(pipeline_id: str, request: CreateVideoOutlineRequest) -> PipelineData:
@@ -754,12 +701,7 @@ async def update_pipeline_script_data(pipeline_id: str, script_data: ScriptData)
     )
     return pipeline_data.script_data
 
-class VideoResolution(str, Enum):
-    """video resolution."""
-    RESOLUTION_4K = "4K"
-    RESOLUTION_1080P = "1080P"
-    RESOLUTION_720P = "720P"
-    RESOLUTION_480P = "480P"
+
 
 resolution_map = {
     VideoResolution.RESOLUTION_4K: (3840, 2160),
@@ -768,15 +710,7 @@ resolution_map = {
     VideoResolution.RESOLUTION_480P: (640, 480),
 }
 
-class VideoGenerationRequest(BaseModel):
-    title: Optional[str] = None
-    subtitle: Optional[str] = None
-    resolution: Optional[VideoResolution] = VideoResolution.RESOLUTION_720P
-    fps: Optional[int] = 30
-    title_duration: Optional[float] = 3.0
-    end_duration: Optional[float] = 3.0
-    transition_duration: Optional[float] = 0.5
-    background_type: Optional[BackgroundType] = BackgroundType.GRADIENT
+
 
 @router.post("/generate_video/{pipeline_id}", name="generate video")
 async def generate_video(pipeline_id: str, request: VideoGenerationRequest) -> PipelineData:
@@ -816,10 +750,6 @@ async def generate_video(pipeline_id: str, request: VideoGenerationRequest) -> P
     return pipeline_data
 
 
-class VideoSegmentBackground(BaseModel):
-    colors: Optional[List[Tuple[int, int, int]]] = None
-    type: Optional[BackgroundType] = BackgroundType.GRADIENT
-    image_path: Optional[str] = None
 
 @router.put("/update_video_segment_background/{pipeline_id}", name="update video segment background")
 async def update_video_segment_background(pipeline_id: str, index: int, background: VideoSegmentBackground) -> VideoOutline:
@@ -943,11 +873,6 @@ async def stream_video(pipeline_id: str, request: Request) -> StreamingResponse:
             'Content-Type': 'video/mp4'
         }
     )
-
-
-class PipelineReviewRequest(BaseModel):
-    rating: Optional[int] = None
-    feedback: Optional[str] = None
 
 @router.post("/add_pipeline_review/{pipeline_id}", name="add pipeline review")
 async def add_pipeline_review(pipeline_id: str, request: PipelineReviewRequest) -> PipelineData:

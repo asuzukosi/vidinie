@@ -16,8 +16,8 @@ from pathlib import Path
 from typing import Dict, List
 from utils.logger import get_logger
 from core.processors.document_processor import DocumentProcessor
-from core.image_labeler import ImageLabeler
-from core.pipeline_data import ParsedContent, ImageMetadata,\
+from core.operations.image_labeler import ImageLabeler
+from core.data.pipeline import ParsedContent, ImageMetadata,\
                                ParsedContentMetadata, ParsedContentSection
 
 logger = get_logger('pdf_processor')

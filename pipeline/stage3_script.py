@@ -19,9 +19,9 @@ from typing import Optional
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.logger import setup_logging, get_logger
 from utils.config_loader import get_config
-from core.script_generator import ScriptGenerator
-from core.voiceover_generator import VoiceoverGenerator
-from core.pipeline_data import PipelineData, PipelineStage, PipelineStatus, ScriptData
+from core.operations.script_generator import ScriptGenerator
+from core.operations.voiceover_generator import VoiceoverGenerator
+from core.data.pipeline import PipelineData, PipelineStage, PipelineStatus, ScriptData
 
 setup_logging(log_dir='temp')
 logger = get_logger('stage3_script')

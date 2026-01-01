@@ -11,7 +11,7 @@ from pathlib import Path
 from utils.logger import get_logger
 from elevenlabs import save
 from pydub import AudioSegment
-from core.pipeline_data import ScriptData
+from core.data.pipeline import ScriptData
 
 
 logger = get_logger(__name__)

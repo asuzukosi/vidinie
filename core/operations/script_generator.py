@@ -12,8 +12,8 @@ from openai import OpenAI
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from pathlib import Path
 from utils.logger import get_logger
-from core.pipeline_data import VideoOutline, ScriptData
-from core.pipeline_data import VideoSegment
+from core.data.pipeline import VideoOutline, ScriptData
+from core.data.pipeline import VideoSegment
 logger = get_logger("script_generator")
 
 

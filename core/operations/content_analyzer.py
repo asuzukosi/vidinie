@@ -11,7 +11,7 @@ from typing import List, Dict, Optional, Any
 from openai import OpenAI
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from pathlib import Path
-from core.pipeline_data import VideoOutline
+from core.data.pipeline import VideoOutline
 from utils.logger import get_logger
 
 logger = get_logger("content_analyzer")

@@ -17,16 +17,14 @@ workflow sequence:
 import sys
 import os
 import argparse
-from pathlib import Path
-
 # add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils.logger import setup_logging, get_logger
 from utils.config_loader import get_config
 from core.processors.pdf_processor import PDFProcessor
-from core.pipeline_data import PipelineData, ParsedContent, SourceType
-from core.pipeline_data import PipelineStage, PipelineStatus
+from core.data.pipeline import PipelineData, ParsedContent, SourceType
+from core.data.pipeline import PipelineStage, PipelineStatus
 setup_logging(log_dir='temp')
 logger = get_logger('document_processing')
 

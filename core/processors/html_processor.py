@@ -17,8 +17,8 @@ import requests
 from utils.logger import get_logger
 from datetime import datetime
 from core.processors.document_processor import DocumentProcessor
-from core.pipeline_data import ImageMetadata, ParsedContent, ParsedContentMetadata, ParsedContentSection
-from core.image_labeler import ImageLabeler
+from core.data.pipeline import ImageMetadata, ParsedContent, ParsedContentMetadata, ParsedContentSection
+from core.operations.image_labeler import ImageLabeler
 
 logger = get_logger('html_processor')
 
