@@ -143,9 +143,9 @@ async def start_pipeline_with_url(request: StartPipelineRequest) -> SummaryPipel
     try:
         response = requests.get(request.url)
         if response.status_code != 200:
-            raise HTTPException(status_code=400, detail="Failed to download file")
-    except requests.exceptions.RequestException:
-        raise HTTPException(status_code=400, detail="Failed to download file")
+            raise HTTPException(status_code=400, detail=f"Failed to download file from url: {request.url} with status code: {response.status_code}")
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=400, detail=f"Failed to download file from url: {request.url} with error: {str(e)}")
     
     logger.info("creating pipeline data object")
     pipeline_data = PipelineData()
@@ -526,7 +526,7 @@ async def process_content(pipeline_id: str, request: CreateVideoOutlineRequest) 
     # process context
     pdf_content = pipeline_data.parsed_content
     images_metadata = pipeline_data.images_metadata or []
-    logger.info(f"loaded {len(pdf_content['sections'])} sections and {len(images_metadata)} images")
+    logger.info(f"loaded {len(pdf_content.sections)} sections and {len(images_metadata)} images")
     # process context into chunks
     logger.info("processing context into chunks")
     all_content = ""
@@ -687,6 +687,7 @@ async def generate_images_for_pipeline_segments(pipeline_id: str, indexes: List[
         raise HTTPException(status_code=500, detail="Image generation not available")
     return pipeline_data.video_outline
 
+@router.post("/generate_scripts_and_voiceovers/{pipeline_id}", name="generate scripts and voiceovers")
 async def generate_scripts_and_voiceovers(pipeline_id: str, provider: Optional[str] = 'elevenlabs') -> PipelineData:
     logger.info("received request to generate scripts and voiceovers")
     pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
@@ -795,9 +796,15 @@ async def generate_video(pipeline_id: str, request: VideoGenerationRequest) -> P
     os.makedirs(video_dir, exist_ok=True)
     video_path = os.path.join(video_dir, f"video_{datetime.now().strftime('%Y%m%d%H%M%S')}.mp4")
     script_data = pipeline_data.script_data
-    video_gen = VideoGenerator(api_key=config.openai_api_key,
-                               model=config.get('video.generator.model', 'gpt-4o-mini'),
-                               prompts_dir=config.get_prompts_directory(), **request.model_dump())
+    video_gen = VideoGenerator(config=config,
+                               video_title=request.title,
+                               subtitle=request.subtitle,
+                               resolution=resolution_map[request.resolution],
+                               fps=request.fps,
+                               title_duration=request.title_duration,
+                               end_duration=request.end_duration,
+                               transition_duration=request.transition_duration,
+                               background_type=request.background_type)
     generated_video_path = video_gen.generate_video(script_data, video_path)
     pipeline_data.video_path = generated_video_path
     pipeline_data.update_stage(PipelineStage.VIDEO_GENERATION, PipelineStatus.COMPLETED)
@@ -895,12 +902,11 @@ def parse_range_header(range_header: str, file_size: int) -> Tuple[int, int]:
 @router.get("/stream_video/{pipeline_id}", name="stream video")
 async def stream_video(pipeline_id: str, request: Request) -> StreamingResponse:
     logger.info("received request to stream video")
-    # pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
-    # if not pipeline_data:
-    #     raise HTTPException(status_code=404, detail="Pipeline not found")
-    # pipeline_data: PipelineData = PipelineData(**pipeline_data)
-    # TODO: temporary video path for testing
-    video_path = "/Users/kosisochukwuasuzu/Developer/vidinie/output/video_be8b085c-2c4f-4b1f-af7c-187058adc3a3.mp4"
+    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
+    if not pipeline_data:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    pipeline_data: PipelineData = PipelineData(**pipeline_data)
+    video_path = pipeline_data.video_path
     if not video_path:
         raise HTTPException(status_code=500, detail="Video path not found")
     file_size = os.path.getsize(video_path)

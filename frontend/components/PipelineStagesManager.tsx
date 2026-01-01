@@ -38,6 +38,7 @@ export function PipelineStagesManager({
   const [completedCount, setCompletedCount] = useState(0);
 
   const updateCurrentSteps = () => {
+    console.log("updating current steps with statistics:", pipelineStageStatistics);
     const updatedSteps = pipelineProcessingStages.map((stage) => {
       if (pipelineStageStatistics[stage.id as keyof PipelineStageStatisticsManager]) {
         return {
@@ -69,7 +70,7 @@ export function PipelineStagesManager({
   const handleStepAction = (step: PipelineProcessingStage) => {
     console.log("handling step action for step:", step);
     switch (step.id) {
-      case "generate_content":
+      case "content_analysis":
         onGenerateOutlineContent();
         break;
       case "script_and_audio_generation":

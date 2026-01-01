@@ -270,7 +270,6 @@ export interface PipelineProcessingStage {
     description: string;
     completed: boolean;
     actionLabel: string;
-    actionHref: string;
     start_time?: string;
     end_time?: string;
     duration?: number;

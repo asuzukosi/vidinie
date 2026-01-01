@@ -1,11 +1,4 @@
-export { PipelineStageNav, pipelineStages, type PipelineStage } from "./PipelineStageNav";
-export { PipelineHeader } from "./PipelineHeader";
-export { PipelineFooter } from "./PipelineFooter";
-export { SegmentCard, type Segment } from "./SegmentCard";
-export { AudioPlayer } from "./AudioPlayer";
-
-export { DocumentProcessing } from "./stages/DocumentProcessing";
-export { ContentAnalyserStage } from "./stages/ContentAnalyserStage";
-export { NarrationStage } from "./stages/NarrationStage";
-export { VideoGenStage } from "./stages/VideoGenStage";
-export { FinalExportStage } from "./stages/FinalExportStage";
+export { DocumentProcessing } from "@/components/pipeline/DocumentProcessing";
+export { ContentAnalyser } from "@/components/pipeline/ContentAnalyser";
+export { ScriptAndVoiceovers } from "@/components/pipeline/ScriptAndVoiceovers";
+export { VideoGeneration } from "@/components/pipeline/VideoGeneration";

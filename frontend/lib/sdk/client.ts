@@ -132,6 +132,7 @@ export class VidinieAPIClient {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${this.apiKey}`,
+                'Content-Type': 'multipart/form-data'
             },
             body: formData
         });
@@ -142,7 +143,8 @@ export class VidinieAPIClient {
         const response = await fetch(`${this.baseUrl}/pipelines/update_pipeline_image_metadata/${pipelineId}`, {
             method: 'PUT',
             headers: {
-                'Authorization': `Bearer ${this.apiKey}`
+                'Authorization': `Bearer ${this.apiKey}`,
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify(request)
         });
@@ -154,7 +156,8 @@ export class VidinieAPIClient {
         const response = await fetch(`${this.baseUrl}/pipelines/delete_pipeline_image/${pipelineId}`, {
             method: 'DELETE',
             headers: {
-                'Authorization': `Bearer ${this.apiKey}`
+                'Authorization': `Bearer ${this.apiKey}`,
+                'Content-Type': 'application/json'
             }
         });
         return response.json() as Promise<DeletePipelineImageResponse>;
@@ -164,7 +167,8 @@ export class VidinieAPIClient {
         const response = await fetch(`${this.baseUrl}/pipelines/get_pipeline_parsed_content_info/${pipelineId}`, {
             method: 'GET',
             headers: {
-                'Authorization': `Bearer ${this.apiKey}`
+                'Authorization': `Bearer ${this.apiKey}`,
+                'Content-Type': 'application/json'
             }
         });
         return response.json() as Promise<ParsedContentDataMinimal>;
@@ -184,7 +188,8 @@ export class VidinieAPIClient {
         const response = await fetch(`${this.baseUrl}/pipelines/add_pipeline_section/${pipelineId}`, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${this.apiKey}`
+                'Authorization': `Bearer ${this.apiKey}`,
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify(section)
         });
@@ -195,7 +200,8 @@ export class VidinieAPIClient {
         const response = await fetch(`${this.baseUrl}/pipelines/update_pipeline_section/${pipelineId}`, {
             method: 'PUT',
             headers: {
-                'Authorization': `Bearer ${this.apiKey}`
+                'Authorization': `Bearer ${this.apiKey}`,
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify(section)
         });
@@ -217,7 +223,8 @@ export class VidinieAPIClient {
         const response = await fetch(`${this.baseUrl}/pipelines/process_content/${pipelineId}`, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${this.apiKey}`
+                'Authorization': `Bearer ${this.apiKey}`,
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify(request)
         });
@@ -228,7 +235,8 @@ export class VidinieAPIClient {
         const response = await fetch(`${this.baseUrl}/pipelines/get_pipeline_context_chunks/${pipelineId}`, {
             method: 'GET',
             headers: {
-                'Authorization': `Bearer ${this.apiKey}`
+                'Authorization': `Bearer ${this.apiKey}`,
+                'Content-Type': 'application/json'
             }
         });
         return response.json() as Promise<ContextChunk[]>;
@@ -238,7 +246,8 @@ export class VidinieAPIClient {
         const response = await fetch(`${this.baseUrl}/pipelines/get_pipeline_video_outline/${pipelineId}`, {
             method: 'GET',
             headers: {
-                'Authorization': `Bearer ${this.apiKey}`
+                'Authorization': `Bearer ${this.apiKey}`,
+                'Content-Type': 'application/json'
             }
         });
         return response.json() as Promise<VideoOutline>;
@@ -258,7 +267,8 @@ export class VidinieAPIClient {
         const response = await fetch(`${this.baseUrl}/pipelines/add_pipeline_video_outline_segment/${pipelineId}`, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${this.apiKey}`
+                'Authorization': `Bearer ${this.apiKey}`,
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify(segment)
         });
@@ -269,7 +279,8 @@ export class VidinieAPIClient {
         const response = await fetch(`${this.baseUrl}/pipelines/update_pipeline_video_outline_segment/${pipelineId}`, {
             method: 'PUT',
             headers: {
-                'Authorization': `Bearer ${this.apiKey}`
+                'Authorization': `Bearer ${this.apiKey}`,
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify(segment)
         });
@@ -280,7 +291,8 @@ export class VidinieAPIClient {
         const response = await fetch(`${this.baseUrl}/pipelines/delete_pipeline_video_outline_segment/${pipelineId}`, {
             method: 'DELETE',
             headers: {
-                'Authorization': `Bearer ${this.apiKey}`
+                'Authorization': `Bearer ${this.apiKey}`,
+                'Content-Type': 'application/json'
             }
         });
         return response.json() as Promise<VideoSegment>;
@@ -290,7 +302,8 @@ export class VidinieAPIClient {
         const response = await fetch(`${this.baseUrl}/pipelines/generate_images_for_pipeline_segments/${pipelineId}`, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${this.apiKey}`
+                'Authorization': `Bearer ${this.apiKey}`,
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify(indexes)
         });
@@ -301,7 +314,8 @@ export class VidinieAPIClient {
         const response = await fetch(`${this.baseUrl}/pipelines/generate_scripts_and_voiceovers/${pipelineId}`, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${this.apiKey}`
+                'Authorization': `Bearer ${this.apiKey}`,
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({ provider })
         });
@@ -312,7 +326,8 @@ export class VidinieAPIClient {
         const response = await fetch(`${this.baseUrl}/pipelines/view_pipeline_script_data/${pipelineId}`, {
             method: 'GET',
             headers: {
-                'Authorization': `Bearer ${this.apiKey}`
+                'Authorization': `Bearer ${this.apiKey}`,
+                'Content-Type': 'application/json'
             }   
         });
         return response.json() as Promise<ScriptData>;
@@ -322,7 +337,8 @@ export class VidinieAPIClient {
         const response = await fetch(`${this.baseUrl}/pipelines/update_pipeline_script_data/${pipelineId}`, {
             method: 'PUT',
             headers: {
-                'Authorization': `Bearer ${this.apiKey}`
+                'Authorization': `Bearer ${this.apiKey}`,
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify(scriptData)
         });
@@ -333,7 +349,8 @@ export class VidinieAPIClient {
         const response = await fetch(`${this.baseUrl}/pipelines/generate_video/${pipelineId}`, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${this.apiKey}`
+                'Authorization': `Bearer ${this.apiKey}`,
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify(request)
         });
@@ -344,7 +361,8 @@ export class VidinieAPIClient {
         const response = await fetch(`${this.baseUrl}/pipelines/update_video_segment_background/${pipelineId}`, {
             method: 'PUT',
             headers: {
-                'Authorization': `Bearer ${this.apiKey}`
+                'Authorization': `Bearer ${this.apiKey}`,
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify(background)
         });
@@ -355,7 +373,8 @@ export class VidinieAPIClient {
         const response = await fetch(`${this.baseUrl}/pipelines/regenerate_audio_for_pipeline_segments/${pipelineId}`, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${this.apiKey}`   
+                'Authorization': `Bearer ${this.apiKey}`,
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({ provider })
         });
@@ -366,7 +385,8 @@ export class VidinieAPIClient {
         const response = await fetch(`${this.baseUrl}/pipelines/download_video/${pipelineId}`, {
             method: 'GET',
             headers: {
-                'Authorization': `Bearer ${this.apiKey}`
+                'Authorization': `Bearer ${this.apiKey}`,
+                'Content-Type': 'application/json'
             }
         });
         return response.blob() as Promise<Blob>;
@@ -376,7 +396,8 @@ export class VidinieAPIClient {
         const response = await fetch(`${this.baseUrl}/pipelines/stream_video/${pipelineId}`, {
             method: 'GET',
             headers: {
-                'Authorization': `Bearer ${this.apiKey}`
+                'Authorization': `Bearer ${this.apiKey}`,
+                'Content-Type': 'application/json'
             }
         });
         return response;
@@ -386,7 +407,8 @@ export class VidinieAPIClient {
         const response = await fetch(`${this.baseUrl}/pipelines/add_pipeline_review/${pipelineId}`, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${this.apiKey}`
+                'Authorization': `Bearer ${this.apiKey}`,
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify(request)
         });
@@ -397,7 +419,8 @@ export class VidinieAPIClient {
         const response = await fetch(`${this.baseUrl}/pipelines/get_image_with_path/${path}`, {
             method: 'GET',
             headers: {
-                'Authorization': `Bearer ${this.apiKey}`
+                'Authorization': `Bearer ${this.apiKey}`,
+                'Content-Type': 'application/json'
             }
         });
         return response.blob() as Promise<Blob>;

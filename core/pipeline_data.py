@@ -162,6 +162,8 @@ class ImageSource(str, Enum):
     """
     PDF = "pdf"
     STOCK = "stock"
+    UNSPLASH = "unsplash"
+    PEXELS = "pexels"
     AI_GENERATED = "ai_generated"
     USER_UPLOADED = "user_uploaded"
 

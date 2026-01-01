@@ -71,7 +71,7 @@ class ContentAnalyzer:
         # convert image field to backward-compatible format
         outline = self._convert_image_format(outline)
         
-        logger.info(f"created {len(outline['segments'])} video segments")
+        logger.info(f"created {len(outline.segments)} video segments")
         
         return outline
 
@@ -183,7 +183,7 @@ class ContentAnalyzer:
         """
         
         chunks_text = "\n\n".join([
-            f"SUMMARY: {chunk['summary']}\n CONTENT: {chunk['chunk']}"
+            f"SUMMARY: {chunk.summary}\n CONTENT: {chunk.chunk}"
             for chunk in chunks[:10]  # limit to first 10 chunks to avoid context window issues
         ])
         
@@ -192,14 +192,14 @@ class ContentAnalyzer:
         if images_metadata:
             images_list = []
             for img in images_metadata:
-                img_info = f""" IMAGE_ID: {img.get('index_on_page', 'unknown')}
-                                LABEL: {img.get('label', 'N/A')}
-                                DESCRIPTION: {img.get('description', 'N/A')}
-                                TYPE: {img.get('image_type', 'N/A')}
-                                KEY_ELEMENTS: {', '.join(img.get('key_elements', []))}
-                                FILEPATH: {img.get('filepath', 'N/A')}
-                                PAGE: {img.get('page_number', 'N/A')}
-                                RELEVANCE: {img.get('ai_relevance', 'medium')}"""
+                img_info = f""" IMAGE_ID: {img.index_on_page}
+                                LABEL: {img.label}
+                                DESCRIPTION: {img.description}
+                                TYPE: {img.image_type}
+                                KEY_ELEMENTS: {', '.join(img.key_elements)}
+                                FILEPATH: {img.filepath}
+                                PAGE: {img.page_number}
+                                RELEVANCE: {img.ai_relevance}"""
                 images_list.append(img_info)
             images_text = "\n\n".join(images_list)
         

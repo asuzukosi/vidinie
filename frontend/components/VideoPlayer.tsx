@@ -1,4 +1,7 @@
+"use client";
+
 import React, { useState, useEffect, useRef } from 'react';
+import client from '@/lib/sdk/client';
 
 interface VideoPlayerProps {
     pipelineId: string;
@@ -6,38 +9,30 @@ interface VideoPlayerProps {
 
 export const VideoPlayer: React.FC<VideoPlayerProps> = ({ pipelineId }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
-    const [isPlaying, setIsPlaying] = useState(false);
-    const [currentTime, setCurrentTime] = useState(0);
-    const [duration, setDuration] = useState(0);
-    const [volume, setVolume] = useState(1);
+    const [videoUrl, setVideoUrl] = useState<string>("");
 
-    const videoUrl = `http://localhost:8000/pipelines/stream_video/${pipelineId}`;
-
-    const handleTimeUpdate = () => {
-        if (videoRef.current) {
-            setCurrentTime(videoRef.current.currentTime);
-        }
-    };
-
-    const handleLoadedMetadata = () => {
-        if (videoRef.current) {
-            setDuration(videoRef.current.duration);
-        }
-    };
+    useEffect(() => {
+        const getBaseUrl = async () => {
+            const baseUrl = await client.getBaseUrl();
+            setVideoUrl(`${baseUrl}/pipelines/stream_video/${pipelineId}`);
+        };
+        getBaseUrl();
+    }, [pipelineId]);
 
     return (
-        <div className="max-w-800px h-auto rounded-lg aspect-video border-1 
-                        border border-zinc-200 dark:border-zinc-800 shadow-md">
-            <video 
-                ref={videoRef}
-                src={videoUrl}
-                onTimeUpdate={handleTimeUpdate}
-                onLoadedMetadata={handleLoadedMetadata}
-                onPlay={() => setIsPlaying(true)}
-                onPause={() => setIsPlaying(false)}
-                controls 
-                className="w-full h-full object-cover"
-            />
+        <div className="w-full aspect-video rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+            {videoUrl ? (
+                <video 
+                    ref={videoRef}
+                    src={videoUrl}
+                    controls 
+                    className="w-full h-full object-contain"
+                />
+            ) : (
+                <div className="w-full h-full flex items-center justify-center bg-zinc-100 dark:bg-zinc-900">
+                    <p className="text-sm text-muted-foreground">Loading video player...</p>
+                </div>
+            )}
         </div>
-    )
+    );
 }

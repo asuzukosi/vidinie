@@ -141,7 +141,7 @@ class ScriptGenerator:
         is_intro = segment_num == 1
         is_conclusion = segment_num == total_segments
         
-        key_points_text = "\n".join([f"- {point}" for point in segment.get('key_points', [])])
+        key_points_text = "\n".join([f"- {point}" for point in segment.key_points])
         
         # load and render template
         template = self.jinja_env.get_template('script_instruction.j2')

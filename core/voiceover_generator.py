@@ -91,7 +91,7 @@ class VoiceoverGenerator:
         logger.info(f"generating voiceovers for {len(script_data.segments)} segments using {self.provider}")
                 
         for i, segment in enumerate(script_data.segments, 1):
-            logger.info(f"generating audio for segment {i}: {segment['title']}")
+            logger.info(f"generating audio for segment {i}: {segment.title}")
             
             script_text = segment.script
             if not script_text:
@@ -99,7 +99,7 @@ class VoiceoverGenerator:
                 continue
             
             # generate audio
-            audio_path, duration = self._generate_segment_audio(script_text, i, segment['title'])
+            audio_path, duration = self._generate_segment_audio(script_text, i, segment.title)
             
             # update segment with audio info
             segment.audio_file = audio_path
