@@ -104,3 +104,21 @@ class VideoSegmentBackground(BaseModel):
 class PipelineReviewRequest(BaseModel):
     rating: Optional[int] = None
     feedback: Optional[str] = None
+
+class RunAllPipelineOperationsRequest(BaseModel):
+    url: str
+    name: str
+    description: str
+    tags: Optional[List[str]] = None
+    projects: Optional[List[str]] = None
+    target_segments: int = 7
+    segment_duration: int = 45
+    provider: str = "elevenlabs"
+    title: Optional[str] = None
+    subtitle: Optional[str] = None
+    resolution: Optional[VideoResolution] = VideoResolution.RESOLUTION_720P
+    fps: Optional[int] = 30
+    title_duration: Optional[float] = 3.0
+    end_duration: Optional[float] = 3.0
+    transition_duration: Optional[float] = 0.5
+    background_type: Optional[BackgroundType] = BackgroundType.GRADIENT

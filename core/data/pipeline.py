@@ -198,7 +198,8 @@ class VideoSegment(BaseModel):
     audio_duration: Optional[float] = None
     voiceover_provider: Optional[str] = None
     # video generation settings
-    background_colors: Optional[List[Tuple[int, int, int]]] = Field(default_factory=lambda: [(254, 234, 201), (255, 205, 201)])
+    # background_colors: Optional[List[Tuple[int, int, int]]] = Field(default_factory=lambda: [(254, 234, 201), (255, 205, 201)])
+    background_colors: Optional[List[str]] = Field(default_factory=lambda: [(0, 0, 0), (0, 0, 0)])
     background_type: Optional[BackgroundType] = Field(default=BackgroundType.GRADIENT)
     background_image_path: Optional[str] = None
 
@@ -326,10 +327,6 @@ class PipelineData(BaseModel):
         if self.script_data:
             with open(folder / "video_script.json", 'w', encoding='utf-8') as f:
                 json.dump(self.script_data, f, indent=2, ensure_ascii=False)
-        
-        if self.script_with_audio:
-            with open(folder / "script_with_audio.json", 'w', encoding='utf-8') as f:
-                json.dump(self.script_with_audio, f, indent=2, ensure_ascii=False)
         
         logger.info(f"Saved pipeline data to {folder}")
         return str(folder)
@@ -482,35 +479,3 @@ class PipelineData(BaseModel):
         
         self.current_stage = stage
         self.status = status
-    
-    def get_summary(self) -> Dict[str, Any]:
-        """
-        get a summary of the pipeline data including operation status and timing.
-        returns:
-            dictionary with summary information including completed operations and timings
-        """
-        total_duration = sum(
-            timing.get('duration', 0) 
-            for timing in self.stage_timings.values() 
-            if 'duration' in timing
-        )
-        
-        return {
-            "id": self.id,
-            "created_at": self.created_at,
-            "source_path": self.source_path,
-            "source_type": self.source_type,
-            "current_stage": self.current_stage,  # current operation name
-            "status": self.status,
-            "output_path": self.output_path,
-            "has_parsed_content": self.parsed_content is not None,
-            "has_images": len(self.images_metadata) > 0,
-            "has_outline": self.video_outline is not None,
-            "has_scripts": self.script_data is not None,
-            "has_audio": self.script_with_audio is not None,
-            "has_video": self.video_path is not None and os.path.exists(self.video_path) if self.video_path else False,
-            "stage_timings": self.stage_timings,  # operation timings
-            "total_duration": total_duration,
-            "context_processor_info": self.context_processor_info
-        }
-

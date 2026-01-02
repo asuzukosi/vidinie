@@ -6,8 +6,8 @@ from bson import ObjectId
 
 class Subscription(str, Enum):
     FREE = "free"
-    PRO = "pro"
-    ENTERPRISE = "enterprise"
+    PRO = "starter"
+    ENTERPRISE = "professional"
 
 
 class RegisterUserRequest(BaseModel):
