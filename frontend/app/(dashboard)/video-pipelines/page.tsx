@@ -6,10 +6,10 @@ import { IconPlus } from "@tabler/icons-react";
 import { Loader2 } from "lucide-react";
 import CreateTaskModal from "@/components/modals/CreateVideoPipelineModal";
 import {CreateVideoPipelineRequest, VideoPipelineSummary } from "@/lib/sdk/types";
-import TaskTable from "@/components/pipeline/VideoPipelineTable";
+import VideoPipelineTable from "@/components/pipeline/VideoPipelineTable";
 import { LoadingPage } from "@/components/utils/LoadingPage";
 import client from "@/lib/sdk/client";
-import type { PipelineTaskTableItem } from "@/components/pipeline/VideoPipelineTable";
+import type { VideoPipelineTableItem } from "@/components/pipeline/VideoPipelineTable";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -17,7 +17,7 @@ export default function TasksPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [pipelineTasks, setPipelineTasks] = useState<VideoPipelineSummary[]>([]);
+  const [videoPipelines, setVideoPipelines] = useState<VideoPipelineSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreatingTask, setIsCreatingTask] = useState(false);
 
@@ -42,34 +42,45 @@ export default function TasksPage() {
     }
   };
 
-  const fetchPipelineTasks = async () => {
+  const fetchVideoPipelines = async () => {
+
     setIsLoading(true);
     const result: VideoPipelineSummary[] = await client.getAllVideoPipelines();
-    setPipelineTasks(result as VideoPipelineSummary[]);
-    console.log("pipelineTasks:", result);
+    setVideoPipelines(result as VideoPipelineSummary[]);
+    console.log("videoPipelines:", result);
     setIsLoading(false);
   };
 
+  const handleCreateVideoPipeline = async (task: CreateVideoPipelineRequest) => {
+    try {
+      await createTask(task);
+      await fetchVideoPipelines();
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error("Error creating task:", error);
+      // keep modal open on error so user can retry
+    }
+  };
   useEffect(() => {
-    fetchPipelineTasks().catch(console.error);
+    fetchVideoPipelines().catch(console.error);
   }, []);
 
-  // Check for create query parameter and open modal
+  // check for create query parameter and open modal
   useEffect(() => {
     const createParam = searchParams.get("create");
     if (createParam === "true") {
       setIsModalOpen(true);
-      // Remove the query parameter from URL without reloading
-      router.replace("/tasks", { scroll: false });
+      // remove the query parameter from url without reloading
+      router.replace("/video-pipelines", { scroll: false });
     }
   }, [searchParams, router]);
 
   return (
-    <div className="p-6">
+    <div className="container mx-auto p-6 max-w-6xl">
       {/* header */}
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">
+          <h1 className="text-3xl font-bold">
             Videos
           </h1>
           <p className="mt-2 text-zinc-600 dark:text-zinc-400">
@@ -98,11 +109,11 @@ export default function TasksPage() {
         <LoadingPage />
       ) : (
         <>
-          {pipelineTasks.length > 0 ? (
-            <TaskTable pipelineTasks={pipelineTasks as PipelineTaskTableItem[]} 
+          {videoPipelines.length > 0 ? (
+            <VideoPipelineTable videoPipelines={videoPipelines as VideoPipelineTableItem[]} 
             />
           ) : (
-            <div className="flex items-center justify-center w-full">
+            <div className="flex min-h-[60vh] w-full items-center justify-center">
               <Card className="w-full w-[80%]">
                 <CardHeader className="text-center">
                   <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
@@ -136,16 +147,7 @@ export default function TasksPage() {
             setIsModalOpen(false);
           }
         }}
-        onCreateTask={async (task: CreateVideoPipelineRequest) => {
-          try {
-            await createTask(task);
-            await fetchPipelineTasks();
-            setIsModalOpen(false);
-          } catch (error) {
-            console.error("Error creating task:", error);
-            // keep modal open on error so user can retry
-          }
-        }}
+        onCreateTask={handleCreateVideoPipeline}
       />
     </div>
   );

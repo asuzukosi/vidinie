@@ -8,8 +8,8 @@ import platform
 from pathlib import Path
 from typing import Optional, Dict, List
 from PIL import ImageFont
-from utils.logger import get_logger
-from utils.config_loader import Config
+from core.utils.logger import get_logger
+from core.utils.config_loader import Config
 
 logger = get_logger(__name__)
 

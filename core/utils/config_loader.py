@@ -8,7 +8,7 @@ import yaml
 from pathlib import Path
 from typing import Dict, Any
 from dotenv import load_dotenv
-from utils.logger import get_logger
+from core.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -18,7 +18,7 @@ class Config:
     configuration manager for the application.
  
     example:
-        from utils.config_loader import Config
+        from core.utils.config_loader import Config
         config = Config()
         print(config.get('video.resolution')) # [1920, 1080]
         print(config.get('content.target_segments')) # 7
@@ -132,7 +132,7 @@ class Config:
         returns:
             dictionary of API key availability
         example:
-            from utils.config_loader import Config
+            from core.utils.config_loader import Config
             config = Config()
             print(config.validate_api_keys()) # {'openai': True, 'elevenlabs': True, 'unsplash': True, 'pexels': True}
         """
@@ -181,7 +181,7 @@ def get_config(config_path: str = "config.yaml") -> Config:
     returns:
         config instance
     example:
-        from utils.config_loader import get_config
+        from core.utils.config_loader import get_config
         config = get_config()
         print(config.get('video.resolution')) # [1920, 1080]
     """

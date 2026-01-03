@@ -1,7 +1,7 @@
 import os
 import time
 from typing import Dict
-from utils.logger import get_logger
+from core.utils.logger import get_logger
 import jwt
 from dotenv import load_dotenv
 import bcrypt

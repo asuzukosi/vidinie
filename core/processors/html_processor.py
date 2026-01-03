@@ -14,7 +14,7 @@ from typing import Dict, List, Any
 from bs4 import BeautifulSoup
 from PIL import Image
 import requests
-from utils.logger import get_logger
+from core.utils.logger import get_logger
 from datetime import datetime
 from core.processors.base import DocumentProcessor
 from core.data import (

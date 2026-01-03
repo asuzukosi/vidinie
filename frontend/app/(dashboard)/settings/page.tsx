@@ -353,11 +353,10 @@ export default function SettingsPage() {
                   {subscriptionPlans.map((plan) => (
                     <Card
                       key={plan.id}
-                      className={
-                        subscriptionStatus === plan.id
+                      className={`flex flex-col ${ subscriptionStatus === plan.id
                           ? "border-primary"
                           : ""
-                      }
+                      }`}
                     >
                       <CardHeader>
                         <CardTitle className="text-lg">{plan.name}</CardTitle>
@@ -370,8 +369,8 @@ export default function SettingsPage() {
                           )}
                         </div>
                       </CardHeader>
-                      <CardContent>
-                        <ul className="space-y-2 mb-4">
+                      <CardContent className="flex flex-col flex-1">
+                        <ul className="space-y-2 mb-4 flex-1">
                           {plan.features.map((feature, idx) => (
                             <li key={idx} className="text-sm flex items-start gap-2">
                               <span>✓</span>
@@ -379,30 +378,32 @@ export default function SettingsPage() {
                             </li>
                           ))}
                         </ul>
-                        {subscriptionStatus === plan.id ? (
-                          <Button disabled variant="outline" className="w-full">
-                            Current Plan
-                          </Button>
-                        ) : plan.priceId ? (
-                          <Checkout
-                            priceId={plan.priceId}
-                            planName={plan.name}
-                            planPrice={plan.price}
-                            buttonText={plan.id === "free" ? "Downgrade" : "Upgrade"}
-                            showCard={false}
-                            buttonVariant={plan.id === "professional" ? "default" : "outline"}
-                            buttonSize="default"
-                            className="w-full"
-                          />
-                        ) : (
-                          <Button
-                            variant="outline"
-                            className="w-full"
-                            disabled
-                          >
-                            Current Plan
-                          </Button>
-                        )}
+                        <div className="mt-auto">
+                          {subscriptionStatus === plan.id ? (
+                            <Button disabled variant="outline" className="w-full">
+                              Current Plan
+                            </Button>
+                          ) : plan.priceId ? (
+                            <Checkout
+                              priceId={plan.priceId}
+                              planName={plan.name}
+                              planPrice={plan.price}
+                              buttonText={plan.id === "free" ? "Downgrade" : "Upgrade"}
+                              showCard={false}
+                              buttonVariant={plan.id === "professional" ? "default" : "outline"}
+                              buttonSize="default"
+                              className="w-full"
+                            />
+                          ) : (
+                            <Button
+                              variant="outline"
+                              className="w-full"
+                              disabled
+                            >
+                              Current Plan
+                            </Button>
+                          )}
+                        </div>
                       </CardContent>
                     </Card>
                   ))}

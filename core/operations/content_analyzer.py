@@ -12,8 +12,8 @@ from typing import List, Dict, Optional, Any, Union
 from openai import OpenAI
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from pathlib import Path
-from utils.logger import get_logger
-from utils.config_loader import get_config
+from core.utils.logger import get_logger
+from core.utils.config_loader import get_config
 from core.data import (
     VideoPipelineOutline,
     VideoPipelineStage,

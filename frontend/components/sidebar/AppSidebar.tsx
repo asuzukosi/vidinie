@@ -16,9 +16,9 @@ import client from "@/lib/sdk/client";
 
 const navItems: NavItem[] = [
     {
-      id: "tasks",
-      title: "Tasks",
-      url: "/tasks",
+      id: "video-pipelines",
+      title: "Videos",
+      url: "/video-pipelines",
       icon: IconListDetails,
     },
     {

@@ -13,16 +13,16 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any
 from pydantic import BaseModel, Field
 
-from utils.logger import get_logger
-from .enums import SourceType, VideoPipelineStatus, VideoPipelineStage
-from .content_models import (
+from core.utils.logger import get_logger
+from core.data.enums import SourceType, VideoPipelineStatus, VideoPipelineStage
+from core.data.content_models import (
     VideoPipelineParsedContent,
     VideoPipelineContextChunk
 )
-from .image_models import VideoPipelineImageMetadata
-from .segment_models import VideoPipelineOutline
-from .script_models import VideoPipelineScript
-from .statistics_models import VideoPipelineStageStatistics
+from core.data.image_models import VideoPipelineImageMetadata
+from core.data.segment_models import VideoPipelineOutline
+from core.data.script_models import VideoPipelineScript
+from core.data.statistics_models import VideoPipelineStageStatistics
 
 logger = get_logger('pipeline_data')
 

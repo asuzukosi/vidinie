@@ -112,7 +112,7 @@ export default function SuccessPage() {
                 
                 // Redirect to dashboard after a short delay
                 setTimeout(() => {
-                    router.push('/tasks');
+                    router.push('/video-pipelines');
                 }, 2000);
             } catch (error: any) {
                 console.error('Error processing checkout:', error);

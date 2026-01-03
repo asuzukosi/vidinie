@@ -9,8 +9,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { PipelineStage, PipelineStatus, SourceType } from "@/lib/sdk/types";
-export interface PipelineTaskTableItem {
+import { VideoPipelineStage, VideoPipelineStatus, SourceType } from "@/lib/sdk/types";
+import { useRouter } from "next/navigation";
+
+export interface VideoPipelineTableItem {
   id: string;
   path_id: string;
   name: string;
@@ -21,14 +23,13 @@ export interface PipelineTaskTableItem {
   created_at: string;
   source_path: string;
   source_type: SourceType;
-  current_stage: PipelineStage;
-  status: PipelineStatus;
+  current_stage: VideoPipelineStage;
+  status: VideoPipelineStatus;
 }
-import { useRouter } from "next/navigation";
 
-function getCurrentStage(stage: PipelineStage) {
+function getCurrentStage(stage: VideoPipelineStage) {
   switch (stage) {
-    case PipelineStage.INITIALIZED:
+    case VideoPipelineStage.INITIALIZED:
       return (
         <Badge
           variant="outline"
@@ -37,7 +38,7 @@ function getCurrentStage(stage: PipelineStage) {
           Initialized
         </Badge>
       );
-    case PipelineStage.DOCUMENT_PROCESSING:
+    case VideoPipelineStage.DOCUMENT_PROCESSING:
       return (
         <Badge
           variant="outline"
@@ -46,7 +47,7 @@ function getCurrentStage(stage: PipelineStage) {
           Document Processing
         </Badge>
       );
-    case PipelineStage.IMAGE_PROCESSING:
+    case VideoPipelineStage.IMAGE_PROCESSING:
       return (
         <Badge
           variant="outline"
@@ -55,7 +56,7 @@ function getCurrentStage(stage: PipelineStage) {
           Image Processing
         </Badge>
       );
-    case PipelineStage.CONTENT_ANALYSIS:
+    case VideoPipelineStage.CONTENT_ANALYSIS:
       return (
         <Badge
           variant="outline"
@@ -64,7 +65,7 @@ function getCurrentStage(stage: PipelineStage) {
           Content Analysis
         </Badge>
       );
-    case PipelineStage.SCRIPT_GENERATION:
+    case VideoPipelineStage.SCRIPT_GENERATION:
       return (
         <Badge
           variant="outline"
@@ -73,7 +74,7 @@ function getCurrentStage(stage: PipelineStage) {
           Script Generation
         </Badge>
       );
-    case PipelineStage.VIDEO_GENERATION:
+    case VideoPipelineStage.VIDEO_GENERATION:
       return (
         <Badge
           variant="outline"
@@ -87,9 +88,9 @@ function getCurrentStage(stage: PipelineStage) {
   }
 }
 
-function getStatusBadge(status: PipelineTaskTableItem["status"]) {
+function getStatusBadge(status: VideoPipelineTableItem["status"]) {
   switch (status) {
-    case PipelineStatus.PENDING:
+    case VideoPipelineStatus.PENDING:
       return (
         <Badge
           variant="outline"
@@ -98,7 +99,7 @@ function getStatusBadge(status: PipelineTaskTableItem["status"]) {
           Pending
         </Badge>
       );
-    case PipelineStatus.IN_PROGRESS:
+    case VideoPipelineStatus.IN_PROGRESS:
       return (
         <Badge
           variant="outline"
@@ -107,7 +108,7 @@ function getStatusBadge(status: PipelineTaskTableItem["status"]) {
           In Progress
         </Badge>
       );
-    case PipelineStatus.COMPLETED:
+    case VideoPipelineStatus.COMPLETED:
       return (
         <Badge
           variant="outline"
@@ -116,7 +117,7 @@ function getStatusBadge(status: PipelineTaskTableItem["status"]) {
           Completed
         </Badge>
       );
-    case PipelineStatus.FAILED:
+    case VideoPipelineStatus.FAILED:
       return (
         <Badge
           variant="outline"
@@ -130,16 +131,16 @@ function getStatusBadge(status: PipelineTaskTableItem["status"]) {
   }
 }
 
-interface TaskTableProps {
-  pipelineTasks: PipelineTaskTableItem[];
+interface VideoPipelineTableProps {
+  videoPipelines: VideoPipelineTableItem[];
 }
 
-export default function VideoPipelineTable({ pipelineTasks = [] }: TaskTableProps) {
+export default function VideoPipelineTable({ videoPipelines = [] }: VideoPipelineTableProps) {
     const router = useRouter();
-    const handleTaskClick = (task: PipelineTaskTableItem) => {
-      router.push(`/tasks/${task.id}`);
+    const handleVideoPipelineClick = (videoPipeline: VideoPipelineTableItem) => {
+      router.push(`/video-pipelines/${videoPipeline.id}`);
     };
-    const renderTaskRow = (task: PipelineTaskTableItem) => {
+    const renderVideoPipelineRow = (videoPipeline: VideoPipelineTableItem) => {
     const dateTimeFormat = new Intl.DateTimeFormat('en', {
         year: 'numeric',
         month: 'long',
@@ -147,22 +148,22 @@ export default function VideoPipelineTable({ pipelineTasks = [] }: TaskTableProp
       });
 
     return (
-      <TableRow key={task.id} className="hover:bg-muted/50" onClick={() => handleTaskClick(task)}>
-        <TableCell className="px-2 h-16 px-2 font-medium">{task.name}</TableCell>
+      <TableRow key={videoPipeline.id} className="hover:bg-muted/50" onClick={() => handleVideoPipelineClick(videoPipeline)}>
+        <TableCell className="px-2 h-16 px-2 font-medium">{videoPipeline.name}</TableCell>
         <TableCell className="h-16 px-2 text-sm text-muted-foreground">
-          {task.description.length > 100 ? task.description.substring(0, 100) + "..." : task.description}
+          {videoPipeline.description.length > 100 ? videoPipeline.description.substring(0, 100) + "..." : videoPipeline.description}
         </TableCell>
         <TableCell className="h-16 px-2 text-sm text-muted-foreground w-[90px]">
-          {getCurrentStage(task.current_stage)}
+          {getCurrentStage(videoPipeline.current_stage)}
         </TableCell>
         <TableCell className="h-16 px-2 w-[90px]">
-          {getStatusBadge(task.status)}
+          {getStatusBadge(videoPipeline.status)}
         </TableCell>
         <TableCell className="h-16 px-2 text-sm text-muted-foreground w-[90px]">
-          {task.source_type.toUpperCase()}
+          {videoPipeline.source_type.toUpperCase()}
         </TableCell>
         <TableCell className="h-16 px-2 text-sm text-muted-foreground w-[90px]">
-          {dateTimeFormat.format(new Date(task.created_at))}
+          {dateTimeFormat.format(new Date(videoPipeline.created_at))}
         </TableCell>
       </TableRow>
     );
@@ -181,7 +182,7 @@ export default function VideoPipelineTable({ pipelineTasks = [] }: TaskTableProp
             <TableHead className="h-12 px-2 font-medium w-[10%]">Created At</TableHead>
           </TableRow>
         </TableHeader>
-        <TableBody>{pipelineTasks.map(renderTaskRow)}</TableBody>
+        <TableBody>{videoPipelines.map(renderVideoPipelineRow)}</TableBody>
       </Table>
     </div>
   );

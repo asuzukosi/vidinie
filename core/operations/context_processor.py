@@ -7,8 +7,8 @@ from typing import List, Optional
 from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from openai import OpenAI
-from utils.logger import get_logger
-from utils.config_loader import get_config
+from core.utils.logger import get_logger
+from core.utils.config_loader import get_config
 from core.data import VideoPipelineContextChunk
 logger = get_logger(__name__)
 

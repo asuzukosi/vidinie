@@ -7,7 +7,7 @@ from api.data.users import User, SafeUser, RegisterUserRequest, \
 from api.core.db import users_collection, payment_methods_collection
 from bson.objectid import ObjectId
 from api.core.auth import get_hashed_password, verify_password, signJWT, JWTBearer
-from utils.logger import get_logger
+from core.utils.logger import get_logger
 from datetime import datetime
 from typing import List
 import os

@@ -110,7 +110,7 @@ export function NavFooter({
               </DropdownMenuTrigger>
               <DropdownMenuContent className="pb-2">
                 <DropdownMenuLabel>Add New</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => router.push("/tasks?create=true")}>
+                <DropdownMenuItem onClick={() => router.push("/video-pipelines?create=true")}>
                   <PlusCircle
                     size={16}
                     className="mr-2 opacity-80"

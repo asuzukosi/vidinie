@@ -8,7 +8,8 @@ import os
 import json
 from typing import  Optional, Tuple
 from pathlib import Path
-from utils.logger import get_logger
+from core.utils.logger import get_logger
+from core.utils.config_loader import get_config
 from elevenlabs import save
 from pydub import AudioSegment
 from core.data import VideoPipelineScript

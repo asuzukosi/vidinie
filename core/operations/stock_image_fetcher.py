@@ -6,8 +6,8 @@ fetches stock images from unsplash and pexels apis.
 import os
 from typing import Optional, List, Dict
 from pathlib import Path
-from utils.logger import get_logger
-from utils.stock_image_utils import fetch_from_unsplash, fetch_from_pexels
+from core.utils.logger import get_logger
+from core.utils.stock_image_utils import fetch_from_unsplash, fetch_from_pexels
 from core.data import VideoPipelineSegment, VideoPipelineSegmentImage
 
 logger = get_logger(__name__)

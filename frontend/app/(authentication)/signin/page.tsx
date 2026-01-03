@@ -4,12 +4,23 @@ import { LoginForm } from "@/components/authentication/LoginForm";
 import client from "@/lib/sdk/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { setUser } from "@/lib/store/slices/userSlice";
+import { useEffect } from "react";
+import type { RootState } from "@/lib/store/store";
 
 export default function SignInPage() {
   const router = useRouter();
   const dispatch = useDispatch();
+  const user = useSelector((state: RootState) => state.auth.user);
+
+  useEffect(() => {
+    // check if user is already authenticated
+    if (user?.token) {
+      router.push("/video-pipelines");
+      return;
+    }
+  }, [user, router]);
 
   const handleLogin = async (email: string, password: string) => {
     try {
@@ -31,7 +42,7 @@ export default function SignInPage() {
       // sync token to sdk client
       client.setToken(response.token);
       toast.success("Login successful!");
-      router.push("/tasks");
+      router.push("/video-pipelines");
     } catch (error: any) {
       toast.error("Login failed", {
         description: error.message || "Invalid email or password",

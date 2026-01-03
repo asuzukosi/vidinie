@@ -21,7 +21,7 @@ from core.data import (
     VideoPipelineStatus,
 )
 from core.data import VideoPipeline
-from utils.config_loader import get_config
+from core.utils.config_loader import get_config
 from PIL import Image
 if not hasattr(Image, 'ANTIALIAS'):
     Image.ANTIALIAS = Image.LANCZOS
@@ -33,10 +33,10 @@ from moviepy.editor import (
 from moviepy.video.fx.fadein import fadein
 from moviepy.video.fx.fadeout import fadeout
 
-from utils.video_utils import VideoUtils
-from utils.font_loader import FontLoader
-from utils.logger import get_logger
-from utils.config_loader import Config
+from core.utils.video_utils import VideoUtils
+from core.utils.font_loader import FontLoader
+from core.utils.logger import get_logger
+from core.utils.config_loader import Config
 
 logger = get_logger("video_generator")
 

@@ -13,8 +13,8 @@ from moviepy.editor import (
 )
 from moviepy.video.fx.fadein import fadein
 from moviepy.video.fx.fadeout import fadeout
-from utils.logger import get_logger
-from utils.font_loader import FontLoader
+from core.utils.logger import get_logger
+from core.utils.font_loader import FontLoader
 from enum import Enum
 
 class PanelBackground(Enum):

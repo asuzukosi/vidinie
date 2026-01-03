@@ -5,8 +5,8 @@ Processes documents (PDF or HTML) and extracts structured content and images.
 
 import os
 from typing import Optional
-from utils.logger import get_logger
-from utils.config_loader import get_config
+from core.utils.logger import get_logger
+from core.utils.config_loader import get_config
 from core.data import (
     VideoPipeline,
     VideoPipelineStage,

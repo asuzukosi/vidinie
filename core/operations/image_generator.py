@@ -9,8 +9,8 @@ from typing import Optional, List
 from pathlib import Path
 from openai import OpenAI
 from jinja2 import Environment, FileSystemLoader, select_autoescape
-from utils.logger import get_logger
-from utils.config_loader import get_config
+from core.utils.logger import get_logger
+from core.utils.config_loader import get_config
 from core.data import VideoPipelineSegment, VideoPipelineSegmentImage
 
 logger = get_logger(__name__)

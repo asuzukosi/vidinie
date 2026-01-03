@@ -4,12 +4,23 @@ import { SignupForm } from "@/components/authentication/SignUpForm";
 import client from "@/lib/sdk/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { setUser } from "@/lib/store/slices/userSlice";
+import { useEffect } from "react";
+import type { RootState } from "@/lib/store/store";
 
 export default function SignUpPage() {
   const router = useRouter();
   const dispatch = useDispatch();
+  const user = useSelector((state: RootState) => state.auth.user);
+
+  useEffect(() => {
+    // check if user is already authenticated
+    if (user?.token) {
+      router.push("/video-pipelines");
+      return;
+    }
+  }, [user, router]);
 
   const handleSignup = async (name: string, email: string, password: string) => {
     try {
@@ -34,7 +45,7 @@ export default function SignUpPage() {
       // sync token to sdk client
       client.setToken(response.token);
       
-      router.push("/tasks");
+      router.push("/video-pipelines");
     } catch (error: any) {
       toast.error("Signup failed", {
         description: error.message || "Could not create account",
