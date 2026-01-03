@@ -53,7 +53,7 @@ class SafeUser(BaseModel):
     profile_picture: Optional[str] = None
     stripe_customer_id: Optional[str] = None
 
-class UserLoginResponse(User):
+class UserLoginResponse(SafeUser):
     token: str
 
 class Payment(BaseModel):

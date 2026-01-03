@@ -7,6 +7,7 @@ import os
 from typing import Optional, List, Dict
 from pathlib import Path
 from core.utils.logger import get_logger
+from core.utils.config_loader import config
 from core.utils.stock_image_utils import fetch_from_unsplash, fetch_from_pexels
 from core.data import VideoPipelineSegment, VideoPipelineSegmentImage
 
@@ -16,18 +17,14 @@ logger = get_logger(__name__)
 class StockImageFetcher:
     """fetch stock images from free apis."""
     
-    def __init__(self, unsplash_key: Optional[str] = None, 
-                 pexels_key: Optional[str] = None,
-                 output_dir: str = "temp/stock_images"):
+    def __init__(self, output_dir: str = "temp/stock_images"):
         """
         initialize stock image fetcher.
         args:
-            unsplash_key: unsplash api access key
-            pexels_key: pexels api key
             output_dir: directory to save images
         """
-        self.unsplash_key = unsplash_key or os.getenv('UNSPLASH_ACCESS_KEY')
-        self.pexels_key = pexels_key or os.getenv('PEXELS_API_KEY')
+        self.unsplash_key = config.unsplash_access_key
+        self.pexels_key = config.pexels_api_key
         self.output_dir = output_dir
         
         # create output directory

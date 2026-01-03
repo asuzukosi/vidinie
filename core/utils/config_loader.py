@@ -162,33 +162,14 @@ class Config:
         Returns:
             Path object pointing to prompts directory
         """
-        prompts_dir = self.get('paths.prompts_directory', 'core/prompts')
+        prompts_dir = self.get('paths.prompts_directory', 'prompts')
         # Resolve relative to project root
         project_root = Path(__file__).parent.parent
         return project_root / prompts_dir
 
 
-# global config instance
-_config_instance = None
+config = Config()
 
-
-def get_config(config_path: str = "config.yaml") -> Config:
-    """
-    get or create global configuration instance.
-    
-    args:
-        config_path: path to config file
-    returns:
-        config instance
-    example:
-        from core.utils.config_loader import get_config
-        config = get_config()
-        print(config.get('video.resolution')) # [1920, 1080]
-    """
-    global _config_instance
-    if _config_instance is None:
-        _config_instance = Config(config_path)
-    return _config_instance
 
 
 

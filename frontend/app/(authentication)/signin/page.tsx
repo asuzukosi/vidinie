@@ -5,7 +5,7 @@ import client from "@/lib/sdk/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useDispatch, useSelector } from "react-redux";
-import { setUser } from "@/lib/store/slices/userSlice";
+import { setUser } from "@/lib/store/slices/authSlice";
 import { useEffect } from "react";
 import type { RootState } from "@/lib/store/store";
 
@@ -28,15 +28,12 @@ export default function SignInPage() {
       // store all user data and token in redux
       const userData = {
         id: response.id,
-        name: response.username,
+        username: response.username,
         email: response.email,
         token: response.token,
         created_at: response.created_at,
         updated_at: response.updated_at,
         is_verified: response.is_verified,
-        current_subscription: response.current_subscription,
-        profile_picture: response.profile_picture,
-        stripe_customer_id: response.stripe_customer_id,
       };
       dispatch(setUser(userData));
       // sync token to sdk client
@@ -55,10 +52,14 @@ export default function SignInPage() {
     toast.info("Google login coming soon");
   };
 
+  const handleForgotPassword = async () => {
+    toast.info("Forgot password coming soon");
+  };
+
   return (
     <div className="flex items-center justify-center min-h-screen bg-zinc-50 dark:bg-black p-4">
       <div className="w-full max-w-md">
-        <LoginForm onLogin={handleLogin} onGoogleLogin={handleGoogleLogin} />
+        <LoginForm onLogin={handleLogin} onGoogleLogin={handleGoogleLogin} onForgotPassword={handleForgotPassword} />
       </div>
     </div>
   );

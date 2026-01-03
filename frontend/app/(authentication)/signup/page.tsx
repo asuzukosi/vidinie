@@ -5,7 +5,7 @@ import client from "@/lib/sdk/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useDispatch, useSelector } from "react-redux";
-import { setUser } from "@/lib/store/slices/userSlice";
+import { setUser } from "@/lib/store/slices/authSlice";
 import { useEffect } from "react";
 import type { RootState } from "@/lib/store/store";
 
@@ -22,24 +22,21 @@ export default function SignUpPage() {
     }
   }, [user, router]);
 
-  const handleSignup = async (name: string, email: string, password: string) => {
+  const handleSignup = async (username: string, email: string, password: string) => {
     try {
-      await client.register(name, email, password);
+      await client.register(username, email, password);
       toast.success("Account created successfully!");
       
       // auto-login after signup
       const response = await client.login(email, password);
       const userData = {
         id: response.id,
-        name: response.username,
+        username: response.username,
         email: response.email,
         token: response.token,
         created_at: response.created_at,
         updated_at: response.updated_at,
         is_verified: response.is_verified,
-        current_subscription: response.current_subscription,
-        profile_picture: response.profile_picture,
-        stripe_customer_id: response.stripe_customer_id,
       };
       dispatch(setUser(userData));
       // sync token to sdk client

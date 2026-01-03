@@ -12,7 +12,7 @@ from openai import OpenAI
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from pathlib import Path
 from core.utils.logger import get_logger
-from core.utils.config_loader import get_config
+from core.utils.config_loader import config
 from core.data import (
     VideoPipelineOutline,
     VideoPipelineScript,
@@ -28,26 +28,19 @@ logger = get_logger("script_generator")
 class ScriptGenerator:
     """generate voiceover scripts from video segments."""
     
-    def __init__(self, api_key: Optional[str] = None, prompts_dir: Optional[Path] = None):
+    def __init__(self):
         """
         initialize script generator.
-        args:
-            api_key: openai api key
-            prompts_dir: path to prompts directory (from config)
         """
-        self.api_key = api_key or os.getenv('OPENAI_API_KEY')
+        self.api_key = config.openai_api_key
         if not self.api_key:
             raise ValueError("openai api key is required")
         self.client = OpenAI(api_key=self.api_key)
         self.model = "gpt-4o"
         
         # initialize jinja2 environment for prompt templates
-        if prompts_dir is None:
-            config = get_config()
-            prompts_dir = config.get_prompts_directory()
-        
         self.jinja_env = Environment(
-            loader=FileSystemLoader(str(prompts_dir)),
+            loader=FileSystemLoader(str(config.get_prompts_directory())),
             autoescape=select_autoescape(['html', 'xml'])
         )
     
@@ -294,29 +287,19 @@ def update_scripts_in_pipeline(
 def generate_scripts(
     pipeline: VideoPipeline,
     provider: Optional[str] = None,
-    openai_api_key: Optional[str] = None,
-    elevenlabs_api_key: Optional[str] = None,
-    voice_id: Optional[str] = None,
-    prompts_dir: Optional[str] = None
+    voice_id: Optional[str] = None
 ) -> VideoPipeline:
     """
     generate narration scripts and voiceovers from video outline.
     args:
         pipeline: video pipeline object with video outline
-        provider: voiceover provider ('elevenlabs' or 'gtts')
-        openai_api key: openai api key
-        elevenlabs_api_key: elevenlabs api key
-        voice_id: elevenlabs voice id
-        prompts_dir: path to prompts directory
+        provider: voiceover provider ('elevenlabs' or 'gtts') (optional, uses config if not provided)
+        voice_id: elevenlabs voice id (optional, uses config if not provided)
     returns:
         updated video pipeline with script data, full audio path, and full audio duration
     """
-    config = get_config()
-    openai_api_key = openai_api_key or config.openai_api_key
-    elevenlabs_api_key = elevenlabs_api_key or config.elevenlabs_api_key
     voice_id = voice_id or config.get('voiceover.voice_id')
     provider = provider or config.get('voiceover.provider', 'elevenlabs')
-    prompts_dir = prompts_dir or config.get_prompts_directory()
     temp_dir = config.get('output.temp_directory', 'temp')
     
     pipeline.update_stage(VideoPipelineStage.SCRIPT_GENERATION, VideoPipelineStatus.IN_PROGRESS)
@@ -332,19 +315,18 @@ def generate_scripts(
         
         # Generate scripts
         logger.info("Generating scripts")
-        script_gen = ScriptGenerator(api_key=openai_api_key, prompts_dir=prompts_dir)
+        script_gen = ScriptGenerator()
         script_data: VideoPipelineScript = script_gen.generate_script(outline)
         pipeline.script_data = script_data
         logger.info(f"Generated scripts for {len(script_data.segments)} segments")
         
         # Generate voiceovers
         logger.info(f"Using voiceover provider: {provider}")
-        audio_dir = os.path.join(temp_dir, pipeline.path_id or pipeline.id, 'audio')
+        audio_dir = os.path.join(temp_dir, pipeline.id, 'audio')
         os.makedirs(audio_dir, exist_ok=True)
         
         voiceover_gen = VoiceoverGenerator(
             provider=provider,
-            api_key=elevenlabs_api_key,
             voice_id=voice_id,
             output_dir=audio_dir
         )

@@ -13,7 +13,6 @@ export enum SourceType {
 }
 export interface VideoPipelineSummary {
     id: string;
-    path_id: string;
     name: string;
     description: string;
     tags: string[];
@@ -174,7 +173,6 @@ export interface VideoPipelineStageStatuses {
 
 export interface VideoPipeline {
     id: string;
-    path_id: string;
     name: string;
     description: string;
     tags: string[];
@@ -224,7 +222,6 @@ export interface DeleteVideoPipelineImageResponse {
     video_pipeline_id: string;
     filename: string;
     message: string;
-    path_id: string;
 }
 
 export interface VideoPipelineContentMinimal {

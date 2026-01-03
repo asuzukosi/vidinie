@@ -8,7 +8,7 @@ import {
     AccordionItem,
     AccordionTrigger,
 } from "@/components/ui/accordion";
-import client from "@/lib/sdk/client";
+import { getLinkToImage } from "@/lib/utils";
 
 interface ScriptAndVoiceoversProps {
     scriptData?: ScriptData;
@@ -28,7 +28,7 @@ export function ScriptAndVoiceovers({ scriptData, fullAudioPath, fullAudioDurati
         );
     }
 
-    const fullAudioUrl = fullAudioPath ? client.getLinkToImage(fullAudioPath) : undefined;
+    const fullAudioUrl = getLinkToImage(fullAudioPath) || undefined;
 
     return (
         <div className="space-y-8 pt-8">
@@ -89,7 +89,7 @@ export function ScriptAndVoiceovers({ scriptData, fullAudioPath, fullAudioDurati
                             className="w-full"
                         >
                             {scriptData.segments.map((segment, index) => {
-                                const audioUrl = segment.audio_file ? client.getLinkToImage(segment.audio_file) : undefined;
+                                const audioUrl = getLinkToImage(segment.audio_file) || undefined;
                                 return (
                                     <AccordionItem key={index} value={`segment-${index}`}>
                                         <AccordionTrigger className="text-sm flex flex-row justify-between gap-2">

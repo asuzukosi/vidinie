@@ -14,7 +14,7 @@ import frontendClient from "@/lib/api/client";
 import type { RootState } from "@/lib/store/store";
 import client from "@/lib/sdk/client";
 import type { PaymentMethod } from "@/lib/sdk/types";
-import { setUser } from "@/lib/store/slices/userSlice";
+import { setUser } from "@/lib/store/slices/authSlice";
 
 export default function SettingsPage() {
   const user = useSelector((state: RootState) => state.auth.user);

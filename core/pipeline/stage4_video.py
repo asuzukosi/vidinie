@@ -22,7 +22,7 @@ from typing import Optional
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils.logger import setup_logging, get_logger
-from utils.config_loader import get_config
+from core.utils.config_loader import config
 from core.data import VideoPipeline
 from core.operations.video_generator import generate_video as generate_video_operation
 
@@ -43,7 +43,6 @@ def generate_video(pipeline_id: str,
     """
     logger.info("stage 4: video generation started")
     
-    config = get_config()
     temp_dir = config.get('output.temp_directory', 'temp')
     
     # load video pipeline by id (cache is required)
@@ -54,10 +53,7 @@ def generate_video(pipeline_id: str,
         logger.error(f"video pipeline not found for id: {pipeline_id}")
         logger.error("run stages 1-3 first to create video pipeline")
         sys.exit(1)
-    
-    # use modular operation to generate video
-    config = get_config()
-    
+        
     # determine output path if not provided
     if not output_path:
         output_dir = config.get('output.directory', 'output')

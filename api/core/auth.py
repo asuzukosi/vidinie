@@ -19,7 +19,7 @@ JWT_EXPIRATION = int(os.getenv("JWT_EXPIRATION"))
 
 DAY = 86400
 
-def signJWT(user_id: str) -> str:
+def sign_jwt(user_id: str) -> str:
     payload = {
         "user_id": user_id,
         "exp": time.time() + (JWT_EXPIRATION * DAY)
@@ -27,7 +27,7 @@ def signJWT(user_id: str) -> str:
     token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
     return token
 
-def decodeJWT(token: str) -> Dict:
+def decode_jwt(token: str) -> Dict:
     try:
         decoded_token = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         return decoded_token
@@ -47,7 +47,9 @@ def get_hashed_password(password: str) -> str:
 def verify_password(password: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(password.encode('utf-8'), hashed_password.encode('utf-8'))
 
+
 class JWTBearer(HTTPBearer):
+    # bearer authentication middlware
     def __init__(self, auto_error: bool = True):
         super(JWTBearer, self).__init__(auto_error=auto_error)
 
@@ -56,7 +58,7 @@ class JWTBearer(HTTPBearer):
         if credentials:
             if not credentials.scheme == "Bearer":
                 raise HTTPException(status_code=403, detail="Invalid authentication scheme")
-            decoded_token = decodeJWT(credentials.credentials)
+            decoded_token = decode_jwt(credentials.credentials)
             if not decoded_token:
                 raise HTTPException(status_code=403, detail="Invalid token")
             return decoded_token["user_id"]

@@ -9,6 +9,7 @@ export function LoadingPage() {
                 width={200} 
                 height={200}
                 className="object-contain"
+                loading="eager"
                 unoptimized
             />
         </div>

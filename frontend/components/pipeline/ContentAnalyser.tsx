@@ -1,6 +1,6 @@
 "use client";
 
-import { VideoOutline, ImageSource } from "@/lib/sdk/types";
+import { VideoPipelineOutline, ImageSource } from "@/lib/sdk/types";
 import { Badge } from "@/components/ui/badge";
 import {
     Accordion,
@@ -9,10 +9,10 @@ import {
     AccordionTrigger,
 } from "@/components/ui/accordion";
 import Image from "next/image";
-import client from "@/lib/sdk/client";  
+import { getLinkToImage } from "@/lib/utils";  
 
 interface ContentAnalyserProps {
-    videoOutline?: VideoOutline;
+    videoOutline?: VideoPipelineOutline;
 }
 
 export function ContentAnalyser({ videoOutline }: ContentAnalyserProps) {
@@ -50,7 +50,7 @@ export function ContentAnalyser({ videoOutline }: ContentAnalyserProps) {
                         className="w-full"
                     >
                         {videoOutline.segments.map((segment, index) => {
-                            const imageUrl = segment.image.path ? client.getLinkToImage(segment.image.path) : undefined;
+                            const imageUrl = getLinkToImage(segment.image.path) || undefined;
                             const imageType = segment.image.source === ImageSource.AI_GENERATED ? "AI Generated" : "Source";
                             
                             return (

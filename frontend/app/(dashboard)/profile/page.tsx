@@ -11,7 +11,7 @@ import client from "@/lib/sdk/client";
 import { toast } from "sonner";
 import { LoadingPage } from "@/components/utils/LoadingPage";
 import type { RootState } from "@/lib/store/store";
-import { setUser } from "@/lib/store/slices/userSlice";
+import { setUser } from "@/lib/store/slices/authSlice";
 
 export default function ProfilePage() {
   const user = useSelector((state: RootState) => state.auth.user);
@@ -31,7 +31,7 @@ export default function ProfilePage() {
   useEffect(() => {
     if (user) {
       setFormData({
-        username: user.name || "",
+        username: user.username || "",
         email: user.email || "",
       });
     }
@@ -41,7 +41,7 @@ export default function ProfilePage() {
     e.preventDefault();
     
     // check if there are any changes
-    if (formData.username === user?.name && formData.email === user?.email) {
+    if (formData.username === user?.username && formData.email === user?.email) {
       toast.info("No changes to save");
       return;
     }
@@ -49,14 +49,14 @@ export default function ProfilePage() {
     setIsSaving(true);
     try {
       const updatedUser = await client.updateUser({
-        username: formData.username !== user?.name ? formData.username : undefined,
+        username: formData.username !== user?.username ? formData.username : undefined,
         email: formData.email !== user?.email ? formData.email : undefined,
       });
 
       // update Redux state with the updated user data
       dispatch(setUser({
         id: updatedUser.id,
-        name: updatedUser.username,
+        username: updatedUser.username,
         email: updatedUser.email,
         token: user?.token || "",
         created_at: updatedUser.created_at,
@@ -144,7 +144,7 @@ export default function ProfilePage() {
                 <FieldLabel>Profile Picture</FieldLabel>
                 <div className="flex items-center gap-4">
                   <Avatar className="h-20 w-20">
-                    <AvatarImage src={profilePictureUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || "User")}&background=random`} />
+                    <AvatarImage src={profilePictureUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username || "User")}&background=random`} />
                   </Avatar>
                   <div>
                     <Button type="button" variant="outline" size="sm">

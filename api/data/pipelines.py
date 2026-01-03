@@ -21,7 +21,6 @@ class CreateVideoPipelineRequest(BaseModel):
 class VideoPipelineSummary(BaseModel):
     # identification
     id: str
-    path_id: Optional[str] = None # id used by mongodb for internal use
     name: str = Field(default="")
     description: str = Field(default="")
     tags: List[str] = Field(default_factory=list, nullable=True)  # tags of the video pipeline
@@ -64,7 +63,6 @@ class DeleteVideoPipelineImageResponse(BaseModel):
     video_pipeline_id: str
     filename: str
     message: str
-    path_id: Optional[str] = None
 
 class VideoPipelineContentMinimal(BaseModel):
     title: Optional[str] = None

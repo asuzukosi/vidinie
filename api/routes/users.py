@@ -6,16 +6,19 @@ from api.data.users import User, SafeUser, RegisterUserRequest, \
                         PaymentMethodResponse, UpdateCustomerIdRequest
 from api.core.db import users_collection, payment_methods_collection
 from bson.objectid import ObjectId
-from api.core.auth import get_hashed_password, verify_password, signJWT, JWTBearer
+from api.core.auth import get_hashed_password, verify_password, sign_jwt, JWTBearer
 from core.utils.logger import get_logger
 from datetime import datetime
 from typing import List
 import os
 from pathlib import Path
+from api.utils.error_wrapper import error_wrapper
+
 logger = get_logger("users")
 router = APIRouter(tags=["users"])
 
 @router.post("/register")
+@error_wrapper("register user")
 async def register(request: RegisterUserRequest) -> SafeUser:
     user = await users_collection.find_one({"email": request.email})
     if user:
@@ -30,24 +33,26 @@ async def register(request: RegisterUserRequest) -> SafeUser:
     db_user = await users_collection.insert_one(user.model_dump(mode="json"))
     # update user id
     await users_collection.update_one(
-        {"_id": db_user.inserted_id},
-        {"$set": {"id": str(db_user.inserted_id)}}
-    )
+            {"_id": db_user.inserted_id},
+            {"$set": {"id": str(db_user.inserted_id)}}
+        )
     # return user
     user.id = str(db_user.inserted_id)
-    return SafeUser(**user.model_dump(mode="json"), exclude={"password"})
+    return User(**user.model_dump(mode="json"))
 
 @router.post("/login")
+@error_wrapper("login user")
 async def login(request: LoginUserRequest) -> UserLoginResponse:
     user = await users_collection.find_one({"email": request.email})
     if not user:
         raise HTTPException(status_code=400, detail="Invalid email or password")
     if not verify_password(request.password, user["password"]):
         raise HTTPException(status_code=400, detail="Invalid email or password")
-    token = signJWT(user["id"])
+    token = sign_jwt(user["id"])
     return UserLoginResponse(**user, token=token)
 
 @router.get("/me", dependencies=[Depends(JWTBearer())])
+@error_wrapper("get user")
 async def me(user_id: str = Depends(JWTBearer())) -> User:
     user = await users_collection.find_one({"_id": ObjectId(user_id)})
     if not user:
@@ -55,6 +60,7 @@ async def me(user_id: str = Depends(JWTBearer())) -> User:
     return User(**user)
 
 @router.put("/me", dependencies=[Depends(JWTBearer())])
+@error_wrapper("update user")
 async def update_user(
     request: UpdateUserRequest,
     user_id: str = Depends(JWTBearer())
@@ -93,6 +99,7 @@ async def update_user(
     return User(**updated_user)
 
 @router.post("/change-password", dependencies=[Depends(JWTBearer())])
+@error_wrapper("change password")
 async def change_password(
     request: ChangePasswordRequest,
     user_id: str = Depends(JWTBearer())
@@ -117,6 +124,7 @@ async def change_password(
     return {"message": "Password changed successfully"}
 
 @router.post("/payment-methods", dependencies=[Depends(JWTBearer())])
+@error_wrapper("create payment method")
 async def create_payment_method(
     request: CreatePaymentMethodRequest,
     user_id: str = Depends(JWTBearer())
@@ -160,6 +168,7 @@ async def create_payment_method(
     return PaymentMethodResponse(**created_payment_method, id=str(created_payment_method["_id"]))
 
 @router.get("/payment-methods", dependencies=[Depends(JWTBearer())])
+@error_wrapper("get payment methods")
 async def get_payment_methods(
     user_id: str = Depends(JWTBearer())
 ) -> List[PaymentMethodResponse]:
@@ -175,6 +184,7 @@ async def get_payment_methods(
     ]
 
 @router.get("/payment-methods/{payment_method_id}", dependencies=[Depends(JWTBearer())])
+@error_wrapper("get payment method")
 async def get_payment_method(
     payment_method_id: str,
     user_id: str = Depends(JWTBearer())
@@ -194,6 +204,7 @@ async def get_payment_method(
     return PaymentMethodResponse(**payment_method, id=str(payment_method["_id"]))
 
 @router.put("/payment-methods/{payment_method_id}", dependencies=[Depends(JWTBearer())])
+@error_wrapper("update payment method")
 async def update_payment_method(
     payment_method_id: str,
     request: UpdatePaymentMethodRequest,
@@ -239,6 +250,7 @@ async def update_payment_method(
     return PaymentMethodResponse(**updated_payment_method, id=str(updated_payment_method["_id"]))
 
 @router.delete("/payment-methods/{payment_method_id}", dependencies=[Depends(JWTBearer())])
+@error_wrapper("delete payment method")
 async def delete_payment_method(
     payment_method_id: str,
     user_id: str = Depends(JWTBearer())
@@ -261,6 +273,7 @@ async def delete_payment_method(
     return {"message": "Payment method deleted successfully"}
 
 @router.post("/profile-picture", dependencies=[Depends(JWTBearer())])
+@error_wrapper("upload profile picture")
 async def upload_profile_picture(
     file: UploadFile = File(...),
     user_id: str = Depends(JWTBearer())
@@ -321,6 +334,7 @@ async def upload_profile_picture(
     }
 
 @router.get("/profile-picture", dependencies=[Depends(JWTBearer())])
+@error_wrapper("get profile picture")
 async def get_profile_picture(
     user_id: str = Depends(JWTBearer())
 ) -> dict:
@@ -340,6 +354,7 @@ async def get_profile_picture(
     }
 
 @router.delete("/profile-picture", dependencies=[Depends(JWTBearer())])
+@error_wrapper("delete profile picture")
 async def delete_profile_picture(
     user_id: str = Depends(JWTBearer())
 ) -> dict:
@@ -375,6 +390,7 @@ async def delete_profile_picture(
     return {"message": "Profile picture deleted successfully"}
 
 @router.put("/subscription", dependencies=[Depends(JWTBearer())])
+@error_wrapper("update subscription")
 async def update_subscription(
     request: UpdateSubscriptionRequest,
     user_id: str = Depends(JWTBearer())
@@ -410,6 +426,7 @@ async def update_subscription(
     return User(**updated_user)
 
 @router.put("/customer-id", dependencies=[Depends(JWTBearer())])
+@error_wrapper("update customer id")
 async def update_customer_id(
     request: UpdateCustomerIdRequest,
     user_id: str = Depends(JWTBearer())
@@ -438,6 +455,7 @@ async def update_customer_id(
     return User(**updated_user)
 
 @router.get("/customer-id", dependencies=[Depends(JWTBearer())])
+@error_wrapper("get customer id")
 async def get_customer_id(
     user_id: str = Depends(JWTBearer())
 ) -> dict:
@@ -451,6 +469,7 @@ async def get_customer_id(
     }
 
 @router.put("/customer-id-by-email", dependencies=[Depends(JWTBearer())])
+@error_wrapper("update customer id by email")
 async def update_customer_id_by_email(
     request: UpdateCustomerIdRequest,
     email: str,

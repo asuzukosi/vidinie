@@ -16,6 +16,7 @@ import {
   SidebarMenu,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { getInitials } from "@/lib/utils";
 
 import {
   LogOut,
@@ -26,13 +27,13 @@ import {
 } from "lucide-react";
 import client from "@/lib/sdk/client";
 import { useDispatch } from "react-redux";
-import { clearUser } from "@/lib/store/slices/userSlice";
+import { clearUser } from "@/lib/store/slices/authSlice";
 
 export function NavFooter({
   user,
 }: {
   user: {
-    name: string;
+    username: string;
     email: string;
     avatar?: string | null;
   };
@@ -40,14 +41,6 @@ export function NavFooter({
   const router = useRouter();
   const dispatch = useDispatch();
   
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  };
 
   const handleLogout = () => {
     dispatch(clearUser());
@@ -65,10 +58,10 @@ export function NavFooter({
                 <DropdownMenuTrigger asChild>
                   <Avatar className="h-8 w-8 rounded-full">
                     {user.avatar && (
-                      <AvatarImage src={user.avatar} alt={user.name} />
+                      <AvatarImage src={user.avatar} alt={user.username} />
                     )}
                     <AvatarFallback className="rounded-full">
-                      {getInitials(user.name)}
+                      {getInitials(user.username)}
                     </AvatarFallback>
                   </Avatar>
                 </DropdownMenuTrigger>

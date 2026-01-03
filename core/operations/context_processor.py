@@ -3,12 +3,11 @@ Context processor utility
 Processes large context and splits it into smaller chunks with summaries.
 """
 
-from typing import List, Optional
-from pathlib import Path
+from typing import List
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from openai import OpenAI
 from core.utils.logger import get_logger
-from core.utils.config_loader import get_config
+from core.utils.config_loader import config
 from core.data import VideoPipelineContextChunk
 logger = get_logger(__name__)
 
@@ -26,31 +25,28 @@ class ContextProcessor:
         list of smaller chunks with summaries
     """
     
-    def __init__(self, context: str, api_key: str, document_title: str = "Untitled Document", 
-                 chunk_length: int = 5000, split_by: str = '\n', prompts_dir: Optional[Path] = None):
+    def __init__(self, context: str, document_title: str = "Untitled Document", 
+                 chunk_length: int = 5000, split_by: str = '\n'):
         """
         initialize large context processor.
         args:
             context: the large context to process
-            api_key: openai api key
             document_title: the title of the document
             chunk_length: the length of each chunk
             split_by: the character to split the context by
-            prompts_dir: path to prompts directory
         """
         self.context = context
         self.document_title = document_title
         self.chunk_length = chunk_length
         self.split_by = split_by
+        api_key = config.openai_api_key
+        if not api_key:
+            raise ValueError("openai api key is required")
         self.client = OpenAI(api_key=api_key)
         
         # initialize jinja2 environment for prompt templates
-        if prompts_dir is None:
-            config = get_config()
-            prompts_dir = config.get_prompts_directory()
-        
         self.jinja_env = Environment(
-            loader=FileSystemLoader(str(prompts_dir)),
+            loader=FileSystemLoader(str(config.get_prompts_directory())),
             autoescape=select_autoescape(['html', 'xml'])
         )
 

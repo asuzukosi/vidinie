@@ -42,28 +42,17 @@ export class VidinieAPIClient {
         };
     }
 
-    /**
-     * Handles API response and checks for errors
-     * Throws error if response is not successful to prevent data from being passed forward
-     * Components should handle toast notifications individually
-     */
     private async handleResponse<T>(response: Response, operationName: string): Promise<T> {
         if (!response.ok) {
             let errorMessage = `Operation failed: ${operationName}`;
-            
             try {
                 const errorData = await response.json();
                 errorMessage = errorData.detail || errorData.error || errorData.message || errorMessage;
             } catch {
-                // If response is not JSON, use status text
                 errorMessage = response.statusText || errorMessage;
             }
-
-            // Throw error to prevent data from being passed forward
-            // Components should catch this and show toast notifications as needed
             throw new Error(errorMessage);
         }
-
         return await response.json() as T;
     }
 
@@ -420,11 +409,6 @@ export class VidinieAPIClient {
         return response.blob() as Promise<Blob>;
     }
 
-    getLinkToImage(filePath: string): string {
-        filePath = filePath.replace("temp", "media");
-        return `${this.baseUrl}/${filePath}`;
-    }
-
     // authentication methods
     async login(email: string, password: string): Promise<LoginResponse> {
         const response = await fetch(`${this.baseUrl}/users/login`, {
@@ -529,21 +513,7 @@ export class VidinieAPIClient {
 
         return this.handleResponse<{ message: string; profile_picture: string }>(response, "Upload profile picture");
     }
-
-    async getProfilePicture(): Promise<{ profile_picture: string; url: string }> {
-        const response = await fetch(`${this.baseUrl}/users/profile-picture`, {
-            method: 'GET',
-            headers: this.getAuthHeaders()
-        });
-
-        const data = await this.handleResponse<{ profile_picture: string; url: string }>(response, "Get profile picture");
-        // return full URL
-        return {
-            profile_picture: data.profile_picture,
-            url: `${this.baseUrl}${data.url}`
-        };
-    }
-
+    
     async deleteProfilePicture(): Promise<{ message: string }> {
         const response = await fetch(`${this.baseUrl}/users/profile-picture`, {
             method: 'DELETE',

@@ -1,13 +1,13 @@
 "use client";
 import { useState, useRef, useMemo } from "react";
-import { IconX, IconUpload, IconFileText, IconFile } from "@tabler/icons-react";
+import { IconX, IconUpload, IconFileText} from "@tabler/icons-react";
 import { Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { FieldGroup } from "@/components/ui/field";
 import { Field } from "@/components/ui/field";
 import { FieldLabel } from "@/components/ui/field";
 import { MultiSelect } from "@/components/ui/multi-select";
-import { StartPipelineRequest } from "@/lib/sdk/types";
+import { CreateVideoPipelineRequest } from "@/lib/sdk/types";
 import { toast } from "sonner";
 
 const ALLOWED_FILE_TYPES = ".pdf";
@@ -16,7 +16,7 @@ const ALLOWED_MIME_TYPES = ["application/pdf"];
 interface CreateTaskModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreateTask: (task: StartPipelineRequest) => void;
+  onCreateTask: (task: CreateVideoPipelineRequest) => void;
 }
 
 enum TaskType {

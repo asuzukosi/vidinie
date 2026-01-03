@@ -61,6 +61,16 @@ export default function TasksPage() {
       // keep modal open on error so user can retry
     }
   };
+
+  const handleDeleteVideoPipeline = async (videoPipeline: VideoPipelineTableItem) => {
+    try {
+      await client.deleteVideoPipeline(videoPipeline.id);
+      await fetchVideoPipelines();
+    } catch (error) {
+      console.error("Error deleting video pipeline:", error);
+      throw error;
+    }
+  };
   useEffect(() => {
     fetchVideoPipelines().catch(console.error);
   }, []);
@@ -111,6 +121,7 @@ export default function TasksPage() {
         <>
           {videoPipelines.length > 0 ? (
             <VideoPipelineTable videoPipelines={videoPipelines as VideoPipelineTableItem[]} 
+              onDelete={handleDeleteVideoPipeline}
             />
           ) : (
             <div className="flex min-h-[60vh] w-full items-center justify-center">

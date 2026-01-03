@@ -4,9 +4,10 @@ Processes documents (PDF or HTML) and extracts structured content and images.
 """
 
 import os
+import requests
 from typing import Optional
 from core.utils.logger import get_logger
-from core.utils.config_loader import get_config
+from core.utils.config_loader import config
 from core.data import (
     VideoPipeline,
     VideoPipelineStage,
@@ -23,35 +24,46 @@ logger = get_logger('document_processor')
 def process_pdf_document(
     pipeline: VideoPipeline,
     extract_images: bool = True,
-    openai_api_key: Optional[str] = None,
-    prompts_dir: Optional[str] = None
+    pdf_content: Optional[bytes] = None,
+    pdf_path: Optional[str] = None
 ) -> VideoPipeline:
     """
     process PDF document and extract structured content and images.
     args:
-        pipeline: video pipeline object with source_path set to PDF file path
+        pipeline: video pipeline object
         extract_images: whether to extract and label images
-        openai_api key: openai api key
-        prompts_dir: path to prompts directory
+        pdf_content: pdf file content as bytes (optional if pdf_path is provided)
+        pdf_path: path to pdf file (optional if pdf_content is provided)
     returns:
         updated video pipeline with parsed content and optionally labeled images
     """
-    config = get_config()
-    openai_api_key = openai_api_key or config.openai_api_key
-    prompts_dir = prompts_dir or config.get_prompts_directory()
     temp_dir = config.get('output.temp_directory', 'temp')
     images_dir = os.path.join(temp_dir, pipeline.id, 'images')
     os.makedirs(images_dir, exist_ok=True)
     
     pipeline.update_stage(VideoPipelineStage.DOCUMENT_PROCESSING, VideoPipelineStatus.IN_PROGRESS)
     
-    if not os.path.exists(pipeline.source_path):
-        logger.error(f"Source file not found: {pipeline.source_path}")
+    # validate input
+    if not pdf_content and not pdf_path:
+        logger.error("Either pdf_content or pdf_path must be provided")
         pipeline.update_stage(VideoPipelineStage.DOCUMENT_PROCESSING, VideoPipelineStatus.FAILED)
         return pipeline
     
+    # read file if pdf_path is provided
+    if pdf_path:
+        if not os.path.exists(pdf_path):
+            logger.error(f"Source file not found: {pdf_path}")
+            pipeline.update_stage(VideoPipelineStage.DOCUMENT_PROCESSING, VideoPipelineStatus.FAILED)
+            return pipeline
+        with open(pdf_path, 'rb') as f:
+            pdf_content = f.read()
+        logger.info(f"read pdf file from path: {pdf_path} ({len(pdf_content)} bytes)")
+    
     try:
-        with PDFProcessor(pipeline.source_path, images_output_dir=images_dir) as processor:
+        # process with pdf_content
+        processor = PDFProcessor(pdf_content=pdf_content, images_output_dir=images_dir)
+        
+        with processor:
             content: VideoPipelineParsedContent = processor.extract_structured_content()
             pipeline.parsed_content = content
             
@@ -61,7 +73,7 @@ def process_pdf_document(
             
             if extract_images:
                 logger.info("Labeling images")
-                processor.label_images(openai_api_key, prompts_dir)
+                processor.label_images()
                 pipeline.images_metadata = processor.images_metadata
                 logger.info(f"Labeled {len(processor.images_metadata)} images")
             else:
@@ -79,33 +91,60 @@ def process_pdf_document(
 
 def process_html_document(
     pipeline: VideoPipeline,
-    html_path: str,
+    html_path: Optional[str] = None,
     extract_images: bool = True,
-    openai_api_key: Optional[str] = None,
-    prompts_dir: Optional[str] = None
+    html_content: Optional[str] = None
 ) -> VideoPipeline:
     """
-    process HTML document (from URL or file path) and extract structured content and images.
+    process HTML document (from URL, file path, or content) and extract structured content and images.
     args:
         pipeline: video pipeline object
-        html_path: path to HTML file or URL to HTML content
+        html_path: path to HTML file or URL to HTML content (optional if html_content is provided)
         extract_images: whether to extract and label images
-        openai_api_key: openai api key
-        prompts_dir: path to prompts directory
+        html_content: html content as string (optional if html_path is provided)
     returns:
         updated video pipeline with parsed content and optionally labeled images
     """
-    config = get_config()
-    openai_api_key = openai_api_key or config.openai_api_key
-    prompts_dir = prompts_dir or config.get_prompts_directory()
     temp_dir = config.get('output.temp_directory', 'temp')
     images_dir = os.path.join(temp_dir, pipeline.id, 'images')
     os.makedirs(images_dir, exist_ok=True)
     
     pipeline.update_stage(VideoPipelineStage.DOCUMENT_PROCESSING, VideoPipelineStatus.IN_PROGRESS)
     
+    # validate input
+    if not html_content and not html_path:
+        logger.error("Either html_content or html_path must be provided")
+        pipeline.update_stage(VideoPipelineStage.DOCUMENT_PROCESSING, VideoPipelineStatus.FAILED)
+        return pipeline
+    
+    # read file or fetch from URL if html_path is provided
+    if html_path:
+        if html_path.startswith(('http://', 'https://')):
+            # fetch from URL
+            try:
+                response = requests.get(html_path)
+                response.raise_for_status()
+                html_content = response.text
+                logger.info(f"fetched html content from URL: {html_path} ({len(html_content)} characters)")
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Failed to fetch HTML from URL {html_path}: {str(e)}")
+                pipeline.update_stage(VideoPipelineStage.DOCUMENT_PROCESSING, VideoPipelineStatus.FAILED)
+                return pipeline
+        else:
+            # read from file
+            if not os.path.exists(html_path):
+                logger.error(f"html file not found: {html_path}")
+                pipeline.update_stage(VideoPipelineStage.DOCUMENT_PROCESSING, VideoPipelineStatus.FAILED)
+                return pipeline
+            with open(html_path, 'r', encoding='utf-8') as f:
+                html_content = f.read()
+            logger.info(f"read html file from path: {html_path} ({len(html_content)} characters)")
+    
     try:
-        with HTMLProcessor(html_path=html_path, images_output_dir=images_dir) as processor:
+        # process with html_content
+        processor = HTMLProcessor(html_content=html_content, images_output_dir=images_dir)
+        
+        with processor:
             content: VideoPipelineParsedContent = processor.extract_structured_content()
             pipeline.parsed_content = content
             
@@ -115,7 +154,7 @@ def process_html_document(
             
             if extract_images:
                 logger.info("Labeling images")
-                processor.label_images(openai_api_key, prompts_dir)
+                processor.label_images()
                 pipeline.images_metadata = processor.images_metadata
                 logger.info(f"Labeled {len(processor.images_metadata)} images")
             else:
@@ -133,9 +172,7 @@ def process_html_document(
 
 def process_document(
     pipeline: VideoPipeline,
-    extract_images: bool = True,
-    openai_api_key: Optional[str] = None,
-    prompts_dir: Optional[str] = None
+    extract_images: bool = True
 ) -> VideoPipeline:
     """
     process document (PDF or HTML) and extract structured content and images.
@@ -143,15 +180,13 @@ def process_document(
     args:
         pipeline: video pipeline object with source_path and source_type set
         extract_images: whether to extract and label images
-        openai_api_key: openai api key
-        prompts_dir: path to prompts directory
     returns:
         updated video pipeline with parsed content and optionally labeled images
     """
     if pipeline.source_type == SourceType.PDF:
-        return process_pdf_document(pipeline, extract_images, openai_api_key, prompts_dir)
+        return process_pdf_document(pipeline, extract_images=extract_images, pdf_path=pipeline.source_path)
     elif pipeline.source_type == SourceType.HTML:
-        return process_html_document(pipeline, pipeline.source_path, extract_images, openai_api_key, prompts_dir)
+        return process_html_document(pipeline, html_path=pipeline.source_path, extract_images=extract_images)
     else:
         logger.error(f"Unsupported source type: {pipeline.source_type}")
         pipeline.update_stage(VideoPipelineStage.DOCUMENT_PROCESSING, VideoPipelineStatus.FAILED)

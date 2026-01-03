@@ -2,7 +2,7 @@ import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 interface User {
     id: string;
-    name: string;
+    username: string;
     email: string;
     token: string;
     created_at?: string;
@@ -19,9 +19,17 @@ interface UserState {
     error: string | null;
 }
 
-// load initial state from local storage
+const isWindowDefined = () => {
+    return typeof window !== 'undefined';
+};
+
 const loadUserFromStorage = (): User | null => {
-    if (typeof window === 'undefined') return null;
+    // check if window is defined
+    if (!isWindowDefined()) {
+        console.error('window is not defined');
+        return null; // return null if window is not defined
+    }
+    // load initial state from local storage
     try {
         const storedUser = localStorage.getItem('vidinie_user');
         if (storedUser) {
@@ -29,6 +37,7 @@ const loadUserFromStorage = (): User | null => {
         }
     } catch (error) {
         console.error('error loading user from local storage:', error);
+        return null;
     }
     return null;
 };
@@ -39,34 +48,40 @@ const initialState: UserState = {
     error: null,
 };
 
-const userSlice = createSlice({
+const authSlice = createSlice({
     name: "auth",
     initialState,
     reducers: {
         setUser: (state, action: PayloadAction<User>) => {
             state.user = action.payload;
             // persist to local storage
-            if (typeof window !== 'undefined') {
+            if (isWindowDefined()) {
+                // try to save to local storage
                 try {
                     localStorage.setItem('vidinie_user', JSON.stringify(action.payload));
                 } catch (error) {
                     console.error('error saving user to local storage:', error);
                 }
+            } else {
+                console.error('window is not defined');
             }
         },
         clearUser: (state) => {
             state.user = null;
             // clear from local storage
-            if (typeof window !== 'undefined') {
+            if (isWindowDefined()) {
+                // try to remove from local storage
                 try {
                     localStorage.removeItem('vidinie_user');
                 } catch (error) {
                     console.error('error removing user from local storage:', error);
                 }
+            } else {
+                console.error('window is not defined');
             }
         },
     },
 })
 
-export const { setUser, clearUser } = userSlice.actions;
-export default userSlice.reducer;
+export const { setUser, clearUser } = authSlice.actions;
+export default authSlice.reducer;

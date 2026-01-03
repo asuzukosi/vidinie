@@ -16,7 +16,7 @@ import os
 import argparse
 from typing import Optional
 from utils.logger import setup_logging, get_logger
-from utils.config_loader import get_config
+from core.utils.config_loader import config
 from core.data import VideoPipeline
 from core.operations.script_generator import generate_scripts
 
@@ -37,7 +37,6 @@ def generate_scripts_and_voiceovers(pipeline_id: str,
     """
     logger.info("stage 3: script generation and voiceover started")
     
-    config = get_config()
     temp_dir = config.get('output.temp_directory', 'temp')
     # load video pipeline by ID (cache is required)
     try:
@@ -49,14 +48,10 @@ def generate_scripts_and_voiceovers(pipeline_id: str,
         sys.exit(1)
     
     # use modular operation to generate scripts
-    config = get_config()
     video_pipeline = generate_scripts(
         video_pipeline,
         provider=provider,
-        openai_api_key=config.openai_api_key,
-        elevenlabs_api_key=config.elevenlabs_api_key,
-        voice_id=config.get('voiceover.voice_id'),
-        prompts_dir=config.get_prompts_directory()
+        voice_id=config.get('voiceover.voice_id')
     )
     
     # save video pipeline

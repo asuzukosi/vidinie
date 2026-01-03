@@ -21,7 +21,7 @@ from core.data import (
     VideoPipelineStatus,
 )
 from core.data import VideoPipeline
-from core.utils.config_loader import get_config
+from core.utils.config_loader import config
 from PIL import Image
 if not hasattr(Image, 'ANTIALIAS'):
     Image.ANTIALIAS = Image.LANCZOS
@@ -396,7 +396,6 @@ def generate_video(
     returns:
         updated video pipeline with video path
     """
-    config = get_config()
     temp_dir = config.get('output.temp_directory', 'temp')
     
     pipeline.update_stage(VideoPipelineStage.VIDEO_GENERATION, VideoPipelineStatus.IN_PROGRESS)
@@ -421,7 +420,7 @@ def generate_video(
         logger.info(f"Using script data for {len(script_data.segments)} segments")
         
         # Generate video
-        video_dir = os.path.join(temp_dir, pipeline.path_id or pipeline.id, 'video')
+        video_dir = os.path.join(temp_dir, pipeline.id, 'video')
         os.makedirs(video_dir, exist_ok=True)
         
         video_path = os.path.join(video_dir, f"video_{datetime.now().strftime('%Y%m%d%H%M%S')}.mp4")

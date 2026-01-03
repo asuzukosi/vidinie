@@ -16,7 +16,7 @@ import sys
 import os
 import argparse
 from utils.logger import setup_logging, get_logger
-from utils.config_loader import get_config
+from core.utils.config_loader import config
 from core.data import VideoPipeline
 from core.operations.content_analyzer import process_content
 
@@ -40,7 +40,6 @@ def create_video_outline(pipeline_id: str,
         video pipeline instance with video outline
     """
     logger.info("stage 2: content analysis started")
-    config = get_config()
     temp_dir = config.get('output.temp_directory', 'temp')
     
     # load video pipeline by id (cache is required)
@@ -53,16 +52,11 @@ def create_video_outline(pipeline_id: str,
         sys.exit(1)
     
     # use modular operation to process content
-    config = get_config()
     video_pipeline = process_content(
         video_pipeline,
         skip_stock=skip_stock,
         target_segments=target_segments,
-        segment_duration=segment_duration,
-        openai_api_key=config.openai_api_key,
-        unsplash_access_key=config.unsplash_access_key,
-        pexels_api_key=config.pexels_api_key,
-        prompts_dir=config.get_prompts_directory()
+        segment_duration=segment_duration
     )
     
     # save video pipeline

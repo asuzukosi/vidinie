@@ -12,7 +12,7 @@ from openai import OpenAI
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from pathlib import Path
 from core.utils.logger import get_logger
-from core.utils.config_loader import get_config
+from core.utils.config_loader import config
 from core.data import VideoPipeline, VideoPipelineImageMetadata
 
 logger = get_logger(__name__)
@@ -21,14 +21,11 @@ logger = get_logger(__name__)
 class ImageLabeler:
     """label and describe images using ai vision models."""
     
-    def __init__(self, api_key: Optional[str] = None, prompts_dir: Optional[Path] = None):
+    def __init__(self):
         """
         initialize image labeler.
-        args:
-            api_key: openai api key (defaults to environment variable)
-            prompts_dir: path to prompts directory (from config)
         """
-        self.api_key = api_key or os.getenv('OPENAI_API_KEY')
+        self.api_key = config.openai_api_key
         if not self.api_key:
             raise ValueError("openai api key is required. set OPENAI_API_KEY environment variable.")
         
@@ -36,12 +33,8 @@ class ImageLabeler:
         self.model = "gpt-4o"  # gpt-4 with vision
         
         # initialize jinja2 environment for prompt templates
-        if prompts_dir is None:
-            config = get_config()
-            prompts_dir = config.get_prompts_directory()
-        
         self.jinja_env = Environment(
-            loader=FileSystemLoader(str(prompts_dir)),
+            loader=FileSystemLoader(str(config.get_prompts_directory())),
             autoescape=select_autoescape(['html', 'xml'])
         )
 
@@ -237,17 +230,15 @@ class ImageLabeler:
         logger.info(f"saved labeled metadata to {output_path}")
 
 
-def label_images(images_metadata: List[VideoPipelineImageMetadata], 
-                 api_key: Optional[str] = None) -> List[VideoPipelineImageMetadata]:
+def label_images(images_metadata: List[VideoPipelineImageMetadata]) -> List[VideoPipelineImageMetadata]:
     """
     convenience function to label images.
     args:
         images_metadata: list of image metadata
-        api_key: openai api key
     returns:
         updated metadata with labels
     """
-    labeler = ImageLabeler(api_key)
+    labeler = ImageLabeler()
     return labeler.label_images_batch(images_metadata)
 
 
@@ -284,12 +275,10 @@ def create_image_metadata(
 
 
 def label_image_metadata(
-    image_metadata: VideoPipelineImageMetadata,
-    openai_api_key: str,
-    prompts_dir: Union[Path, str]
+    image_metadata: VideoPipelineImageMetadata
 ) -> VideoPipelineImageMetadata:
     """Label an image using AI."""
-    labeler = ImageLabeler(openai_api_key, prompts_dir)
+    labeler = ImageLabeler()
     labeled_metadata = labeler.label_images_batch([image_metadata])
     return labeled_metadata[0] if labeled_metadata else image_metadata
 
@@ -298,24 +287,22 @@ def add_image_to_pipeline(
     video_pipeline: VideoPipeline,
     image: Any,
     text_context: Optional[str] = None,
-    label: bool = False,
-    openai_api_key: Optional[str] = None,
-    prompts_dir: Optional[Union[Path, str]] = None
+    label: bool = False
 ) -> VideoPipelineImageMetadata:
     """Add an image to a video pipeline."""
     if not image.filename or not image.filename.endswith((".png", ".jpg", ".jpeg", ".gif")):
         raise ValueError("Invalid image type must be a PNG, JPG, or JPEG file")
     
-    path_id = video_pipeline.path_id
-    if not path_id:
-        raise ValueError("Path ID not found for this pipeline. Create a new pipeline object to continue")
+    if not video_pipeline.id:
+        raise ValueError("Pipeline ID not found for this pipeline. Create a new pipeline object to continue")
     
-    image_path = os.path.join(path_id, "images", image.filename)
+    temp_dir = config.get('output.temp_directory', 'temp')
+    image_path = os.path.join(temp_dir, video_pipeline.id, "images", image.filename)
     size_bytes = save_image_file(image, image_path)
     image_metadata = create_image_metadata(image, image_path, text_context, size_bytes)
     
-    if label and openai_api_key and prompts_dir:
-        image_metadata = label_image_metadata(image_metadata, openai_api_key, prompts_dir)
+    if label:
+        image_metadata = label_image_metadata(image_metadata)
     
     video_pipeline.images_metadata.append(image_metadata)
     return image_metadata

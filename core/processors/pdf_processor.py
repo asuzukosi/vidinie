@@ -15,6 +15,7 @@ import re
 from pathlib import Path
 from typing import Dict, List
 from core.utils.logger import get_logger
+from core.utils.config_loader import config
 from core.processors.base import DocumentProcessor
 from core.operations.image_labeler import ImageLabeler
 from core.data import (
@@ -32,18 +33,22 @@ class PDFProcessor(DocumentProcessor):
     """
     processor for extracting text, structure, and images from pdf documents.
     args:
-        pdf_path: path to the pdf file
+        pdf_content: pdf file content as bytes
         images_output_dir: directory to save extracted images (default: "temp/images")
     """
     
-    def __init__(self, pdf_path: str, images_output_dir: str = "temp/images"):
+    def __init__(self, pdf_content: bytes, 
+                 images_output_dir: str = "temp/images"):
         """
         initialize pdf processor.
         args:
-            pdf_path: path to the pdf file
+            pdf_content: pdf file content as bytes
             images_output_dir: directory to save extracted images
         """
-        self.pdf_path = pdf_path
+        if not pdf_content:
+            raise ValueError("pdf_content must be provided")
+        
+        self.pdf_content = pdf_content
         self.images_output_dir = images_output_dir
         self.pdf = None
         self.pdf_document = None
@@ -55,11 +60,12 @@ class PDFProcessor(DocumentProcessor):
         
     def __enter__(self):
         """context manager entry."""
-        self.pdf = pdfplumber.open(self.pdf_path)
-        self.pdf_document = fitz.open(self.pdf_path)
+        # open from bytes
+        self.pdf = pdfplumber.open(io.BytesIO(self.pdf_content))
+        self.pdf_document = fitz.open(stream=self.pdf_content, filetype="pdf")
         return self
         
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self,exc_type, exc_val, exc_tb):
         """context manager exit."""
         if self.pdf:
             self.pdf.close()
@@ -276,7 +282,8 @@ class PDFProcessor(DocumentProcessor):
         return pages_text
     
     
-    def extract_images(self, min_width: int = 100, min_height: int = 100) -> List[VideoPipelineImageMetadata]:
+    def extract_images(self, min_width: int = 100, 
+                       min_height: int = 100) -> List[VideoPipelineImageMetadata]:
         """
         extract all images from the pdf document.
         args:
@@ -288,7 +295,7 @@ class PDFProcessor(DocumentProcessor):
         if not self.pdf_document:
             raise ValueError("pdf document not opened. use context manager or call __enter__()")
         
-        logger.info(f"starting image extraction from {self.pdf_path}")
+        logger.info(f"starting image extraction from pdf document")
         
         # initialize image count
         image_count = 0
@@ -339,7 +346,7 @@ class PDFProcessor(DocumentProcessor):
                         mode = "unknown"
                     
                     # get surrounding text context (text near the image on the page)
-                    text_context = self._extract_text_context(page, img_info)
+                    text_context = self._extract_text_context(page)
                     
                     # store metadata
                     image_metadata = VideoPipelineImageMetadata()
@@ -377,17 +384,16 @@ class PDFProcessor(DocumentProcessor):
         # return images metadata
         return self.images_metadata
     
-    def _extract_text_context(self, page, img_info, context_chars: int = 500) -> str:
+    def _extract_text_context(self, page, context_chars: int = 500) -> str:
         """
-        extract text near an image on the page.
+        extract text on the page.
         
         args:
             page: pdf page object
-            img_info: image information
             context_chars: number of characters to extract
         
         returns:
-            text context surrounding the image
+            text content of the page
         """
         try:
             # get all text from the page
@@ -473,7 +479,7 @@ class PDFProcessor(DocumentProcessor):
             pages_with_images=len(set(img.page_number for img in self.images_metadata if img.page_number is not None))
         )
     
-    def label_images(self, openai_api_key: str, prompts_dir: str):
+    def label_images(self):
         logger.info("extracting images from pdf")
         images_metadata = self.extract_images()
         
@@ -482,10 +488,10 @@ class PDFProcessor(DocumentProcessor):
             logger.info(f"extracted {stats.total_images} images")
             
             # label images with ai if api key is available
+            openai_api_key = config.openai_api_key
             if openai_api_key:
                 logger.info("labeling images with AI")
-                labeler = ImageLabeler(openai_api_key, 
-                                        prompts_dir=prompts_dir)
+                labeler = ImageLabeler()
                 labeled_metadata = labeler.label_images_batch(images_metadata)
                 
                 # save labeled metadata

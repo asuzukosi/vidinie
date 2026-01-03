@@ -7,7 +7,6 @@ uses BeautifulSoup for HTML parsing.
 import os
 import json
 import hashlib
-import urllib.parse
 import io
 from pathlib import Path
 from typing import Dict, List, Any
@@ -15,6 +14,7 @@ from bs4 import BeautifulSoup
 from PIL import Image
 import requests
 from core.utils.logger import get_logger
+from core.utils.config_loader import config
 from datetime import datetime
 from core.processors.base import DocumentProcessor
 from core.data import (
@@ -33,37 +33,30 @@ class HTMLProcessor(DocumentProcessor):
     """
     processor for extracting text, structure, and images from html documents.
     args:
-        html_path: path to the html file or URL
+        html_content: html content as string
         images_output_dir: directory to save extracted images (default: "temp/images")
     """
     
-    def __init__(self, html_path: str, images_output_dir: str = "temp/images"):
+    def __init__(self, html_content: str, images_output_dir: str = "temp/images"):
         """
         initialize HTML processor.
         args:
-            html_path: path to html file or URL
+            html_content: html content as string
             images_output_dir: directory to save extracted images
         """
-        self.html_path: str = html_path
-        self.images_output_dir: str = images_output_dir
+        if not html_content:
+            raise ValueError("html_content must be provided")
+        
+        self.html_content = html_content
+        self.images_output_dir = images_output_dir
         self.soup = None
-        self.html_content: str = None
         self.images_metadata: List[VideoPipelineImageMetadata] = []
-        self.is_url = html_path.startswith(('http://', 'https://'))
+        
         # create output directory for images
         Path(images_output_dir).mkdir(parents=True, exist_ok=True)
         
     def __enter__(self):
         """context manager entry."""
-        if self.is_url:
-            response = requests.get(self.html_path)
-            response.raise_for_status()
-            self.html_content = response.text
-        else:
-            if not os.path.exists(self.html_path):
-                raise FileNotFoundError(f"html file not found: {self.html_path}")
-            with open(self.html_path, 'r', encoding='utf-8') as f:
-                self.html_content = f.read()
         # create instance of beautifulsoup with html content and html.parser parser.
         self.soup = BeautifulSoup(self.html_content, 'html.parser')
         return self
@@ -206,7 +199,7 @@ class HTMLProcessor(DocumentProcessor):
         """
         if not self.soup:
             raise ValueError("html document not opened. use context manager or call __enter__()")
-        logger.info(f"starting image extraction from {self.html_path}")
+        logger.info("starting image extraction from html content")
         # initialize image count
         image_count = 0
         # find all img tags
@@ -218,29 +211,20 @@ class HTMLProcessor(DocumentProcessor):
                 src = img_tag.get('src') or img_tag.get('data-src') or ''
                 if not src:
                     continue
-                # resolve relative URLs
-                if self.is_url:
-                    img_url = urllib.parse.urljoin(self.html_path, src)
-                else:
-                    # for local files, resolve relative paths
-                    if not os.path.isabs(src):
-                        base_dir = os.path.dirname(self.html_path)
-                        img_url = os.path.join(base_dir, src)
-                        img_url = os.path.normpath(img_url)
-                    else:
-                        img_url = src
-                # try to download or read image
+                
+                # only process absolute urls (http/https)
+                # relative urls cannot be resolved without the original source path/url
+                if not src.startswith(('http://', 'https://')):
+                    logger.warning(f"Skipping relative image URL (cannot resolve without source path): {src}")
+                    continue
+                
+                img_url = src
+                
+                # try to download image from URL
                 try:
-                    if self.is_url or img_url.startswith('http'):
-                        response = requests.get(img_url, timeout=10)
-                        response.raise_for_status()
-                        image_bytes = response.content
-                    else:
-                        if not os.path.exists(img_url):
-                            logger.warning(f"Image file not found: {img_url}")
-                            continue
-                        with open(img_url, 'rb') as f:
-                            image_bytes = f.read()
+                    response = requests.get(img_url, timeout=10)
+                    response.raise_for_status()
+                    image_bytes = response.content
                 except Exception as e:
                     logger.warning(f"Could not load image {img_url}: {str(e)}")
                     continue
@@ -366,7 +350,7 @@ class HTMLProcessor(DocumentProcessor):
         )
 
 
-    def label_images(self, openai_api_key: str, prompts_dir: str):
+    def label_images(self):
         logger.info("extracting images from html")
         images_metadata = self.extract_images()
         
@@ -375,10 +359,10 @@ class HTMLProcessor(DocumentProcessor):
             logger.info(f"extracted {stats.total_images} images")
             
             # label images with ai if api key is available
+            openai_api_key = config.openai_api_key
             if openai_api_key:
                 logger.info("labeling images with AI")
-                labeler = ImageLabeler(openai_api_key, 
-                                        prompts_dir=prompts_dir)
+                labeler = ImageLabeler()
                 labeled_metadata = labeler.label_images_batch(images_metadata)
                 
                 # save labeled metadata

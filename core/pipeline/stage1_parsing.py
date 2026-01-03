@@ -21,7 +21,7 @@ import argparse
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils.logger import setup_logging, get_logger
-from utils.config_loader import get_config
+from core.utils.config_loader import config
 from core.data import (
     VideoPipeline,
     SourceType,
@@ -52,12 +52,9 @@ def parse_document(pdf_path: str, extract_images: bool = True) -> VideoPipeline:
     logger.info(f"created new pipeline with id: {video_pipeline.id}")
     
     # use modular operation to process document
-    config = get_config()
     video_pipeline = process_document(
         video_pipeline,
-        extract_images=extract_images,
-        openai_api_key=config.openai_api_key,
-        prompts_dir=config.get_prompts_directory()
+        extract_images=extract_images
     )
     
     # save video pipeline

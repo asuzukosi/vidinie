@@ -13,7 +13,7 @@ from openai import OpenAI
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from pathlib import Path
 from core.utils.logger import get_logger
-from core.utils.config_loader import get_config
+from core.utils.config_loader import config
 from core.data import (
     VideoPipelineOutline,
     VideoPipelineStage,
@@ -35,17 +35,17 @@ logger = get_logger("content_analyzer")
 class ContentAnalyzer:
     """analyze and structure content for video creation."""
     
-    def __init__(self, api_key: Optional[str] = None, target_segments: int = 7, 
-                 segment_duration: int = 45, prompts_dir: Optional[Path] = None):
+    def __init__(self, target_segments: int = 7, 
+                 segment_duration: int = 45):
         """
         initialize content analyzer.
         args:
-            api_key: openai api key
             target_segments: target number of video segments
             segment_duration: target duration per segment in seconds
-            prompts_dir: path to prompts directory (from config)
         """
-        self.api_key = api_key
+        self.api_key = config.openai_api_key
+        if not self.api_key:
+            raise ValueError("openai api key is required")
         # initialize openai client
         self.client = OpenAI(api_key=self.api_key)
         # set target segments and segment duration
@@ -55,13 +55,8 @@ class ContentAnalyzer:
         self.model = "gpt-4o-2024-08-06"
         
         # initialize jinja2 environment for prompt templates
-        if prompts_dir is None:
-            config = get_config()
-            prompts_dir = config.get_prompts_directory()
-        
-        self.prompts_dir = prompts_dir
         self.jinja_env = Environment(
-            loader=FileSystemLoader(str(prompts_dir)),
+            loader=FileSystemLoader(str(config.get_prompts_directory())),
             autoescape=select_autoescape(['html', 'xml'])
         )
     
@@ -270,11 +265,7 @@ def process_content(
     pipeline: VideoPipeline,
     skip_stock: bool = False,
     target_segments: int = 7,
-    segment_duration: int = 45,
-    openai_api_key: Optional[str] = None,
-    unsplash_access_key: Optional[str] = None,
-    pexels_api_key: Optional[str] = None,
-    prompts_dir: Optional[str] = None
+    segment_duration: int = 45
 ) -> VideoPipeline:
     """
     analyze content and create video outline with visual asset planning.
@@ -283,18 +274,10 @@ def process_content(
         skip_stock: skip stock image fetching
         target_segments: target number of video segments
         segment_duration: target duration per segment in seconds
-        openai_api key: openai api key
-        unsplash_access_key: unsplash api key
-        pexels_api_key: pexels api key
-        prompts_dir: path to prompts directory
     returns:
         updated video pipeline with video outline
     """
-    config = get_config()
-    openai_api_key = openai_api_key or config.openai_api_key
-    unsplash_access_key = unsplash_access_key or config.unsplash_access_key
-    pexels_api_key = pexels_api_key or config.pexels_api_key
-    prompts_dir = prompts_dir or config.get_prompts_directory()
+    openai_api_key = config.openai_api_key
     temp_dir = config.get('output.temp_directory', 'temp')
     
     pipeline.update_stage(VideoPipelineStage.CONTENT_ANALYSIS, VideoPipelineStatus.IN_PROGRESS)
@@ -324,11 +307,9 @@ def process_content(
         chunk_length = config.get('content.chunk_length', 4000)
         context_processor = ContextProcessor(
             all_content,
-            openai_api_key,
             pdf_content.title,
             chunk_length=chunk_length,
-            split_by='\n',
-            prompts_dir=prompts_dir
+            split_by='\n'
         )
         chunks: List[VideoPipelineContextChunk] = context_processor.get_chunks()
         pipeline.chunks = chunks
@@ -347,10 +328,8 @@ def process_content(
         # create video outline
         logger.info("creating video outline")
         analyzer = ContentAnalyzer(
-            api_key=openai_api_key,
             target_segments=target_segments,
-            segment_duration=segment_duration,
-            prompts_dir=prompts_dir
+            segment_duration=segment_duration
         )
         outline: VideoPipelineOutlineType = analyzer.analyze_content(
             chunks=chunks,
@@ -361,8 +340,8 @@ def process_content(
         # fetch stock images
         if not skip_stock and config.get('images.use_stock_images', True):
             logger.info("fetching stock images")
-            stock_images_dir = os.path.join(temp_dir, pipeline.path_id or pipeline.id, 'images', 'stock_images')
-            fetcher = StockImageFetcher(unsplash_access_key, pexels_api_key, output_dir=stock_images_dir)
+            stock_images_dir = os.path.join(temp_dir, pipeline.id, 'images', 'stock_images')
+            fetcher = StockImageFetcher(output_dir=stock_images_dir)
             availability = fetcher.is_available()
             if availability['unsplash'] or availability['pexels']:
                 preferred = config.get('images.preferred_stock_provider', 'unsplash')
@@ -375,14 +354,12 @@ def process_content(
         # generate ai images if enabled
         if config.get('images.use_ai_generated', False):
             logger.info("generating ai images")
-            ai_images_dir = os.path.join(temp_dir, pipeline.path_id or pipeline.id, 'images', 'ai_images')
+            ai_images_dir = os.path.join(temp_dir, pipeline.id, 'images', 'ai_images')
             generator = ImageGenerator(
-                api_key=openai_api_key,
                 model=config.get('images.ai_generator.model', 'dall-e-3'),
                 quality=config.get('images.ai_generator.quality', 'standard'),
                 size=config.get('images.ai_generator.size', '1024x1024'),
-                output_dir=ai_images_dir,
-                prompts_dir=prompts_dir
+                output_dir=ai_images_dir
             )
             if generator.is_available():
                 outline.segments = generator.generate_for_segments(
@@ -518,43 +495,33 @@ def delete_segment_from_outline(
 
 
 def create_image_generator(
-    video_pipeline: VideoPipeline,
-    openai_api_key: Optional[str] = None,
-    prompts_dir: Optional[Union[Path, str]] = None
+    video_pipeline: VideoPipeline
 ) -> ImageGenerator:
     """create an image generator instance configured for the video pipeline."""
-    config = get_config()
-    openai_api_key = openai_api_key or config.openai_api_key
-    prompts_dir = prompts_dir or config.get_prompts_directory()
     temp_dir = config.get('output.temp_directory', 'temp')
-    output_dir = str(Path(temp_dir) / (video_pipeline.path_id or video_pipeline.id) / 'images' / 'ai_images')
+    output_dir = str(Path(temp_dir) / video_pipeline.id / 'images' / 'ai_images')
     
     return ImageGenerator(
-        api_key=openai_api_key,
         model=config.get('images.ai_generator.model', 'dall-e-3'),
         quality=config.get('images.ai_generator.quality', 'standard'),
         size=config.get('images.ai_generator.size', '1024x1024'),
-        output_dir=output_dir,
-        prompts_dir=prompts_dir
+        output_dir=output_dir
     )
 
 
 def generate_images_for_segments(
     video_pipeline: VideoPipeline,
-    indexes: List[int],
-    openai_api_key: Optional[str] = None,
-    prompts_dir: Optional[Union[Path, str]] = None
+    indexes: List[int]
 ) -> List[VideoPipelineSegment]:
     """generate ai images for specific segments in a video pipeline."""
     validate_video_outline(video_pipeline)
-    generator = create_image_generator(video_pipeline, openai_api_key, prompts_dir)
+    generator = create_image_generator(video_pipeline)
     
     if not generator.is_available():
         raise ValueError("Image generation not available (missing API keys)")
     
     segments_to_generate = [video_pipeline.video_outline.segments[index] for index in indexes]
-    path_id = video_pipeline.path_id or video_pipeline.id
-    generator.generate_for_segments(segments_to_generate, path_id)
+    generator.generate_for_segments(segments_to_generate, video_pipeline.id)
     return segments_to_generate
 
 

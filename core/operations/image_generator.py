@@ -10,7 +10,7 @@ from pathlib import Path
 from openai import OpenAI
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from core.utils.logger import get_logger
-from core.utils.config_loader import get_config
+from core.utils.config_loader import config
 from core.data import VideoPipelineSegment, VideoPipelineSegmentImage
 
 logger = get_logger(__name__)
@@ -19,24 +19,21 @@ logger = get_logger(__name__)
 class ImageGenerator:
     """generate images using ai models for video segments."""
     
-    def __init__(self, api_key: Optional[str] = None, 
+    def __init__(self, 
                  model: str = "dall-e-3",
                  quality: str = "standard",
                  size: str = "1024x1024",
-                 output_dir: str = "temp/ai_images",
-                 prompts_dir: Optional[Path] = None):
+                 output_dir: str = "temp/ai_images"):
         """
         initialize image generator.
         
         args:
-            api_key: openai api key
             model: dalle model to use ("dall-e-2" or "dall-e-3")
             quality: image quality ("standard" or "hd" for dall-e-3)
             size: image size (dall-e-3: "1024x1024", "1792x1024", "1024x1792")
             output_dir: directory to save generated images
-            prompts_dir: path to prompts directory
         """
-        self.api_key = api_key or os.getenv('OPENAI_API_KEY')
+        self.api_key = config.openai_api_key
         if not self.api_key:
             raise ValueError("openai api key required for image generation")
         
@@ -48,12 +45,8 @@ class ImageGenerator:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
         # initialize jinja2 environment for prompt templates
-        if prompts_dir is None:
-            config = get_config()
-            prompts_dir = config.get_prompts_directory()
-        
         self.jinja_env = Environment(
-            loader=FileSystemLoader(str(prompts_dir)),
+            loader=FileSystemLoader(str(config.get_prompts_directory())),
             autoescape=select_autoescape(['html', 'xml'])
         )
     

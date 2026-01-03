@@ -9,7 +9,7 @@ import json
 from typing import  Optional, Tuple
 from pathlib import Path
 from core.utils.logger import get_logger
-from core.utils.config_loader import get_config
+from core.utils.config_loader import config
 from elevenlabs import save
 from pydub import AudioSegment
 from core.data import VideoPipelineScript
@@ -22,20 +22,18 @@ class VoiceoverGenerator:
     """generate voiceover audio from scripts."""
     
     def __init__(self, provider: str = "elevenlabs", 
-                 api_key: Optional[str] = None,
                  voice_id: Optional[str] = None,
                  output_dir: str = "temp/audio"):
         """
         initialize voiceover generator.
         args:
             provider: "elevenlabs" or "gtts"
-            api_key: elevenlabs api key (if using elevenlabs)
-            voice_id: elevenlabs voice id
+            voice_id: elevenlabs voice id (optional, uses config if not provided)
             output_dir: directory to save audio files
         """
         self.provider = provider.lower()
-        self.api_key = api_key or os.getenv('ELEVENLABS_API_KEY')
-        self.voice_id = voice_id or os.getenv('VOICE_ID', '21m00Tcm4TlvDq8ikWAM')
+        self.api_key = config.elevenlabs_api_key
+        self.voice_id = voice_id or config.get('voiceover.voice_id', '21m00Tcm4TlvDq8ikWAM')
         self.output_dir = output_dir
         
         # create output directory
