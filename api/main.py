@@ -16,7 +16,7 @@ app.add_middleware(
 app.mount("/media", StaticFiles(directory="temp"), name="media")
 
 app.include_router(users.router, prefix="/users")
-app.include_router(pipelines.router, prefix="/pipelines")
+app.include_router(pipelines.router, prefix="/video-pipelines")
 
 @app.get("/health", tags=["health"])
 def health_check():

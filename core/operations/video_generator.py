@@ -9,10 +9,19 @@ creates presentation-style explainer videos with:
 """
 
 import os
-from typing import Optional
+from datetime import datetime
+from typing import Optional, Tuple
 import numpy as np
-from core.data.pipeline import ScriptData, VideoSegment, ImageSource
-# pillow 10.0.0+ compatibility fix for moviepy
+from core.data import (
+    VideoPipelineScript,
+    VideoPipelineSegment,
+    ImageSource,
+    BackgroundType,
+    VideoPipelineStage,
+    VideoPipelineStatus,
+)
+from core.data import VideoPipeline
+from utils.config_loader import get_config
 from PIL import Image
 if not hasattr(Image, 'ANTIALIAS'):
     Image.ANTIALIAS = Image.LANCZOS
@@ -24,12 +33,10 @@ from moviepy.editor import (
 from moviepy.video.fx.fadein import fadein
 from moviepy.video.fx.fadeout import fadeout
 
-from core.data.pipeline import BackgroundType
 from utils.video_utils import VideoUtils
 from utils.font_loader import FontLoader
 from utils.logger import get_logger
 from utils.config_loader import Config
-from typing import Tuple
 
 logger = get_logger("video_generator")
 
@@ -72,7 +79,7 @@ class VideoGenerator:
         if available_fonts:
             logger.info(f"available fonts: {', '.join(available_fonts)}")
     
-    def generate_video(self, script_data: ScriptData, output_path: str) -> str:
+    def generate_video(self, script_data: VideoPipelineScript, output_path: str) -> str:
         """
         generate video from script and audio data.
         args:
@@ -168,7 +175,7 @@ class VideoGenerator:
         return clip
     
     def _create_segment_clip(self, 
-                            segment: VideoSegment, 
+                            segment: VideoPipelineSegment, 
                             segment_number: int) -> Optional[VideoClip]:
         """
         create video clip for a segment.
@@ -214,7 +221,7 @@ class VideoGenerator:
             logger.error(f"error creating segment clip {segment_number}: {str(e)}", exc_info=True)
             return None
     
-    def _get_image_path(self, segment: VideoSegment) -> Optional[str]:
+    def _get_image_path(self, segment: VideoPipelineSegment) -> Optional[str]:
         """
         get image path from segment.
         prioritizes: image field > pdf_images > stock_image (legacy support).
@@ -235,7 +242,7 @@ class VideoGenerator:
                 return segment.image.path
         return None
     
-    def _create_background(self, segment: VideoSegment) -> np.ndarray:
+    def _create_background(self, segment: VideoPipelineSegment) -> np.ndarray:
         """
         create background for slide.
         args:
@@ -290,7 +297,7 @@ class VideoGenerator:
         
         return background
     
-    def _add_text_overlay(self, background: np.ndarray, segment: VideoSegment) -> np.ndarray:
+    def _add_text_overlay(self, background: np.ndarray, segment: VideoPipelineSegment) -> np.ndarray:
         """
         add text overlay to slide.
         video title is fixed at top, segment title below it, then bullet points.
@@ -361,3 +368,85 @@ class VideoGenerator:
                 position_y += space_used + line_spacing
         
         return np.array(img)
+
+
+def generate_video(
+    pipeline: VideoPipeline,
+    title: Optional[str] = None,
+    subtitle: Optional[str] = None,
+    resolution: tuple = (1920, 1080),
+    fps: int = 30,
+    title_duration: float = 3.0,
+    end_duration: float = 3.0,
+    transition_duration: float = 0.5,
+    background_type: Optional[BackgroundType] = None
+) -> VideoPipeline:
+    """
+    generate video from script and audio.
+    args:
+        pipeline: video pipeline object with script data and full audio path
+        title: video title
+        subtitle: video subtitle
+        resolution: video resolution (width, height)
+        fps: frames per second
+        title_duration: title screen duration in seconds
+        end_duration: end screen duration in seconds
+        transition_duration: transition duration in seconds
+        background_type: background type
+    returns:
+        updated video pipeline with video path
+    """
+    config = get_config()
+    temp_dir = config.get('output.temp_directory', 'temp')
+    
+    pipeline.update_stage(VideoPipelineStage.VIDEO_GENERATION, VideoPipelineStatus.IN_PROGRESS)
+    
+    if not pipeline.full_audio_path:
+        logger.error("Full audio path not found in pipeline data")
+        pipeline.update_stage(VideoPipelineStage.VIDEO_GENERATION, VideoPipelineStatus.FAILED)
+        return pipeline
+    
+    if not pipeline.full_audio_duration:
+        logger.error("Full audio duration not found in pipeline data")
+        pipeline.update_stage(VideoPipelineStage.VIDEO_GENERATION, VideoPipelineStatus.FAILED)
+        return pipeline
+    
+    if not pipeline.script_data:
+        logger.error("Script data not found in pipeline data")
+        pipeline.update_stage(VideoPipelineStage.VIDEO_GENERATION, VideoPipelineStatus.FAILED)
+        return pipeline
+    
+    try:
+        script_data = pipeline.script_data
+        logger.info(f"Using script data for {len(script_data.segments)} segments")
+        
+        # Generate video
+        video_dir = os.path.join(temp_dir, pipeline.path_id or pipeline.id, 'video')
+        os.makedirs(video_dir, exist_ok=True)
+        
+        video_path = os.path.join(video_dir, f"video_{datetime.now().strftime('%Y%m%d%H%M%S')}.mp4")
+        
+        video_gen = VideoGenerator(
+            config=config,
+            video_title=title or script_data.title,
+            subtitle=subtitle or "",
+            resolution=resolution,
+            fps=fps,
+            title_duration=title_duration,
+            end_duration=end_duration,
+            transition_duration=transition_duration,
+            background_type=background_type or BackgroundType.GRADIENT
+        )
+        
+        generated_video_path = video_gen.generate_video(script_data, video_path)
+        pipeline.video_path = generated_video_path
+        pipeline.output_path = generated_video_path
+        
+        pipeline.update_stage(VideoPipelineStage.VIDEO_GENERATION, VideoPipelineStatus.COMPLETED)
+        logger.info(f"Video generated successfully: {generated_video_path}")
+        return pipeline
+        
+    except Exception as e:
+        logger.error(f"Error during video generation: {str(e)}", exc_info=True)
+        pipeline.update_stage(VideoPipelineStage.VIDEO_GENERATION, VideoPipelineStatus.FAILED)
+        return pipeline

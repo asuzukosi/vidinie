@@ -186,3 +186,14 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* sonner notification description text styling */
+[data-sonner-toast] [data-description],
+[data-sonner-toast] [data-description] * {
+  color: rgb(10, 10, 10) !important;
+}
+
+.dark [data-sonner-toast] [data-description],
+.dark [data-sonner-toast] [data-description] * {
+  color: rgb(250, 250, 250) !important;
+}

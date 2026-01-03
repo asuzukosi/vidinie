@@ -15,10 +15,15 @@ import re
 from pathlib import Path
 from typing import Dict, List
 from utils.logger import get_logger
-from core.processors.document_processor import DocumentProcessor
+from core.processors.base import DocumentProcessor
 from core.operations.image_labeler import ImageLabeler
-from core.data.pipeline import ParsedContent, ImageMetadata,\
-                               ParsedContentMetadata, ParsedContentSection
+from core.data import (
+    VideoPipelineParsedContent,
+    VideoPipelineImageMetadata,
+    VideoPipelineContentMetadata,
+    VideoPipelineContentSection,
+    VideoPipelineImageStats,
+)
 
 logger = get_logger('pdf_processor')
 
@@ -43,7 +48,7 @@ class PDFProcessor(DocumentProcessor):
         self.pdf = None
         self.pdf_document = None
         self.pages_data = []
-        self.images_metadata: List[ImageMetadata] = []
+        self.images_metadata: List[VideoPipelineImageMetadata] = []
         
         # create output directory for images
         Path(images_output_dir).mkdir(parents=True, exist_ok=True)
@@ -79,7 +84,7 @@ class PDFProcessor(DocumentProcessor):
         
         return "\n\n".join(full_text)
     
-    def extract_structured_content(self) -> ParsedContent:
+    def extract_structured_content(self) -> VideoPipelineParsedContent:
         """
         extract text with structure information (headings, paragraphs, lists).
         returns:
@@ -88,10 +93,10 @@ class PDFProcessor(DocumentProcessor):
         if not self.pdf:
             raise ValueError("pdf document not opened. use context manager or call __enter__()")
             
-        parsed_content = ParsedContent()
+        parsed_content = VideoPipelineParsedContent()
         parsed_content.title = self._extract_title()
         parsed_content.total_pages = len(self.pdf.pages)
-        parsed_content.metadata = ParsedContentMetadata(
+        parsed_content.metadata = VideoPipelineContentMetadata(
             title=self.pdf.metadata.get('Title', ''),
             creator=self.pdf.metadata.get('Author', ''),
             producer=self.pdf.metadata.get('Producer', ''),
@@ -128,18 +133,18 @@ class PDFProcessor(DocumentProcessor):
         
         return "untitled document"
     
-    def _identify_sections(self, text: str) -> List[ParsedContentSection]:
+    def _identify_sections(self, text: str) -> List[VideoPipelineContentSection]:
         """
         identify sections in the text based on headings.
         returns:
             list of sections with title and content
         """
-        sections: List[ParsedContentSection] = []
+        sections: List[VideoPipelineContentSection] = []
         
         # split by double newlines (paragraphs)
         paragraphs = text.split('\n\n')
         
-        current_section = ParsedContentSection()
+        current_section = VideoPipelineContentSection()
         current_section.title = "introduction"
         current_section.content = ""
         current_section.level = 1
@@ -156,7 +161,7 @@ class PDFProcessor(DocumentProcessor):
                     sections.append(current_section)
                 
                 # start new section
-                current_section = ParsedContentSection(
+                current_section = VideoPipelineContentSection(
                     title=para,
                     content="",
                     level=self._detect_heading_level(para)
@@ -171,7 +176,7 @@ class PDFProcessor(DocumentProcessor):
         
         # if no sections were detected, create one section with all content
         if not sections:
-            sections.append(ParsedContentSection(
+            sections.append(VideoPipelineContentSection(
                 title="content",
                 content=text,
                 level=1
@@ -271,7 +276,7 @@ class PDFProcessor(DocumentProcessor):
         return pages_text
     
     
-    def extract_images(self, min_width: int = 100, min_height: int = 100) -> List[ImageMetadata]:
+    def extract_images(self, min_width: int = 100, min_height: int = 100) -> List[VideoPipelineImageMetadata]:
         """
         extract all images from the pdf document.
         args:
@@ -337,7 +342,7 @@ class PDFProcessor(DocumentProcessor):
                     text_context = self._extract_text_context(page, img_info)
                     
                     # store metadata
-                    image_metadata = ImageMetadata()
+                    image_metadata = VideoPipelineImageMetadata()
                     image_metadata.filename = filename
                     image_metadata.filepath = filepath
                     image_metadata.page_number = page_num + 1
@@ -417,7 +422,8 @@ class PDFProcessor(DocumentProcessor):
         
         if os.path.exists(metadata_path):
             with open(metadata_path, 'r') as f:
-                self.images_metadata = ImageMetadata.model_validate_json(f.read())
+                data = json.load(f)
+                self.images_metadata = [VideoPipelineImageMetadata(**item) for item in data]
             logger.info(f"loaded metadata for {len(self.images_metadata)} images")
             return self.images_metadata
         else:
@@ -434,37 +440,38 @@ class PDFProcessor(DocumentProcessor):
         """
         return [img for img in self.images_metadata if img.page_number == page_number]
     
-    def get_image_stats(self) -> Dict:
+    def get_image_stats(self) -> VideoPipelineImageStats:
         """
         get statistics about extracted images.
         
         returns:
-            dictionary with image statistics
+            VideoPipelineImageStats object with image statistics
         """
         if not self.images_metadata:
-            return {
-                "total_images": 0,
-                "average_size": 0,
-                "formats": {},
-                "pages_with_images": 0
-            }
+            return VideoPipelineImageStats(
+                total_images=0,
+                average_size=0,
+                total_size=0,
+                formats={},
+                pages_with_images=0
+            )
         
         # get total size of all images
-        total_size = sum(img.size_bytes for img in self.images_metadata)
+        total_size = sum(img.size_bytes or 0 for img in self.images_metadata)
         
         # get formats of all images
-        formats = {}
+        formats: Dict[str, int] = {}
         for img in self.images_metadata:
             fmt = img.format or 'unknown'
             formats[fmt] = formats.get(fmt, 0) + 1
         
-        return {
-            "total_images": len(self.images_metadata),
-            "average_size": total_size // len(self.images_metadata) if self.images_metadata else 0,
-            "total_size": total_size,
-            "formats": formats,
-            "pages_with_images": len(set(img.page_number for img in self.images_metadata))
-        }
+        return VideoPipelineImageStats(
+            total_images=len(self.images_metadata),
+            average_size=total_size // len(self.images_metadata) if self.images_metadata else 0,
+            total_size=total_size,
+            formats=formats,
+            pages_with_images=len(set(img.page_number for img in self.images_metadata if img.page_number is not None))
+        )
     
     def label_images(self, openai_api_key: str, prompts_dir: str):
         logger.info("extracting images from pdf")
@@ -472,7 +479,7 @@ class PDFProcessor(DocumentProcessor):
         
         if images_metadata:
             stats = self.get_image_stats()
-            logger.info(f"extracted {stats['total_images']} images")
+            logger.info(f"extracted {stats.total_images} images")
             
             # label images with ai if api key is available
             if openai_api_key:

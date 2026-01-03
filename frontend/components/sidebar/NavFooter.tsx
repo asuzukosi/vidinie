@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,22 +16,17 @@ import {
   SidebarMenu,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  BookmarkPlus,
-  CircleHelp,
   LogOut,
   Plus,
   PlusCircle,
-  Puzzle,
   Settings,
   User,
 } from "lucide-react";
+import client from "@/lib/sdk/client";
+import { useDispatch } from "react-redux";
+import { clearUser } from "@/lib/store/slices/userSlice";
 
 export function NavFooter({
   user,
@@ -37,9 +34,12 @@ export function NavFooter({
   user: {
     name: string;
     email: string;
-    avatar: string;
+    avatar?: string | null;
   };
 }) {
+  const router = useRouter();
+  const dispatch = useDispatch();
+  
   const getInitials = (name: string) => {
     return name
       .split(" ")
@@ -48,6 +48,13 @@ export function NavFooter({
       .toUpperCase()
       .slice(0, 2);
   };
+
+  const handleLogout = () => {
+    dispatch(clearUser());
+    client.logout();
+    router.push("/signin");
+  };
+
   return (
     <SidebarFooter className="p-4">
       <SidebarMenu>
@@ -66,48 +73,29 @@ export function NavFooter({
                   </Avatar>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="m-2">
-                  <DropdownMenuItem>
-                    <User size={16} className="opacity-80" aria-hidden="true" />
-                    Profile
+                  <DropdownMenuItem asChild>
+                    <Link href="/profile" className="flex items-center">
+                      <User size={16} className="opacity-80 mr-2" aria-hidden="true" />
+                      Profile
+                    </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Settings
-                      size={16}
-                      className="opacity-80"
-                      aria-hidden="true"
-                    />
-                    Settings
+                  <DropdownMenuItem asChild>
+                    <Link href="/settings" className="flex items-center">
+                      <Settings
+                        size={16}
+                        className="opacity-80 mr-2"
+                        aria-hidden="true"
+                      />
+                      Settings
+                    </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <LogOut size={16} className="opacity-80" aria-hidden="true" />
+                  <DropdownMenuItem onClick={handleLogout}>
+                    <LogOut size={16} className="opacity-80 mr-2" aria-hidden="true" />
                     Logout
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              <TooltipProvider delayDuration={0}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <CircleHelp
-                      size={16}
-                      aria-hidden="true"
-                      className="cursor-pointer opacity-60 hover:opacity-100"
-                    />
-                  </TooltipTrigger>
-                  <TooltipContent
-                    side="top"
-                    className="py-1 px-2 m-2 max-w-[150px] border bg-popover text-popover-foreground"
-                  >
-                    <div className="space-y-1 text-xs">
-                      <p className="font-medium">User Information</p>
-                      <p className="text-muted-foreground">
-                        More details about the current user or section can be
-                        displayed here.
-                      </p>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -122,29 +110,13 @@ export function NavFooter({
               </DropdownMenuTrigger>
               <DropdownMenuContent className="pb-2">
                 <DropdownMenuLabel>Add New</DropdownMenuLabel>
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push("/tasks?create=true")}>
                   <PlusCircle
                     size={16}
                     className="mr-2 opacity-80"
                     aria-hidden="true"
                   />
-                  Add New Item
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <BookmarkPlus
-                    size={16}
-                    className="mr-2 opacity-80"
-                    aria-hidden="true"
-                  />
-                  Add Bookmark
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Puzzle
-                    size={16}
-                    className="mr-2 opacity-80"
-                    aria-hidden="true"
-                  />
-                  Add Integration
+                  Create Video
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

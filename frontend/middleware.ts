@@ -1,25 +1,38 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-const isPublicRoute = createRouteMatcher([
+// public routes that don't require authentication
+const publicRoutes = [
   "/",
-  "/sign-in(.*)",
-  "/sign-up(.*)",
-  "/api/webhooks/(.*)",
-]);
+  "/signin",
+  "/signup",
+  "/api/webhooks",
+];
 
-export default clerkMiddleware(async (auth, request) => {
-  // protect all routes except public routes
-  if (!isPublicRoute(request)) {
-    await auth.protect();
+function isPublicRoute(pathname: string): boolean {
+  return publicRoutes.some(route => 
+    pathname === route || pathname.startsWith(`${route}/`)
+  );
+}
+
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // allow public routes and api webhooks
+  if (isPublicRoute(pathname)) {
+    return NextResponse.next();
   }
-});
+
+  // otherwise, protected routes, authentication is handled client-side in the dashboard layout
+  // the dashboard layout will check for tokens and redirect to login if needed
+  return NextResponse.next();
+}
 
 export const config = {
   matcher: [
     // skip next.js internals and static files
-    // also exclude avatar-01.png specifically
     "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)|avatar-01\\.png).*)",
-    // always run for api routes
+    // always run for api routes (except webhooks)
     "/(api|trpc)(.*)",
   ],
 };

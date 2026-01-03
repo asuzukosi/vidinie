@@ -7,12 +7,28 @@ and matches images to appropriate segments.
 """
 
 import json
-from typing import List, Dict, Optional, Any
+import os
+from typing import List, Dict, Optional, Any, Union
 from openai import OpenAI
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from pathlib import Path
-from core.data.pipeline import VideoOutline
 from utils.logger import get_logger
+from utils.config_loader import get_config
+from core.data import (
+    VideoPipelineOutline,
+    VideoPipelineStage,
+    VideoPipelineStatus,
+    VideoPipelineContextProcessor,
+    VideoPipelineContextChunk,
+    VideoPipelineOutline as VideoPipelineOutlineType,
+    BackgroundType,
+    VideoPipeline,
+    VideoPipelineContentSection,
+    VideoPipelineSegment,
+)
+from core.operations.context_processor import ContextProcessor
+from core.operations.stock_image_fetcher import StockImageFetcher
+from core.operations.image_generator import ImageGenerator
 
 logger = get_logger("content_analyzer")
 
@@ -40,7 +56,6 @@ class ContentAnalyzer:
         
         # initialize jinja2 environment for prompt templates
         if prompts_dir is None:
-            from utils.config_loader import get_config
             config = get_config()
             prompts_dir = config.get_prompts_directory()
         
@@ -148,7 +163,7 @@ class ContentAnalyzer:
             outline: Dict[str, Any] = json.loads(outline_json)
             
             # validate and parse with pydantic
-            outline: VideoOutline = VideoOutline(**outline)
+            outline: VideoPipelineOutline = VideoPipelineOutline(**outline)
             
             # ensure title matches
             if not outline.title:
@@ -217,7 +232,7 @@ class ContentAnalyzer:
         return prompt
     
 
-    def _convert_image_format(self, outline: VideoOutline) -> VideoOutline:
+    def _convert_image_format(self, outline: VideoPipelineOutline) -> VideoPipelineOutline:
         """
         convert image field to backward-compatible format.
         args:
@@ -251,5 +266,316 @@ class ContentAnalyzer:
         logger.info(f"saved outline to {output_path}")
 
 
+def process_content(
+    pipeline: VideoPipeline,
+    skip_stock: bool = False,
+    target_segments: int = 7,
+    segment_duration: int = 45,
+    openai_api_key: Optional[str] = None,
+    unsplash_access_key: Optional[str] = None,
+    pexels_api_key: Optional[str] = None,
+    prompts_dir: Optional[str] = None
+) -> VideoPipeline:
+    """
+    analyze content and create video outline with visual asset planning.
+    args:
+        pipeline: video pipeline object with parsed content
+        skip_stock: skip stock image fetching
+        target_segments: target number of video segments
+        segment_duration: target duration per segment in seconds
+        openai_api key: openai api key
+        unsplash_access_key: unsplash api key
+        pexels_api_key: pexels api key
+        prompts_dir: path to prompts directory
+    returns:
+        updated video pipeline with video outline
+    """
+    config = get_config()
+    openai_api_key = openai_api_key or config.openai_api_key
+    unsplash_access_key = unsplash_access_key or config.unsplash_access_key
+    pexels_api_key = pexels_api_key or config.pexels_api_key
+    prompts_dir = prompts_dir or config.get_prompts_directory()
+    temp_dir = config.get('output.temp_directory', 'temp')
+    
+    pipeline.update_stage(VideoPipelineStage.CONTENT_ANALYSIS, VideoPipelineStatus.IN_PROGRESS)
+    
+    if not openai_api_key:
+        logger.error("openai api key required")
+        pipeline.update_stage(VideoPipelineStage.CONTENT_ANALYSIS, VideoPipelineStatus.FAILED)
+        return pipeline
+    
+    if not pipeline.parsed_content:
+        logger.error("parsed content not found in pipeline data")
+        pipeline.update_stage(VideoPipelineStage.CONTENT_ANALYSIS, VideoPipelineStatus.FAILED)
+        return pipeline
+    
+    try:
+        pdf_content = pipeline.parsed_content
+        images_metadata = pipeline.images_metadata or []
+        
+        logger.info(f"loaded {len(pdf_content.sections)} sections and {len(images_metadata)} images")
+        
+        # Process context into chunks
+        logger.info("processing context into chunks")
+        all_content = ""
+        for section in pdf_content.sections:
+            all_content += section.content
+        
+        chunk_length = config.get('content.chunk_length', 4000)
+        context_processor = ContextProcessor(
+            all_content,
+            openai_api_key,
+            pdf_content.title,
+            chunk_length=chunk_length,
+            split_by='\n',
+            prompts_dir=prompts_dir
+        )
+        chunks: List[VideoPipelineContextChunk] = context_processor.get_chunks()
+        pipeline.chunks = chunks
+        
+        # Store context processor information
+        pipeline.context_processor_info = VideoPipelineContextProcessor(
+            document_title=pdf_content.title,
+            chunk_length=chunk_length,
+            split_by='\n',
+            total_chunks=len(chunks),
+            total_content_length=len(all_content)
+        )
+        
+        logger.info(f"generated {len(chunks)} chunks")
+        
+        # create video outline
+        logger.info("creating video outline")
+        analyzer = ContentAnalyzer(
+            api_key=openai_api_key,
+            target_segments=target_segments,
+            segment_duration=segment_duration,
+            prompts_dir=prompts_dir
+        )
+        outline: VideoPipelineOutlineType = analyzer.analyze_content(
+            chunks=chunks,
+            images_metadata=images_metadata,
+            document_title=pdf_content.title
+        )
+        
+        # fetch stock images
+        if not skip_stock and config.get('images.use_stock_images', True):
+            logger.info("fetching stock images")
+            stock_images_dir = os.path.join(temp_dir, pipeline.path_id or pipeline.id, 'images', 'stock_images')
+            fetcher = StockImageFetcher(unsplash_access_key, pexels_api_key, output_dir=stock_images_dir)
+            availability = fetcher.is_available()
+            if availability['unsplash'] or availability['pexels']:
+                preferred = config.get('images.preferred_stock_provider', 'unsplash')
+                outline.segments = fetcher.fetch_for_segments(outline.segments, preferred)
+            else:
+                logger.info("no stock image api keys available")
+        else:
+            logger.info("skipping stock images")
+        
+        # generate ai images if enabled
+        if config.get('images.use_ai_generated', False):
+            logger.info("generating ai images")
+            ai_images_dir = os.path.join(temp_dir, pipeline.path_id or pipeline.id, 'images', 'ai_images')
+            generator = ImageGenerator(
+                api_key=openai_api_key,
+                model=config.get('images.ai_generator.model', 'dall-e-3'),
+                quality=config.get('images.ai_generator.quality', 'standard'),
+                size=config.get('images.ai_generator.size', '1024x1024'),
+                output_dir=ai_images_dir,
+                prompts_dir=prompts_dir
+            )
+            if generator.is_available():
+                outline.segments = generator.generate_for_segments(
+                    outline.segments,
+                    pipeline_id=pipeline.id
+                )
+            else:
+                logger.warning("image generation not available (missing api keys)")
+        else:
+            logger.info("skipping ai image generation")
+        
+        # update pipeline data
+        pipeline.video_outline = outline
+        pipeline.update_stage(VideoPipelineStage.CONTENT_ANALYSIS, VideoPipelineStatus.COMPLETED)
+        
+        logger.info(f"video outline created: {pipeline.id}")
+        return pipeline
+        
+    except Exception as e:
+        logger.error(f"error during content analysis: {str(e)}", exc_info=True)
+        pipeline.update_stage(VideoPipelineStage.CONTENT_ANALYSIS, VideoPipelineStatus.FAILED)
+        return pipeline
+
+
+def validate_parsed_content(video_pipeline: VideoPipeline) -> None:
+    """
+    validate that parsed content exists in video pipeline.
+    """
+    if not video_pipeline.parsed_content:
+        raise ValueError("parsed content not found in video pipeline")
+
+
+def add_section_to_content(
+    video_pipeline: VideoPipeline,
+    section: VideoPipelineContentSection
+) -> VideoPipelineContentSection:
+    """
+    add a section to a video pipeline's parsed content.
+    args:
+        video_pipeline: video pipeline object
+        section: section to add
+    returns:
+        added section
+    """
+    validate_parsed_content(video_pipeline)
+    video_pipeline.parsed_content.sections.append(section)
+    return section
+
+
+def get_section_by_index(
+    video_pipeline: VideoPipeline,
+    index: int
+) -> VideoPipelineContentSection:
+    """get a section by index from video pipeline."""
+    validate_parsed_content(video_pipeline)
+    if index < 0 or index >= len(video_pipeline.parsed_content.sections):
+        raise IndexError(f"Section index {index} out of range")
+    return video_pipeline.parsed_content.sections[index]
+
+
+def update_section_in_content(
+    video_pipeline: VideoPipeline,
+    index: int,
+    section: VideoPipelineContentSection
+) -> VideoPipelineContentSection    :
+    """update a section in a video pipeline's parsed content."""
+    validate_parsed_content(video_pipeline)
+    get_section_by_index(video_pipeline, index)
+    video_pipeline.parsed_content.sections[index] = section
+    return section
+
+
+def delete_section_from_content(
+    video_pipeline: VideoPipeline,
+    index: int
+) -> VideoPipelineContentSection:
+    """delete a section from a video pipeline's parsed content."""
+    validate_parsed_content(video_pipeline)
+    get_section_by_index(video_pipeline, index)
+    section = video_pipeline.parsed_content.sections.pop(index)
+    return section
+
+
+# outline operations moved from outline_operations.py
+def validate_video_outline(video_pipeline: VideoPipeline) -> None:
+    """validate that video outline exists in video pipeline."""
+    if not video_pipeline.video_outline:
+        raise ValueError("video outline not found in video pipeline")
+
+
+def add_segment_to_outline(
+    video_pipeline: VideoPipeline,
+    segment: VideoPipelineSegment
+) -> VideoPipelineSegment:
+    """add a segment to a video pipeline's outline."""
+    validate_video_outline(video_pipeline)
+    video_pipeline.video_outline.segments.append(segment)
+    return segment
+
+
+def get_segment_by_index(
+    video_pipeline: VideoPipeline,
+    index: int
+) -> VideoPipelineSegment:
+    """get a segment by index from video pipeline outline."""
+    validate_video_outline(video_pipeline)
+    if index < 0 or index >= len(video_pipeline.video_outline.segments):
+        raise IndexError(f"Segment index {index} out of range")
+    return video_pipeline.video_outline.segments[index]
+
+
+def update_segment_in_outline(
+    video_pipeline: VideoPipeline,
+    index: int,
+    segment
+) -> VideoPipelineSegment:
+    """update a segment in a video pipeline's outline."""
+    validate_video_outline(video_pipeline)
+    get_segment_by_index(video_pipeline, index)
+    video_pipeline.video_outline.segments[index] = segment
+    return segment
+
+
+def delete_segment_from_outline(
+    video_pipeline: VideoPipeline,
+    index: int
+) -> VideoPipelineSegment:
+    """delete a segment from a video pipeline's outline."""
+    validate_video_outline(video_pipeline)
+    get_segment_by_index(video_pipeline, index)
+    segment = video_pipeline.video_outline.segments.pop(index)
+    return segment
+
+
+def create_image_generator(
+    video_pipeline: VideoPipeline,
+    openai_api_key: Optional[str] = None,
+    prompts_dir: Optional[Union[Path, str]] = None
+) -> ImageGenerator:
+    """create an image generator instance configured for the video pipeline."""
+    config = get_config()
+    openai_api_key = openai_api_key or config.openai_api_key
+    prompts_dir = prompts_dir or config.get_prompts_directory()
+    temp_dir = config.get('output.temp_directory', 'temp')
+    output_dir = str(Path(temp_dir) / (video_pipeline.path_id or video_pipeline.id) / 'images' / 'ai_images')
+    
+    return ImageGenerator(
+        api_key=openai_api_key,
+        model=config.get('images.ai_generator.model', 'dall-e-3'),
+        quality=config.get('images.ai_generator.quality', 'standard'),
+        size=config.get('images.ai_generator.size', '1024x1024'),
+        output_dir=output_dir,
+        prompts_dir=prompts_dir
+    )
+
+
+def generate_images_for_segments(
+    video_pipeline: VideoPipeline,
+    indexes: List[int],
+    openai_api_key: Optional[str] = None,
+    prompts_dir: Optional[Union[Path, str]] = None
+) -> List[VideoPipelineSegment]:
+    """generate ai images for specific segments in a video pipeline."""
+    validate_video_outline(video_pipeline)
+    generator = create_image_generator(video_pipeline, openai_api_key, prompts_dir)
+    
+    if not generator.is_available():
+        raise ValueError("Image generation not available (missing API keys)")
+    
+    segments_to_generate = [video_pipeline.video_outline.segments[index] for index in indexes]
+    path_id = video_pipeline.path_id or video_pipeline.id
+    generator.generate_for_segments(segments_to_generate, path_id)
+    return segments_to_generate
+
+
+def update_segment_background(
+    video_pipeline: VideoPipeline,
+    index: int,
+    background_colors: Optional[List[tuple]] = None,
+    background_type: Optional[BackgroundType] = None,
+    background_image_path: Optional[str] = None
+) -> VideoPipelineSegment:
+    """update background settings for a segment in a video pipeline."""
+    validate_video_outline(video_pipeline)
+    segment = get_segment_by_index(video_pipeline, index)
+    
+    if background_colors is not None:
+        segment.background_colors = background_colors
+    if background_type is not None:
+        segment.background_type = background_type
+    if background_image_path is not None:
+        segment.background_image_path = background_image_path
+    
+    return segment
 
 

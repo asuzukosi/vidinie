@@ -4,14 +4,14 @@ export interface NavItem {
   id: string;
   title: string;
   icon: ElementType;
-  url?: string;
+  url: string;
   isActive?: boolean;
 }
 
 export interface User {
   name: string;
   email: string;
-  avatar: string;
+  avatar?: string | null;
 }
 
 export interface FavoriteItem {

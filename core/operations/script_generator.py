@@ -12,8 +12,16 @@ from openai import OpenAI
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from pathlib import Path
 from utils.logger import get_logger
-from core.data.pipeline import VideoOutline, ScriptData
-from core.data.pipeline import VideoSegment
+from utils.config_loader import get_config
+from core.data import (
+    VideoPipelineOutline,
+    VideoPipelineScript,
+    VideoPipelineSegment,
+    VideoPipelineStage,
+    VideoPipelineStatus,
+)
+from core.operations.voiceover_generator import VoiceoverGenerator
+from core.data import VideoPipeline
 logger = get_logger("script_generator")
 
 
@@ -35,7 +43,6 @@ class ScriptGenerator:
         
         # initialize jinja2 environment for prompt templates
         if prompts_dir is None:
-            from utils.config_loader import get_config
             config = get_config()
             prompts_dir = config.get_prompts_directory()
         
@@ -44,7 +51,7 @@ class ScriptGenerator:
             autoescape=select_autoescape(['html', 'xml'])
         )
     
-    def generate_script(self, video_outline: VideoOutline) -> ScriptData:
+    def generate_script(self, video_outline: VideoPipelineOutline) -> VideoPipelineScript:
         """
         generate complete voiceover script from video outline.
         args:
@@ -70,7 +77,7 @@ class ScriptGenerator:
         # generate transitions
         video_outline.segments = self._add_transitions(video_outline.segments)
         
-        script_data = ScriptData(
+        script_data = VideoPipelineScript(
             title=video_outline.title,
             total_segments=len(video_outline.segments),
             segments=video_outline.segments,
@@ -79,7 +86,7 @@ class ScriptGenerator:
         logger.info("script generation complete")
         return script_data
     
-    def _generate_segment_script(self, segment: VideoSegment, segment_num: int, 
+    def _generate_segment_script(self, segment: VideoPipelineSegment, segment_num: int, 
                                  total_segments: int, video_title: str) -> str:
         """
         generate script for a single segment.
@@ -126,7 +133,7 @@ class ScriptGenerator:
             # fallback to basic script
             return self._create_fallback_script(segment)
     
-    def _create_script_prompt(self, segment: VideoSegment, segment_num: int, 
+    def _create_script_prompt(self, segment: VideoPipelineSegment, segment_num: int, 
                              total_segments: int, video_title: str) -> str:
         """
         create prompt for script generation.
@@ -182,7 +189,7 @@ class ScriptGenerator:
         
         return ' '.join(lines)
     
-    def _create_fallback_script(self, segment: VideoSegment) -> str:
+    def _create_fallback_script(self, segment: VideoPipelineSegment) -> str:
         """
         create a basic script as fallback.
         args:
@@ -204,7 +211,7 @@ class ScriptGenerator:
         
         return ' '.join(script_parts)
     
-    def _add_transitions(self, segments: List[VideoSegment]) -> List[VideoSegment]:
+    def _add_transitions(self, segments: List[VideoPipelineSegment]) -> List[VideoPipelineSegment]:
         """
         add smooth transitions between segments.
         args:
@@ -213,8 +220,8 @@ class ScriptGenerator:
             updated segments with transitions
         """
         for i in range(len(segments) - 1):
-            current: VideoSegment = segments[i]
-            next_seg: VideoSegment = segments[i + 1]
+            current: VideoPipelineSegment = segments[i]
+            next_seg: VideoPipelineSegment = segments[i + 1]
             
             # add transition hint (can be used in video generation)
             current.transition_to = next_seg.title
@@ -222,7 +229,7 @@ class ScriptGenerator:
         
         return segments
     
-    def _compile_full_script(self, segments: List[VideoSegment]) -> str:
+    def _compile_full_script(self, segments: List[VideoPipelineSegment]) -> str:
         """
         compile full script from all segments.
         args:
@@ -239,7 +246,7 @@ class ScriptGenerator:
         
         return '\n'.join(full_script_parts)
     
-    def save_script(self, script_data: ScriptData, output_path: str):
+    def save_script(self, script_data: VideoPipelineScript, output_path: str):
         """
         save script data to JSON file.
         args:
@@ -251,7 +258,7 @@ class ScriptGenerator:
         
         logger.info(f"saved script to {output_path}")
     
-    def export_script_text(self, script_data: ScriptData, output_path: str):
+    def export_script_text(self, script_data: VideoPipelineScript, output_path: str):
         """
         export script as plain text file.
         args:
@@ -264,4 +271,103 @@ class ScriptGenerator:
             f.write(script_data.full_script)
         
         logger.info(f"exported script text to {output_path}")
+
+
+def update_scripts_in_pipeline(
+    video_pipeline,
+    script_data: VideoPipelineScript
+) -> VideoPipelineScript:
+    """
+    Update scripts in a video pipeline.
+    
+    Args:
+        video_pipeline: VideoPipeline object
+        script_data: Updated script data
+    
+    Returns:
+        Updated VideoPipelineScript object
+    """
+    video_pipeline.script_data = script_data
+    return script_data
+
+
+def generate_scripts(
+    pipeline: VideoPipeline,
+    provider: Optional[str] = None,
+    openai_api_key: Optional[str] = None,
+    elevenlabs_api_key: Optional[str] = None,
+    voice_id: Optional[str] = None,
+    prompts_dir: Optional[str] = None
+) -> VideoPipeline:
+    """
+    generate narration scripts and voiceovers from video outline.
+    args:
+        pipeline: video pipeline object with video outline
+        provider: voiceover provider ('elevenlabs' or 'gtts')
+        openai_api key: openai api key
+        elevenlabs_api_key: elevenlabs api key
+        voice_id: elevenlabs voice id
+        prompts_dir: path to prompts directory
+    returns:
+        updated video pipeline with script data, full audio path, and full audio duration
+    """
+    config = get_config()
+    openai_api_key = openai_api_key or config.openai_api_key
+    elevenlabs_api_key = elevenlabs_api_key or config.elevenlabs_api_key
+    voice_id = voice_id or config.get('voiceover.voice_id')
+    provider = provider or config.get('voiceover.provider', 'elevenlabs')
+    prompts_dir = prompts_dir or config.get_prompts_directory()
+    temp_dir = config.get('output.temp_directory', 'temp')
+    
+    pipeline.update_stage(VideoPipelineStage.SCRIPT_GENERATION, VideoPipelineStatus.IN_PROGRESS)
+    
+    if not pipeline.video_outline:
+        logger.error("Video outline not found in pipeline data")
+        pipeline.update_stage(VideoPipelineStage.SCRIPT_GENERATION, VideoPipelineStatus.FAILED)
+        return pipeline
+    
+    try:
+        outline = pipeline.video_outline
+        logger.info(f"Using outline with {len(outline.segments)} segments")
+        
+        # Generate scripts
+        logger.info("Generating scripts")
+        script_gen = ScriptGenerator(api_key=openai_api_key, prompts_dir=prompts_dir)
+        script_data: VideoPipelineScript = script_gen.generate_script(outline)
+        pipeline.script_data = script_data
+        logger.info(f"Generated scripts for {len(script_data.segments)} segments")
+        
+        # Generate voiceovers
+        logger.info(f"Using voiceover provider: {provider}")
+        audio_dir = os.path.join(temp_dir, pipeline.path_id or pipeline.id, 'audio')
+        os.makedirs(audio_dir, exist_ok=True)
+        
+        voiceover_gen = VoiceoverGenerator(
+            provider=provider,
+            api_key=elevenlabs_api_key,
+            voice_id=voice_id,
+            output_dir=audio_dir
+        )
+        
+        script_data_with_audio: VideoPipelineScript = voiceover_gen.generate_voiceovers(script_data)
+        pipeline.script_data = script_data_with_audio
+        logger.info(f"Generated voiceovers for {len(script_data_with_audio.segments)} segments")
+        
+        # Generate combined audio
+        combined_audio_path = os.path.join(audio_dir, 'full_voiceover.mp3')
+        total_duration = voiceover_gen.generate_full_audio(script_data_with_audio, combined_audio_path)
+        pipeline.full_audio_path = combined_audio_path
+        pipeline.full_audio_duration = total_duration
+        logger.info(f"Combined audio generated: {combined_audio_path} ({total_duration:.1f}s)")
+        
+        # Update pipeline data
+        pipeline.update_stage(VideoPipelineStage.SCRIPT_GENERATION, VideoPipelineStatus.COMPLETED)
+        
+        logger.info(f"Scripts and voiceovers generated. Pipeline ID: {pipeline.id}")
+        return pipeline
+        
+    except Exception as e:
+        logger.error(f"Error during script generation: {str(e)}", exc_info=True)
+        pipeline.update_stage(VideoPipelineStage.SCRIPT_GENERATION, VideoPipelineStatus.FAILED)
+        return pipeline
 

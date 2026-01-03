@@ -1,5 +1,6 @@
 "use client";
 
+import { useSelector } from "react-redux";
 import { Sidebar, SidebarContent } from "@/components/ui/sidebar";
 import {
   IconSettings,
@@ -9,13 +10,9 @@ import {
 import { NavFooter } from "@/components/sidebar/NavFooter";
 import { NavHeader } from "@/components/sidebar/NavHeader";
 import { NavMain } from "@/components/sidebar/NavMain";
-import type { User, NavItem } from "@/lib/types";
-
-const user: User = {
-  name: "Kosi Asuzu",
-  email: "kosi@kosi.com",
-  avatar: "https://ui-avatars.com/api/?name=Kosi Asuzu&background=random",
-}
+import type { NavItem } from "@/lib/types";
+import type { RootState } from "@/lib/store/store";
+import client from "@/lib/sdk/client";
 
 const navItems: NavItem[] = [
     {
@@ -39,6 +36,30 @@ const navItems: NavItem[] = [
 ]
 
 export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
+  const user = useSelector((state: RootState) => state.auth.user);
+  
+  // get avatar URL from profile_picture, or use fallback
+  const getAvatarUrl = () => {
+    if (user?.profile_picture) {
+      return client.getProfilePictureUrl(user.profile_picture);
+    }
+    // fallback to ui-avatars if no profile picture
+    if (user?.name) {
+      return `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=random`;
+    }
+    return null;
+  };
+
+  const userData = user ? {
+    name: user.name,
+    email: user.email,
+    avatar: getAvatarUrl() || null,
+  } : {
+    name: "User",
+    email: "",
+    avatar: null,
+  };
+
   return (
     <Sidebar {...props}>
       <NavHeader navItems={navItems} />
@@ -50,7 +71,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
           // topics={data.navCollapsible.topics}
         /> */}
       </SidebarContent>
-      <NavFooter user={user} />
+      <NavFooter user={userData} />
     </Sidebar>
   );
 }

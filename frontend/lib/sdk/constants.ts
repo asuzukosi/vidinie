@@ -1,39 +1,39 @@
-import { PipelineProcessingStage } from "./types";
+import { VideoPipelineProcessingStage, VideoPipelineStage } from "./types";
 
-export const pipelineProcessingStages: PipelineProcessingStage[] = [
+export const pipelineProcessingStages: VideoPipelineProcessingStage[] = [
     {
-      id: "document_processing",
+      id: VideoPipelineStage.DOCUMENT_PROCESSING,
       title: "Document Processing",
       description: "Processing the document to extract the content and images. We will extract the content and save it to the database.",
       completed: false,
       actionLabel: "Process document",
     },
     {
-      id: "content_analysis",
+      id: VideoPipelineStage.CONTENT_ANALYSIS,
       title: "Content Analysis",
       description: "Analyzing the content for the video. We will analyze the content and save it to the database.",
       completed: false,
       actionLabel: "Analyze content",
     },
     {
-      id: "script_generation",
+      id: VideoPipelineStage.SCRIPT_GENERATION,
       title: "Script and Audio Generation",
       description: "Generating the script and audio for the video. We will generate the script and audio and save it to the database.",
       completed: false,
       actionLabel: "Generate script and audio",
     },
     {
-      id: "video_generation",
+      id: VideoPipelineStage.VIDEO_GENERATION,
       title: "Video Generation",
       description: "Generating the video for the content. We will generate the video and save it to the database.",
       completed: false,
       actionLabel: "Generate video",
     },
     {
-      id: "download_and_share",
-      title: "Download and Share",
-      description: "Downloading the video and sharing it. We will download the video and share it with the user.",
+      id: VideoPipelineStage.REVIEW_AND_FEEDBACK,
+      title: "Review and Feedback",
+      description: "Share your feedback about the video pipeline. Your rating and comments help us improve.",
       completed: false,
-      actionLabel: "Download and share",
+      actionLabel: "Submit review",
     },
   ];

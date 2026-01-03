@@ -8,7 +8,7 @@ from typing import Optional, List, Dict
 from pathlib import Path
 from utils.logger import get_logger
 from utils.stock_image_utils import fetch_from_unsplash, fetch_from_pexels
-from core.data.pipeline import VideoSegment, SegmentImage
+from core.data import VideoPipelineSegment, VideoPipelineSegmentImage
 
 logger = get_logger(__name__)
 
@@ -44,7 +44,7 @@ class StockImageFetcher:
             'pexels': bool(self.pexels_key)
         }
     
-    def fetch_image(self, query: str, provider: str = "unsplash") -> Optional[SegmentImage]:
+    def fetch_image(self, query: str, provider: str = "unsplash") -> Optional[VideoPipelineSegmentImage]:
         """
         fetch a single stock image for a query.
         args:
@@ -56,20 +56,20 @@ class StockImageFetcher:
         if provider == "unsplash" and self.unsplash_key:
             data = fetch_from_unsplash(query, self.unsplash_key, self.output_dir)
             if data:
-                return SegmentImage(source=provider, query=query, path=data['filepath'])
+                return VideoPipelineSegmentImage(source=provider, query=query, path=data['filepath'])
             else:
                 return None
         elif provider == "pexels" and self.pexels_key:
             data = fetch_from_pexels(query, self.pexels_key, self.output_dir)
             if data:
-                return SegmentImage(source=provider, query=query, path=data['filepath'])
+                return VideoPipelineSegmentImage(source=provider, query=query, path=data['filepath'])
             else:
                 return None
         else:
             logger.warning(f"stock image provider {provider} api key is not available")
             return None
     
-    def fetch_for_segments(self, segments: List[VideoSegment], preferred_provider: str = "unsplash") -> List[VideoSegment]:
+    def fetch_for_segments(self, segments: List[VideoPipelineSegment], preferred_provider: str = "unsplash") -> List[VideoPipelineSegment]:
         """
         fetch stock images for video segments.
         args:
@@ -93,7 +93,7 @@ class StockImageFetcher:
                 logger.debug(f"Segment {i} has no stock image query: {segment.title}")
                 continue
             
-            image_data: Optional[SegmentImage] = None
+            image_data: Optional[VideoPipelineSegmentImage] = None
             for provider in providers:
                 try:
                     image_data = self.fetch_image(query, provider)

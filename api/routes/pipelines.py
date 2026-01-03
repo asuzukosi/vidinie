@@ -1,34 +1,65 @@
 from fastapi import APIRouter, File, UploadFile, Form, HTTPException, Request, WebSocket, BackgroundTasks
 import re
 from fastapi.responses import StreamingResponse, FileResponse
-from core.data.pipeline import PipelineData, SourceType, PipelineStage,\
-                               PipelineStatus, ParsedContent, VideoSegment, \
-                               ParsedContentSection, \
-                               ImageMetadata, ContextChunk, ContextProcessorInfo, \
-                               ScriptData, get_next_stage, get_previous_stage, VideoOutline, BackgroundType
-from utils.logger import setup_logging, get_logger
-from core.operations.image_labeler import ImageLabeler
-from typing import List, Any, Dict, Union
+from core.data import (
+    VideoPipeline,
+    SourceType,
+    VideoPipelineStage,
+    VideoPipelineStatus,
+    VideoPipelineParsedContent,
+    VideoPipelineSegment,
+    VideoPipelineContentSection,
+    VideoPipelineImageMetadata,
+    VideoPipelineContextChunk,
+    VideoPipelineScript,
+    VideoPipelineOutline,
+    BackgroundType,
+    get_next_stage,
+    get_previous_stage,
+)
+from core.utils.logger import setup_logging, get_logger
+from core.operations.document_processor import (
+    process_pdf_document,
+    process_html_document,
+)
+from core.operations.content_analyzer import (
+    process_content,
+    add_section_to_content as add_section_to_pipeline,
+    update_section_in_content as update_section_in_pipeline,
+    delete_section_from_content as delete_section_from_pipeline,
+    add_segment_to_outline,
+    update_segment_in_outline,
+    delete_segment_from_outline,
+    generate_images_for_segments,
+    update_segment_background,
+)
+from core.operations.script_generator import (
+    generate_scripts,
+    update_scripts_in_pipeline,
+)
+from core.operations.video_generator import generate_video
+from core.operations.image_labeler import (
+    add_image_to_pipeline,
+    update_image_in_pipeline,
+    delete_image_from_pipeline,
+)
+from api.helpers.pipeline_helpers import (
+    get_pipeline_by_id,
+    update_pipeline_in_db,
+)
+from typing import List
 import os
 from pathlib import Path
-from api.core.db import pipelines_collection
-from api.data.pipeline import StartPipelineRequest, SummaryPipelineDataResponse, \
-                               DeletePipelineResponse, PipelineStageDetails, \
-                               UpdatePipelineImageMetadataRequest, DeletePipelineImageResponse, \
-                               ParsedContentDataMinimal, DeletePipelineSectionResponse, \
-                               CreateVideoOutlineRequest, VideoGenerationRequest, \
-                               VideoSegmentBackground, PipelineReviewRequest, VideoResolution, \
-                               RunAllPipelineOperationsRequest
-from utils.config_loader import get_config
-from core.processors.pdf_processor import PDFProcessor
-from core.processors.html_processor import HTMLProcessor
-from core.operations.context_processor import ContextProcessor
-from core.operations.content_analyzer import ContentAnalyzer
-from core.operations.stock_image_fetcher import StockImageFetcher
-from core.operations.image_generator import ImageGenerator
-from core.operations.script_generator import ScriptGenerator
+from api.core.db import video_pipelines_collection
+from api.data.pipeline import CreateVideoPipelineRequest, VideoPipelineSummary, \
+                               DeleteVideoPipelineResponse, VideoPipelineStageDetails, \
+                               UpdateVideoPipelineImageRequest, DeleteVideoPipelineImageResponse, \
+                               VideoPipelineContentMinimal, DeleteVideoPipelineSectionResponse, \
+                               CreateVideoPipelineOutlineRequest, GenerateVideoPipelineRequest, \
+                               VideoPipelineSegmentBackground, VideoPipelineReviewRequest, VideoResolution, \
+                               RunVideoPipelineOperationsRequest
+from core.utils.config_loader import get_config
 from core.operations.voiceover_generator import VoiceoverGenerator
-from core.operations.video_generator import VideoGenerator
 from bson.objectid import ObjectId
 from datetime import datetime
 from typing import Optional, Tuple, List
@@ -48,72 +79,62 @@ router = APIRouter(tags=["pipelines"])
 
 
 
-@router.post("/start_pipeline_with_file", name="start pipeline with file")
-async def start_pipeline_with_file(
+@router.post("/from-file", name="create video pipeline from file")
+async def create_video_pipeline_from_file(
     name: str = Form(...),
     description: str = Form(...),
     tags: Optional[List[str]] = Form(...),
     projects: Optional[List[str]] = Form(...),
     file: UploadFile = File(...),
-) -> SummaryPipelineDataResponse:
+) -> VideoPipelineSummary:
     logger.info("received request to start pipeline with file")
     if file.filename == "" or not file.filename.endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Invalid file type must be a PDF file")
     # create pipeline data object
     logger.info("creating pipeline data object")
-    pipeline_data = PipelineData()
-    pipeline_data.name = name
-    pipeline_data.description = description
-    pipeline_data.tags = tags[0].split(",") or []
-    pipeline_data.projects = projects[0].split(",") or []
-    pipeline_data.source_type = SourceType.PDF
-    pipeline_data.update_stage(PipelineStage.DOCUMENT_PROCESSING, PipelineStatus.IN_PROGRESS)
+    video_pipeline = VideoPipeline()
+    video_pipeline.name = name
+    video_pipeline.description = description
+    video_pipeline.tags = tags[0].split(",") or []
+    video_pipeline.projects = projects[0].split(",") or []
+    video_pipeline.source_type = SourceType.PDF
+    video_pipeline.update_stage(VideoPipelineStage.DOCUMENT_PROCESSING, VideoPipelineStatus.IN_PROGRESS)
     logger.info("pipeline data object created")
 
     # create temp directory for metadata
     temp_dir = config.get('output.temp_directory', 'temp')
-    images_dir = os.path.join(temp_dir, pipeline_data.id, 'images')
+    images_dir = os.path.join(temp_dir, video_pipeline.id, 'images')
     Path(images_dir).mkdir(parents=True, exist_ok=True)
     logger.info(f"created temp directory for metadata: {images_dir}")
     # save file to temp directory
-    with open(os.path.join(temp_dir, pipeline_data.id, file.filename), 'wb') as f:
+    with open(os.path.join(temp_dir, video_pipeline.id, file.filename), 'wb') as f:
         f.write(file.file.read())
-    logger.info(f"saved file to temp directory: {os.path.join(temp_dir, pipeline_data.id, file.filename)}")
-    pipeline_data.source_path = os.path.join(temp_dir, pipeline_data.id, file.filename)
-    
-    # process pdf file
-    with PDFProcessor(pipeline_data.source_path, images_output_dir=images_dir) as processor:
-        content: ParsedContent = processor.extract_structured_content()
-        pipeline_data.parsed_content = content
+    logger.info(f"saved file to temp directory: {os.path.join(temp_dir, video_pipeline.id, file.filename)}")
+    video_pipeline.source_path = os.path.join(temp_dir, video_pipeline.id, file.filename)
 
-        # logging content info
-        logger.info(f"title: {content.title}")
-        logger.info(f"total pages: {content.total_pages}")
-        logger.info(f"sections: {len(content.sections)}")
-
-         # extract and label images if requested
-        logger.info("labeling images")
-        processor.label_images(config.openai_api_key, config.get_prompts_directory())
-        pipeline_data.images_metadata = processor.images_metadata
-        logger.info(f"labeled {len(processor.images_metadata)} images")
-    
-    pipeline_data.update_stage(PipelineStage.DOCUMENT_PROCESSING, PipelineStatus.COMPLETED)
+    # process PDF document using modular operation
+    video_pipeline = process_pdf_document(
+        video_pipeline,
+        extract_images=True,
+        openai_api_key=config.openai_api_key,
+        prompts_dir=config.get_prompts_directory()
+    )
 
     # save pipeline data to database
     logger.info("saving pipeline data to database")
-    pipeline_data.path_id = pipeline_data.id
-    db_pipeline = await pipelines_collection.insert_one(pipeline_data.model_dump(mode="json"))
-    pipeline_data.id = str(db_pipeline.inserted_id)
+    video_pipeline.path_id = video_pipeline.id
+    db_pipeline = await video_pipelines_collection.insert_one(video_pipeline.model_dump(mode="json"))
+    video_pipeline.id = str(db_pipeline.inserted_id)
     # we have to update the id to the actual id because the id is generated by mongodb and not by us
-    await pipelines_collection.update_one(
-            {"_id": ObjectId(db_pipeline.inserted_id)}, 
-            {"$set": {"id": pipeline_data.id}}
+    await video_pipelines_collection.update_one(
+            {"_id": ObjectId(db_pipeline.inserted_id)},
+            {"$set": {"id": video_pipeline.id}}
         )
-    logger.info(f"pipeline data saved to database with id: {pipeline_data.id}")
-    return SummaryPipelineDataResponse(**pipeline_data.model_dump(mode="json"))
+    logger.info(f"pipeline data saved to database with id: {video_pipeline.id}")
+    return VideoPipelineSummary(**video_pipeline.model_dump(mode="json"))
 
-@router.post("/start_pipeline_with_url", name="start pipeline with url")
-async def start_pipeline_with_url(request: StartPipelineRequest) -> SummaryPipelineDataResponse:
+@router.post("/from-url", name="create video pipeline from url")
+async def create_video_pipeline_from_url(request: CreateVideoPipelineRequest) -> VideoPipelineSummary:
     # validate if url is valid
     logger.info("received request to start pipeline with url")
     if not request.url.startswith("http"):
@@ -128,580 +149,425 @@ async def start_pipeline_with_url(request: StartPipelineRequest) -> SummaryPipel
         raise HTTPException(status_code=400, detail=f"Failed to download file from url: {request.url} with error: {str(e)}")
     
     logger.info("creating pipeline data object")
-    pipeline_data = PipelineData()
-    pipeline_data.name = request.name
-    pipeline_data.description = request.description
-    pipeline_data.tags = request.tags or []
-    pipeline_data.projects = request.projects or []
-    pipeline_data.source_type = SourceType.HTML
-    pipeline_data.update_stage(PipelineStage.DOCUMENT_PROCESSING, 
-                               PipelineStatus.IN_PROGRESS)
-    
-    
+    video_pipeline = VideoPipeline()
+    video_pipeline.name = request.name
+    video_pipeline.description = request.description
+    video_pipeline.tags = request.tags or []
+    video_pipeline.projects = request.projects or []
+    video_pipeline.source_type = SourceType.HTML
+    video_pipeline.update_stage(VideoPipelineStage.DOCUMENT_PROCESSING,
+                               VideoPipelineStatus.IN_PROGRESS)
+
+
     logger.info("pipeline data object created")
     # create temp directory for metadata
     temp_dir = config.get('output.temp_directory', 'temp')
-    images_dir = os.path.join(temp_dir, pipeline_data.id, 'images')
+    images_dir = os.path.join(temp_dir, video_pipeline.id, 'images')
     Path(images_dir).mkdir(parents=True, exist_ok=True)
     logger.info(f"created temp directory for metadata: {images_dir}")
     # save file to temp directory
-    with open(os.path.join(temp_dir, pipeline_data.id, 'data.html'), 'wb') as f:
+    with open(os.path.join(temp_dir, video_pipeline.id, 'data.html'), 'wb') as f:
         f.write(response.content)
-    logger.info(f"saved file to temp directory: {os.path.join(temp_dir, pipeline_data.id, 'data.html')}")
-    pipeline_data.source_path = os.path.join(temp_dir, pipeline_data.id, 'data.html')
-    
-   # process html file
-    with HTMLProcessor(html_path=request.url, images_output_dir=images_dir) as processor:
-        content: ParsedContent = processor.extract_structured_content()
-        pipeline_data.parsed_content = content
+    logger.info(f"saved file to temp directory: {os.path.join(temp_dir, video_pipeline.id, 'data.html')}")
+    video_pipeline.source_path = os.path.join(temp_dir, video_pipeline.id, 'data.html')
 
-        # logging content info
-        logger.info(f"title: {content.title}")
-        logger.info(f"total pages: {content.total_pages}")
-        logger.info(f"sections: {len(content.sections)}")
-
-         # extract and label images if requested
-        logger.info("labeling images")
-        processor.label_images(config.openai_api_key, config.get_prompts_directory())
-        pipeline_data.images_metadata = processor.images_metadata
-        logger.info(f"labeled {len(processor.images_metadata)} images")
-    
-    pipeline_data.update_stage(PipelineStage.DOCUMENT_PROCESSING, PipelineStatus.COMPLETED)
+    # process HTML document using modular operation
+    video_pipeline = process_html_document(
+        video_pipeline,
+        html_path=request.url,
+        extract_images=True,
+        openai_api_key=config.openai_api_key,
+        prompts_dir=config.get_prompts_directory()
+    )
 
     # save pipeline data to database
     logger.info("saving pipeline data to database")
-    pipeline_data.path_id = pipeline_data.id
-    db_pipeline = await pipelines_collection.insert_one(pipeline_data.model_dump(mode="json"))
-    pipeline_data.id = str(db_pipeline.inserted_id)
-    logger.info(f"pipeline data saved to database with id: {pipeline_data.id}")
+    video_pipeline.path_id = video_pipeline.id
+    db_pipeline = await video_pipelines_collection.insert_one(video_pipeline.model_dump(mode="json"))
+    video_pipeline.id = str(db_pipeline.inserted_id)
+    logger.info(f"pipeline data saved to database with id: {video_pipeline.id}")
     # we have to update the id to the actual id because the id is generated by mongodb and not by us
-    await pipelines_collection.update_one(
-            {"_id": ObjectId(db_pipeline.inserted_id)}, 
-            {"$set": {"id": pipeline_data.id}}
+    await video_pipelines_collection.update_one(
+            {"_id": ObjectId(db_pipeline.inserted_id)},
+            {"$set": {"id": video_pipeline.id}}
         )
-    return SummaryPipelineDataResponse(**pipeline_data.model_dump(mode="json"))
+    return VideoPipelineSummary(**video_pipeline.model_dump(mode="json"))
 
-@router.get("/get_all_pipelines", name="get all pipelines")
-async def get_all_pipelines() -> List[SummaryPipelineDataResponse]:
+@router.get("/", name="get all video pipelines")
+async def get_all_video_pipelines() -> List[VideoPipelineSummary]:
     logger.info("received request to get all pipelines")
-    pipelines: List[SummaryPipelineDataResponse] = []
-    async for pipeline in pipelines_collection.find():
-        pipelines.append(SummaryPipelineDataResponse(**pipeline))
+    pipelines: List[VideoPipelineSummary] = []
+    async for video_pipeline in video_pipelines_collection.find():
+        pipelines.append(VideoPipelineSummary(**video_pipeline))
     return pipelines
 
 
 
-@router.delete("/delete_pipeline/{pipeline_id}", name="delete pipeline")
-async def delete_pipeline(pipeline_id: str) -> DeletePipelineResponse:
+@router.delete("/{video_pipeline_id}", name="delete video pipeline")
+async def delete_video_pipeline(video_pipeline_id: str) -> DeleteVideoPipelineResponse:
     logger.info("received request to delete pipeline")
-    pipeline_data: Optional[Dict[str, Any]] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
-    path_id = None
-    if not pipeline_data:
-        raise HTTPException(status_code=404, detail="Pipeline not found")
-    logger.info(f"deleting pipeline with id: {pipeline_id}")
-    result = await pipelines_collection.delete_one({"_id": ObjectId(pipeline_id)})
+    video_pipeline = await get_pipeline_by_id(video_pipeline_id)
+    path_id = video_pipeline.path_id
+    logger.info(f"deleting pipeline with id: {video_pipeline_id}")
+    result = await video_pipelines_collection.delete_one({"_id": ObjectId(video_pipeline_id)})
     if result.deleted_count == 0:
         raise HTTPException(status_code=500, detail="Failed to delete pipeline")
-    logger.info(f"pipeline deleted successfully with id: {pipeline_id}")
+    logger.info(f"pipeline deleted successfully with id: {video_pipeline_id}")
     # delete temp directory
-    path_id = pipeline_data.get('path_id', None)
     if path_id:
         temp_dir = config.get('output.temp_directory', 'temp')
         shutil.rmtree(os.path.join(temp_dir, path_id))
         logger.info(f"temp directory deleted successfully with id: {path_id}")
     else:
-        logger.info(f"no temp directory found for pipeline with id: {pipeline_id}")
-    return DeletePipelineResponse(pipeline_id=pipeline_id, message="Pipeline deleted successfully", path_id=path_id)
+        logger.info(f"no temp directory found for pipeline with id: {video_pipeline_id}")
+    return DeleteVideoPipelineResponse(video_pipeline_id=video_pipeline_id, message="Pipeline deleted successfully", path_id=path_id)
 
-@router.get("/get_pipeline_details/{pipeline_id}", name="get pipeline details")
-async def get_pipeline_details(pipeline_id: str) -> PipelineData:
+@router.get("/{video_pipeline_id}", name="get video pipeline details")
+async def get_video_pipeline_details(video_pipeline_id: str) -> VideoPipeline:
     logger.info("received request to get pipeline details")
-    pipeline_data: Optional[Dict[str, Any]] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
-    if not pipeline_data:
-        raise HTTPException(status_code=404, detail="Pipeline not found")
-    return PipelineData(**pipeline_data)
+    return await get_pipeline_by_id(video_pipeline_id)
 
 
 
-@router.get("/get_pipeline_stage_details/{pipeline_id}", name="get pipeline stage details")
-async def get_pipeline_stage_details(pipeline_id: str) -> PipelineStageDetails:
-    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
-    if not pipeline_data:
-        raise HTTPException(status_code=404, detail="Pipeline not found")
-    pipeline_data: PipelineData = PipelineData(**pipeline_data)
-    next_stage = get_next_stage(pipeline_data.current_stage)
-    previous_stage = get_previous_stage(pipeline_data.current_stage)
-    current_stage_statistics = pipeline_data.stage_statistics.get(pipeline_data.current_stage, None)
+@router.get("/{video_pipeline_id}/stages/{stage}", name="get video pipeline stage details")
+async def get_video_pipeline_stage_details(video_pipeline_id: str) -> VideoPipelineStageDetails:
+    video_pipeline = await get_pipeline_by_id(video_pipeline_id)
+    next_stage = get_next_stage(video_pipeline.current_stage)
+    previous_stage = get_previous_stage(video_pipeline.current_stage)
 
-    return PipelineStageDetails(stage=pipeline_data.current_stage, 
-                                status=pipeline_data.status, next_stage=next_stage,
-                                previous_stage=previous_stage,
-                                stage_statistics=current_stage_statistics.model_dump(mode="json"))
+    return VideoPipelineStageDetails(
+        stage=video_pipeline.current_stage.value if hasattr(video_pipeline.current_stage, 'value') else str(video_pipeline.current_stage),
+        status=video_pipeline.status.value if hasattr(video_pipeline.status, 'value') else str(video_pipeline.status),
+        next_stage=next_stage.value if hasattr(next_stage, 'value') else str(next_stage),
+        previous_stage=previous_stage.value if hasattr(previous_stage, 'value') else str(previous_stage),
+        stage_statuses={k.value if hasattr(k, 'value') else str(k): v.value if hasattr(v, 'value') else str(v) 
+                      for k, v in video_pipeline.stage_statuses.items()} if video_pipeline.stage_statuses else None
+    )
 
-@router.get("/view_pipeline_images/{pipeline_id}", name="view pipeline images")
-async def view_pipeline_images(pipeline_id: str) -> List[ImageMetadata]:
+@router.get("/{video_pipeline_id}/images", name="get video pipeline images")
+async def get_video_pipeline_images(video_pipeline_id: str) -> List[VideoPipelineImageMetadata]:
     logger.info("received request to view pipeline images")
-    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
-    if not pipeline_data:
-        raise HTTPException(status_code=404, detail="Pipeline not found")
-    pipeline_data: PipelineData = PipelineData(**pipeline_data)
-    return pipeline_data.images_metadata
+    video_pipeline = await get_pipeline_by_id(video_pipeline_id)
+    return video_pipeline.images_metadata
 
-@router.post("/add_pipeline_image/{pipeline_id}", name="add pipeline image")
-async def add_pipeline_image(pipeline_id: str, image: UploadFile, 
+@router.post("/{video_pipeline_id}/images", name="add video pipeline image")
+async def add_video_pipeline_image(video_pipeline_id: str, image: UploadFile,
                              text_context: Optional[str] = None,
-                             label: Optional[bool] = False) -> ImageMetadata:
+                             label: Optional[bool] = False) -> VideoPipelineImageMetadata:
     logger.info("received request to add pipeline image")
     
-    # retreive pipeline data
-    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
-    if not pipeline_data:
-        raise HTTPException(status_code=404, detail="Pipeline not found")
-    pipeline_data: PipelineData = PipelineData(**pipeline_data)
+    video_pipeline = await get_pipeline_by_id(video_pipeline_id)
     
-    # validate if image is valid
-    if not image.filename.endswith((".png", ".jpg", ".jpeg", ".gif")):
-        raise HTTPException(status_code=400, detail="Invalid image type must be a PNG, JPG, or JPEG file")
-    
-    # save image to path specified by pipeline_id
-    path_id = pipeline_data.path_id
-    if not path_id:
-        raise HTTPException(status_code=500, 
-                            detail="Path ID not found for this pipeline you will have to create a new pipeline object to continue")
-    image_path = os.path.join(path_id, "images", image.filename)
-    with open(image_path, 'wb') as f:
-        f.write(image.file.read())
-    
-    # create image metadata object
-    image_metadata = ImageMetadata()
-    image_metadata.filename = image.filename
-    image_metadata.filepath = image_path
-    image_metadata.page_number = 1
-    image_metadata.width = image.size[0]
-    image_metadata.height = image.size[1]
-    image_metadata.format = image.content_type.split("/")[1]
-    image_metadata.mode = "RGB"
-    image_metadata.size_bytes = len(image.file.read())
-    image_metadata.text_context = text_context or ""
-    image_metadata.xref = None
-    image_metadata.index_on_page = 0
-
-    # if label is true, generate label and description
-    if label:
-        labeler = ImageLabeler(config.openai_api_key, config.get_prompts_directory())
-        image_metadata = labeler.label_images_batch([image_metadata])
-    
-    # add image metadata to pipeline data
-    pipeline_data.images_metadata.append(image_metadata)
-    pipeline_data_json: Dict[str, Any] = pipeline_data.model_dump(mode="json")
-    
-    # update database with new image metadata
-    await pipelines_collection.update_one(
-        {"_id": ObjectId(pipeline_id)},
-        {"$set": {"images_metadata": pipeline_data_json["images_metadata"]}}
-    )
-    return image_metadata
+    try:
+        # use reusable function to add image
+        image_metadata = add_image_to_pipeline(
+            video_pipeline,
+            image,
+            text_context=text_context,
+            label=label or False,
+            openai_api_key=config.openai_api_key,
+            prompts_dir=config.get_prompts_directory()
+        )
+        
+        # update database
+        await update_pipeline_in_db(video_pipeline_id, video_pipeline)
+        return image_metadata
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 
-def clean_dict(dict: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    helper function to clean a dictionary of None values for updating object
-    """
-    return {k: v for k, v in dict.items() if v is not None}
-
-@router.put("/update_pipeline_image_metadata/{pipeline_id}", name="update pipeline image metadata")
-async def update_pipeline_image_metadata(pipeline_id: str, request: UpdatePipelineImageMetadataRequest) -> ImageMetadata:
+@router.put("/{video_pipeline_id}/images", name="update video pipeline image")
+async def update_video_pipeline_image(video_pipeline_id: str, request: UpdateVideoPipelineImageRequest) -> VideoPipelineImageMetadata:
     logger.info("received request to update pipeline image metadata")
-    # retreive pipeline data
-    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
-    if not pipeline_data:
-        raise HTTPException(status_code=404, detail="Pipeline not found")
-    image_metadata: Dict[str, Any] = pipeline_data.get("images_metadata", [])[request.index]
-    if not image_metadata:
-        raise HTTPException(status_code=404, detail="Image metadata not found")
-    request_dict: Dict[str, Any] = request.model_dump(mode="json")
-    request_dict.pop("index", None)
-    request_dict = clean_dict(request_dict)
-    image_metadata.update(request_dict)
-    # update image metadata
-    if len(pipeline_data["images_metadata"]) > request.index:
-        pipeline_data["images_metadata"][request.index] = image_metadata
-    else:
-        pipeline_data["images_metadata"].append(image_metadata)
-    await pipelines_collection.update_one(
-        {"_id": ObjectId(pipeline_id)},
-        {"$set": {"images_metadata": pipeline_data["images_metadata"]}}
-    )
-    # create response object
-    response = ImageMetadata(**image_metadata)
-    return response
+    
+    video_pipeline = await get_pipeline_by_id(video_pipeline_id)
+    
+    try:
+        # use reusable function to update image
+        image_metadata = update_image_in_pipeline(
+            video_pipeline,
+            request.index,
+            filename=request.filename,
+            text_context=request.text_context,
+            label=request.label,
+            description=request.description,
+            relevance_score=request.relevance_score,
+            image_type=request.image_type,
+            key_elements=request.key_elements,
+            ai_relevance=request.ai_relevance
+        )
+        
+        # update database
+        await update_pipeline_in_db(video_pipeline_id, video_pipeline)
+        return image_metadata
+    except IndexError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 
-@router.delete("/delete_pipeline_image/{pipeline_id}", name="delete pipeline image")
-async def delete_pipeline_image(pipeline_id: str, index: int) -> DeletePipelineImageResponse:
+@router.delete("/{video_pipeline_id}/images/{index}", name="delete video pipeline image")
+async def delete_video_pipeline_image(video_pipeline_id: str, index: int) -> DeleteVideoPipelineImageResponse:
     logger.info("received request to delete pipeline image")
-    # retreive pipeline data
-    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
-    if not pipeline_data:
-        raise HTTPException(status_code=404, detail="Pipeline not found")
-    pipeline_data: PipelineData = PipelineData(**pipeline_data)
-    image_metadata = pipeline_data.images_metadata.pop(index)
-    pipeline_data_json: Dict[str, Any] = pipeline_data.model_dump(mode="json")
-    # update database with new image metadata
-    await pipelines_collection.update_one(
-        {"_id": ObjectId(pipeline_id)},
-        {"$set": {"images_metadata": pipeline_data_json["images_metadata"]}}
-    )
-    # delete image file
-    if image_metadata.filepath:
-        os.remove(image_metadata.filepath)
-    # create response object
-    response = DeletePipelineImageResponse(pipeline_id=pipeline_id, 
-                                           message=f"Image {image_metadata.filename} deleted successfully",
-                                           filename=image_metadata.filename,
-                                           path_id=pipeline_data.path_id)
-    return response
+    
+    video_pipeline = await get_pipeline_by_id(video_pipeline_id)
+    
+    try:
+        # use reusable function to delete image
+        image_metadata = delete_image_from_pipeline(video_pipeline, index)
+        
+        # update database
+        await update_pipeline_in_db(video_pipeline_id, video_pipeline)
+        
+        return DeleteVideoPipelineImageResponse(
+            video_pipeline_id=video_pipeline_id,
+            message=f"Image {image_metadata.filename} deleted successfully",
+            filename=image_metadata.filename,
+            path_id=video_pipeline.path_id
+        )
+    except IndexError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 
-@router.get("/get_pipeline_parsed_content_info/{pipeline_id}", name="get pipeline parsed content info")
-async def get_pipeline_parsed_content_info(pipeline_id: str) -> ParsedContentDataMinimal:
+@router.get("/{video_pipeline_id}/content", name="get video pipeline content info")
+async def get_video_pipeline_content_info(video_pipeline_id: str) -> VideoPipelineContentMinimal:
     logger.info("received request to get pipeline parsed content info")
-    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
-    if not pipeline_data:
-        raise HTTPException(status_code=404, detail="Pipeline not found")
-    pipeline_data: PipelineData = PipelineData(**pipeline_data)
-    return ParsedContentDataMinimal(title=pipeline_data.parsed_content.title,
-                                    total_pages=pipeline_data.parsed_content.total_pages,
-                                    num_sections=len(pipeline_data.parsed_content.sections),
-                                    metadata=pipeline_data.parsed_content.metadata)
+    video_pipeline = await get_pipeline_by_id(video_pipeline_id)
+    
+    if not video_pipeline.parsed_content:
+        raise HTTPException(status_code=404, detail="Parsed content not found")
+    
+    return VideoPipelineContentMinimal(
+        title=video_pipeline.parsed_content.title,
+        total_pages=video_pipeline.parsed_content.total_pages,
+        num_sections=len(video_pipeline.parsed_content.sections),
+        metadata=video_pipeline.parsed_content.metadata
+    )
 
 
-@router.get("/get_pipeline_sections/{pipeline_id}", name="get pipeline sections")
-async def get_pipeline_sections(pipeline_id: str) -> List[ParsedContentSection]:
+@router.get("/{video_pipeline_id}/sections", name="get video pipeline sections")
+async def get_video_pipeline_sections(video_pipeline_id: str) -> List[VideoPipelineContentSection]:
     logger.info("received request to get pipeline sections")
-    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
-    if not pipeline_data:
-        raise HTTPException(status_code=404, detail="Pipeline not found")
-    pipeline_data: PipelineData = PipelineData(**pipeline_data)
-    return pipeline_data.parsed_content.sections
+    video_pipeline = await get_pipeline_by_id(video_pipeline_id)
+    
+    if not video_pipeline.parsed_content:
+        raise HTTPException(status_code=404, detail="Parsed content not found")
+    
+    return video_pipeline.parsed_content.sections
 
-@router.post("/add_pipeline_section/{pipeline_id}", name="add pipeline section")
-async def add_pipeline_section(pipeline_id: str, section: ParsedContentSection) -> ParsedContentSection:
+@router.post("/{video_pipeline_id}/sections", name="add video pipeline section")
+async def add_video_pipeline_section(video_pipeline_id: str, section: VideoPipelineContentSection) -> VideoPipelineContentSection:
     logger.info("received request to add pipeline section")
-    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
-    if not pipeline_data:
-        raise HTTPException(status_code=404, detail="Pipeline not found")
-    pipeline_data: PipelineData = PipelineData(**pipeline_data)
-    pipeline_data.parsed_content.sections.append(section)
-    pipeline_data_json: Dict[str, Any] = pipeline_data.model_dump(mode="json")
-    await pipelines_collection.update_one(
-        {"_id": ObjectId(pipeline_id)},
-        {"$set": {"parsed_content": pipeline_data_json["parsed_content"]}}
-    )
-    return section
+    video_pipeline = await get_pipeline_by_id(video_pipeline_id)
+    
+    try:
+        # use reusable function to add section
+        added_section = add_section_to_pipeline(video_pipeline, section)
+        
+        # update database
+        await update_pipeline_in_db(video_pipeline_id, video_pipeline)
+        return added_section
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
-@router.put("/update_pipeline_section/{pipeline_id}", name="update pipeline section")
-async def update_pipeline_section(pipeline_id: str, index: int, section: ParsedContentSection) -> ParsedContentSection:
+@router.put("/{video_pipeline_id}/sections/{index}", name="update video pipeline section")
+async def update_video_pipeline_section(video_pipeline_id: str, index: int, section: VideoPipelineContentSection) -> VideoPipelineContentSection:
     logger.info("received request to update pipeline section")
-    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
-    if not pipeline_data:
-        raise HTTPException(status_code=404, detail="Pipeline not found")
-    section_data: Dict[str, Any] = pipeline_data.get("parsed_content", {}).get("sections", [])[index]
-    input_section: Dict[str, Any] = section.model_dump(mode="json")
-    input_section = clean_dict(input_section)
-    section_data.update(input_section)
-    if len(pipeline_data["parsed_content"]["sections"]) > index:
-        pipeline_data["parsed_content"]["sections"][index] = section_data
-    else:
-        pipeline_data["parsed_content"]["sections"].append(section_data)
-    pipeline_data_json: Dict[str, Any] = pipeline_data.model_dump(mode="json")
-    await pipelines_collection.update_one(
-        {"_id": ObjectId(pipeline_id)},
-        {"$set": {"parsed_content": pipeline_data_json["parsed_content"]}}
-    )
-    return ParsedContentSection(**section_data)
+    video_pipeline = await get_pipeline_by_id(video_pipeline_id)
+    
+    try:
+        # use reusable function to update section
+        updated_section = update_section_in_pipeline(video_pipeline, index, section)
+        
+        # update database
+        await update_pipeline_in_db(video_pipeline_id, video_pipeline)
+        return updated_section
+    except (ValueError, IndexError) as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 
-@router.delete("/delete_pipeline_section/{pipeline_id}", name="delete pipeline section")
-async def delete_pipeline_section(pipeline_id: str, index: int) -> DeletePipelineSectionResponse:
+@router.delete("/{video_pipeline_id}/sections/{index}", name="delete video pipeline section")
+async def delete_video_pipeline_section(video_pipeline_id: str, index: int) -> DeleteVideoPipelineSectionResponse:
     logger.info("received request to delete pipeline section")
-    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
-    if not pipeline_data:
-        raise HTTPException(status_code=404, detail="Pipeline not found")
-    pipeline_data: PipelineData = PipelineData(**pipeline_data)
-    section_data = pipeline_data.parsed_content.sections.pop(index)
-    await pipelines_collection.update_one(
-        {"_id": ObjectId(pipeline_id)},
-        {"$set": {"parsed_content": pipeline_data.parsed_content.model_dump(mode="json")}}
-    )
-    return DeletePipelineSectionResponse(pipeline_id=pipeline_id,
-                                         index=index,
-                                         message=f"Section {section_data.title} deleted successfully",
-                                         title=section_data.title)
-
-
-
-
-@router.post("/process_content/{pipeline_id}", name="process context")
-async def process_content(pipeline_id: str, request: CreateVideoOutlineRequest) -> PipelineData:
-    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
-    if not pipeline_data:
-        raise HTTPException(status_code=404, detail="Pipeline not found")
-    pipeline_data: PipelineData = PipelineData(**pipeline_data)
-    pipeline_data.update_stage(PipelineStage.CONTENT_ANALYSIS, PipelineStatus.IN_PROGRESS)
-    # check if openai api key is set
-    config = get_config()
-    if not config.openai_api_key:
-        logger.error("openai api key required")
-        pipeline_data.update_stage(PipelineStage.CONTENT_ANALYSIS, PipelineStatus.FAILED)
-        pipelines_collection.update_one(
-            {"_id": ObjectId(pipeline_id)},
-            {"$set": pipeline_data.model_dump(mode="json")}
+    video_pipeline = await get_pipeline_by_id(video_pipeline_id)
+    
+    try:
+        # use reusable function to delete section
+        section_data = delete_section_from_pipeline(video_pipeline, index)
+        
+        # update database
+        await update_pipeline_in_db(video_pipeline_id, video_pipeline)
+        
+        return DeleteVideoPipelineSectionResponse(
+            video_pipeline_id=video_pipeline_id,
+            index=index,
+            message=f"Section {section_data.title} deleted successfully",
+            title=section_data.title
         )
-        raise HTTPException(status_code=500, detail="OpenAI API key not set")
-    # check if parsed content is set
-    if not pipeline_data.parsed_content:
-        logger.error("parsed content not found in pipeline data")
-        pipeline_data.update_stage(PipelineStage.CONTENT_ANALYSIS, PipelineStatus.FAILED)
-        await pipelines_collection.update_one(
-            {"_id": ObjectId(pipeline_id)},
-            {"$set": pipeline_data.model_dump(mode="json")}
-        )
-        raise HTTPException(status_code=500, detail="Parsed content not found")
-    # process context
-    pdf_content = pipeline_data.parsed_content
-    images_metadata = pipeline_data.images_metadata or []
-    logger.info(f"loaded {len(pdf_content.sections)} sections and {len(images_metadata)} images")
-    # process context into chunks
-    logger.info("processing context into chunks")
-    all_content = ""
-    for section in pdf_content.sections:
-        all_content += section.content
-    prompts_dir = config.get_prompts_directory()
-    chunk_length = config.get('content.chunk_length', 4000)
+    except (ValueError, IndexError) as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
-    context_processor = ContextProcessor(
-            all_content,
-            config.openai_api_key,
-            pdf_content.title,
-            chunk_length=chunk_length,
-            split_by='\n',
-            prompts_dir=prompts_dir
-        )
-    chunks: List[ContextChunk] = context_processor.get_chunks()
-    pipeline_data.chunks = chunks
-    # store context processor information
-    pipeline_data.context_processor_info = ContextProcessorInfo(
-        document_title=pdf_content.title,
-        chunk_length=chunk_length,
-        split_by='\n',
-        total_chunks=len(chunks),
-        total_content_length=len(all_content)
-    )
-    logger.info(f"stored context processor information with total chunks: {len(chunks)} and total content length: {len(all_content)}")
-    # create video outline
-    logger.info("creating video outline")
-    analyzer = ContentAnalyzer(
-        api_key=config.openai_api_key,
+
+
+
+@router.post("/{video_pipeline_id}/process", name="process video pipeline content")
+async def process_video_pipeline_content(video_pipeline_id: str, request: CreateVideoPipelineOutlineRequest) -> VideoPipeline:
+    video_pipeline = await get_pipeline_by_id(video_pipeline_id)
+    
+    # use modular operation to process content
+    video_pipeline = process_content(
+        video_pipeline,
+        skip_stock=request.skip_stock,
         target_segments=request.target_segments,
         segment_duration=request.segment_duration,
-        prompts_dir=prompts_dir
+        openai_api_key=config.openai_api_key,
+        unsplash_access_key=config.unsplash_access_key,
+        pexels_api_key=config.pexels_api_key,
+        prompts_dir=config.get_prompts_directory()
     )
-    outline: VideoOutline = analyzer.analyze_content(
-        document_title=pdf_content.title,
-        chunks=chunks,
-        images_metadata=images_metadata
-    )
-    logger.info("fetching stock images")
-    stock_images_dir = os.path.join(config.get('output.temp_directory', 'temp'), pipeline_data.path_id, 'images', 'stock_images')
-    fetcher = StockImageFetcher(config.unsplash_access_key, 
-                                config.pexels_api_key, output_dir=stock_images_dir)
-    availability = fetcher.is_available()
-    if any(availability.values()):
-        preferred = config.get('images.preferred_stock_provider', 'unsplash')
-        outline.segments = fetcher.fetch_for_segments(outline.segments, preferred)
-    else:
-        logger.info("no stock image api keys available")
-    # update pipeline data
-    pipeline_data.video_outline = outline
-    pipeline_data.update_stage(PipelineStage.CONTENT_ANALYSIS, PipelineStatus.COMPLETED)
-    # save pipeline data
-    await pipelines_collection.update_one(
-        {"_id": ObjectId(pipeline_id)},
-        {"$set": pipeline_data.model_dump(mode="json")}
-    )
-    return pipeline_data
-
-@router.get("/get_pipeline_context_chunks/{pipeline_id}", name="get pipeline context chunks")
-async def get_pipeline_context_chunks(pipeline_id: str) -> List[ContextChunk]:
-    logger.info("received request to get pipeline context chunks")
-    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
-    if not pipeline_data:
-        raise HTTPException(status_code=404, detail="Pipeline not found")
-    pipeline_data: PipelineData = PipelineData(**pipeline_data)    
-    return pipeline_data.chunks
-
-@router.get("/get_pipeline_video_outline/{pipeline_id}", name="get pipeline video outline")
-async def get_pipeline_video_outline(pipeline_id: str) -> VideoOutline:
-    logger.info("received request to get pipeline video outline")
-    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
-    if not pipeline_data:
-        raise HTTPException(status_code=404, detail="Pipeline not found")
-    pipeline_data: PipelineData = PipelineData(**pipeline_data)
-    return pipeline_data.video_outline
-
-@router.get("/get_pipeline_video_outline_segments/{pipeline_id}", name="get pipeline video outline segments")
-async def get_pipeline_video_outline_segments(pipeline_id: str) -> List[VideoSegment]:
-    logger.info("received request to get pipeline video outline segments")
-    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
-    if not pipeline_data:
-        raise HTTPException(status_code=404, detail="Pipeline not found")
-    pipeline_data: PipelineData = PipelineData(**pipeline_data)
-    return pipeline_data.video_outline.segments
-
-@router.post("/add_pipeline_video_outline_segment/{pipeline_id}", name="add pipeline video outline segment")
-async def add_pipeline_video_outline_segment(pipeline_id: str, segment: VideoSegment) -> VideoSegment:
-    logger.info("received request to add pipeline video outline segment")
-    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
-    if not pipeline_data:
-        raise HTTPException(status_code=404, detail="Pipeline not found")
-    pipeline_data: PipelineData = PipelineData(**pipeline_data)
-    pipeline_data.video_outline.segments.append(segment)
-    pipeline_data_json: Dict[str, Any] = pipeline_data.model_dump(mode="json")
-    await pipelines_collection.update_one(
-        {"_id": ObjectId(pipeline_id)},
-        {"$set": {"video_outline": pipeline_data_json["video_outline"]}}
-    )
-    return VideoSegment(**segment)
-
-@router.put("/update_pipeline_video_outline_segment/{pipeline_id}", name="update pipeline video outline segment")
-async def update_pipeline_video_outline_segment(pipeline_id: str, index: int, segment: VideoSegment) -> VideoSegment:
-    logger.info("received request to update pipeline video outline segment")
-    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
-    if not pipeline_data:
-        raise HTTPException(status_code=404, detail="Pipeline not found")
-    pipeline_data: PipelineData = PipelineData(**pipeline_data)
-    pipeline_data.video_outline.segments[index] = segment
     
-    await pipelines_collection.update_one(
-        {"_id": ObjectId(pipeline_id)},
-        {"$set": {"video_outline": pipeline_data.model_dump(mode="json")["video_outline"]}}
-    )
-    return VideoSegment(**segment)
+    # Save to database
+    await update_pipeline_in_db(video_pipeline_id, video_pipeline)
+    return video_pipeline
 
-@router.delete("/delete_pipeline_video_outline_segment/{pipeline_id}", name="delete pipeline video outline segment")
-async def delete_pipeline_video_outline_segment(pipeline_id: str, index: int) -> VideoSegment:
+@router.get("/{video_pipeline_id}/context-chunks", name="get video pipeline context chunks")
+async def get_video_pipeline_context_chunks(video_pipeline_id: str) -> List[VideoPipelineContextChunk]:
+    logger.info("received request to get pipeline context chunks")
+    video_pipeline = await get_pipeline_by_id(video_pipeline_id)
+    return video_pipeline.chunks
+
+@router.get("/{video_pipeline_id}/outline", name="get video pipeline outline")
+async def get_video_pipeline_outline(video_pipeline_id: str) -> VideoPipelineOutline:
+    logger.info("received request to get pipeline video outline")
+    video_pipeline = await get_pipeline_by_id(video_pipeline_id)
+    
+    if not video_pipeline.video_outline:
+        raise HTTPException(status_code=404, detail="Video outline not found")
+    
+    return video_pipeline.video_outline
+
+@router.get("/{video_pipeline_id}/outline/segments", name="get video pipeline outline segments")
+async def get_video_pipeline_outline_segments(video_pipeline_id: str) -> List[VideoPipelineSegment]:
+    logger.info("received request to get pipeline video outline segments")
+    video_pipeline = await get_pipeline_by_id(video_pipeline_id)
+    
+    if not video_pipeline.video_outline:
+        raise HTTPException(status_code=404, detail="Video outline not found")
+    
+    return video_pipeline.video_outline.segments
+
+@router.post("/{video_pipeline_id}/outline/segments", name="add video pipeline outline segment")
+async def add_video_pipeline_outline_segment(video_pipeline_id: str, segment: VideoPipelineSegment) -> VideoPipelineSegment:
+    logger.info("received request to add pipeline video outline segment")
+    video_pipeline = await get_pipeline_by_id(video_pipeline_id)
+    
+    try:
+        # use reusable function to add segment
+        added_segment = add_segment_to_outline(video_pipeline, segment)
+        
+        # update database
+        await update_pipeline_in_db(video_pipeline_id, video_pipeline)
+        return added_segment
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@router.put("/{video_pipeline_id}/outline/segments/{index}", name="update video pipeline outline segment")
+async def update_video_pipeline_outline_segment(video_pipeline_id: str, index: int, segment: VideoPipelineSegment) -> VideoPipelineSegment:
+    logger.info("received request to update pipeline video outline segment")
+    video_pipeline = await get_pipeline_by_id(video_pipeline_id)
+    
+    try:
+        # use reusable function to update segment
+        updated_segment = update_segment_in_outline(video_pipeline, index, segment)
+        
+        # update database
+        await update_pipeline_in_db(video_pipeline_id, video_pipeline)
+        return updated_segment
+    except (ValueError, IndexError) as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@router.delete("/{video_pipeline_id}/outline/segments/{index}", name="delete video pipeline outline segment")
+async def delete_video_pipeline_outline_segment(video_pipeline_id: str, index: int) -> VideoPipelineSegment:
     logger.info("received request to delete pipeline video outline segment")
-    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
-    if not pipeline_data:
-        raise HTTPException(status_code=404, detail="Pipeline not found")
-    pipeline_data: PipelineData = PipelineData(**pipeline_data)
-    segment = pipeline_data.video_outline.segments.pop(index)
-    await pipelines_collection.update_one(
-        {"_id": ObjectId(pipeline_id)},
-        {"$set": {"video_outline": pipeline_data.model_dump(mode="json")["video_outline"]}}
-    )
-    return VideoSegment(**segment)
+    video_pipeline = await get_pipeline_by_id(video_pipeline_id)
+    
+    try:
+        # use reusable function to delete segment
+        deleted_segment = delete_segment_from_outline(video_pipeline, index)
+        
+        # update database
+        await update_pipeline_in_db(video_pipeline_id, video_pipeline)
+        return deleted_segment
+    except (ValueError, IndexError) as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
-@router.post("/generate_images_for_pipeline_segments/{pipeline_id}", name="generate images for pipeline segments")
-async def generate_images_for_pipeline_segments(pipeline_id: str, indexes: List[int]) -> List[VideoSegment]:
+@router.post("/{video_pipeline_id}/generate-segment-images", name="generate video pipeline segment images")
+async def generate_video_pipeline_segment_images(video_pipeline_id: str, indexes: List[int]) -> VideoPipelineOutline:
     logger.info("received request to generate images for pipeline segments")
-    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
-    if not pipeline_data:
-        raise HTTPException(status_code=404, detail="Pipeline not found")
-    pipeline_data: PipelineData = PipelineData(**pipeline_data)
-    output_dir = os.path.join(config.get('output.temp_directory', 'temp'), pipeline_data.path_id, 'images', 'ai_images')
-    generator = ImageGenerator(api_key=config.openai_api_key,
-                               model=config.get('images.ai_generator.model', 'dall-e-3'),
-                               quality=config.get('images.ai_generator.quality', 'standard'),
-                               size=config.get('images.ai_generator.size', '1024x1024'),
-                               output_dir=output_dir,
-                               prompts_dir=config.get_prompts_directory())
-    path_id = pipeline_data.path_id
-    if generator.is_available():
-        segments_to_generate = [pipeline_data.video_outline.segments[index] for index in indexes]
-        # objects are updated in place
-        generator.generate_for_segments(segments_to_generate, path_id)
-        # update database with new video outline
-        pipeline_data_json: Dict[str, Any] = pipeline_data.model_dump(mode="json")
-        await pipelines_collection.update_one(
-            {"_id": ObjectId(pipeline_id)},
-            {"$set": {"video_outline": pipeline_data_json["video_outline"]}}
+    video_pipeline = await get_pipeline_by_id(video_pipeline_id)
+    
+    try:
+        # use reusable function to generate segment images
+        generate_images_for_segments(
+            video_pipeline,
+            indexes,
+            openai_api_key=config.openai_api_key,
+            prompts_dir=config.get_prompts_directory()
         )
-    else:
-        raise HTTPException(status_code=500, detail="Image generation not available")
-    return pipeline_data.video_outline
+        
+        # update database
+        await update_pipeline_in_db(video_pipeline_id, video_pipeline)
+        
+        if not video_pipeline.video_outline:
+            raise HTTPException(status_code=404, detail="Video outline not found")
+        
+        return video_pipeline.video_outline
+    except ValueError as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/generate_scripts_and_voiceovers/{pipeline_id}", name="generate scripts and voiceovers")
-async def generate_scripts_and_voiceovers(pipeline_id: str, provider: Optional[str] = 'elevenlabs') -> PipelineData:
+@router.post("/{video_pipeline_id}/generate-scripts", name="generate video pipeline scripts")
+async def generate_video_pipeline_scripts(video_pipeline_id: str, provider: Optional[str] = 'elevenlabs') -> VideoPipeline:
     logger.info("received request to generate scripts and voiceovers")
-    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
-    if not pipeline_data:
-        raise HTTPException(status_code=404, detail="Pipeline not found")
-    pipeline_data: PipelineData = PipelineData(**pipeline_data)
-    pipeline_data.update_stage(PipelineStage.SCRIPT_GENERATION, PipelineStatus.IN_PROGRESS)
-    # fetch video outline
-    video_outline = pipeline_data.video_outline
-    if not video_outline:
-        raise HTTPException(status_code=500, detail="Video outline not found")
-    # generate scripts
-    script_gen = ScriptGenerator(api_key=config.openai_api_key, prompts_dir=config.get_prompts_directory())
-    script_data: ScriptData = script_gen.generate_script(video_outline)
-    pipeline_data.script_data = script_data
-    logger.info(f"generated scripts for {len(script_data.segments)} segments")
-    # generate voiceovers
-    output_dir = os.path.join(config.get('output.temp_directory', 'temp'), pipeline_data.path_id, 'audio')
-    os.makedirs(output_dir, exist_ok=True)
-    voiceover_gen = VoiceoverGenerator(
+    video_pipeline = await get_pipeline_by_id(video_pipeline_id)
+    
+    # use modular operation to generate scripts
+    video_pipeline = generate_scripts(
+        video_pipeline,
         provider=provider,
-        api_key=config.elevenlabs_api_key,
+        openai_api_key=config.openai_api_key,
+        elevenlabs_api_key=config.elevenlabs_api_key,
         voice_id=config.get('voiceover.voice_id'),
-        output_dir=output_dir
+        prompts_dir=config.get_prompts_directory()
     )
-    script_data_with_audio: ScriptData = voiceover_gen.generate_voiceovers(script_data)
-    pipeline_data.script_data = script_data_with_audio
-    logger.info(f"generated voiceovers for {len(script_data_with_audio.segments)} segments")
-    # generate combined audio
-    combined_audio_path = os.path.join(output_dir, 'full_voiceover.mp3')
-    total_duration = voiceover_gen.generate_full_audio(script_data_with_audio, combined_audio_path)
-    pipeline_data.full_audio_path = combined_audio_path
-    pipeline_data.full_audio_duration = total_duration
-    logger.info(f"combined audio generated: {combined_audio_path} ({total_duration:.1f}s)")
-    # update pipeline data
-    pipeline_data.update_stage(PipelineStage.SCRIPT_GENERATION, PipelineStatus.COMPLETED)
-    await pipelines_collection.update_one(
-        {"_id": ObjectId(pipeline_id)},
-        {"$set": pipeline_data.model_dump(mode="json")}
-    )
-    logger.info(f"scripts and voiceovers generated. pipeline ID: {pipeline_data.id}")
-    return pipeline_data
+    
+    # save to database
+    await update_pipeline_in_db(video_pipeline_id, video_pipeline)
+    logger.info(f"scripts and voiceovers generated. pipeline ID: {video_pipeline.id}")
+    return video_pipeline
 
-@router.get("/view_pipeline_script_data/{pipeline_id}", name="view pipeline script data")
-async def view_pipeline_script_data(pipeline_id: str) -> ScriptData:
+@router.get("/{video_pipeline_id}/scripts", name="get video pipeline scripts")
+async def get_video_pipeline_scripts(video_pipeline_id: str) -> VideoPipelineScript:
     logger.info("received request to view pipeline script data")
-    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
-    if not pipeline_data:
-        raise HTTPException(status_code=404, detail="Pipeline not found")
-    pipeline_data: PipelineData = PipelineData(**pipeline_data)
-    return pipeline_data.script_data
+    video_pipeline = await get_pipeline_by_id(video_pipeline_id)
+    
+    if not video_pipeline.script_data:
+        raise HTTPException(status_code=404, detail="Script data not found")
+    
+    return video_pipeline.script_data
 
-@router.put("/update_pipeline_script_data/{pipeline_id}", name="update pipeline script data")
-async def update_pipeline_script_data(pipeline_id: str, script_data: ScriptData) -> ScriptData:
+@router.put("/{video_pipeline_id}/scripts", name="update video pipeline scripts")
+async def update_video_pipeline_scripts(video_pipeline_id: str, script_data: VideoPipelineScript) -> VideoPipelineScript:
     logger.info("received request to update pipeline script data")
-    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
-    if not pipeline_data:
-        raise HTTPException(status_code=404, detail="Pipeline not found")
-    pipeline_data: PipelineData = PipelineData(**pipeline_data)
-    pipeline_data.script_data = script_data
-    await pipelines_collection.update_one(
-        {"_id": ObjectId(pipeline_id)},
-        {"$set": pipeline_data.model_dump(mode="json")}
-    )
-    return pipeline_data.script_data
+    video_pipeline = await get_pipeline_by_id(video_pipeline_id)
+    
+    # use reusable function to update scripts
+    updated_script = update_scripts_in_pipeline(video_pipeline, script_data)
+    
+    # update database
+    await update_pipeline_in_db(video_pipeline_id, video_pipeline)
+    return updated_script
 
 
 
@@ -713,72 +579,61 @@ resolution_map = {
 }
 
 
-@router.post("/generate_video/{pipeline_id}", name="generate video")
-async def generate_video(pipeline_id: str, request: VideoGenerationRequest) -> PipelineData:
+@router.post("/{video_pipeline_id}/generate", name="generate video pipeline output")
+async def generate_video_pipeline_output(video_pipeline_id: str, request: GenerateVideoPipelineRequest) -> VideoPipeline:
     logger.info("received request to generate video")
-    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
-    if not pipeline_data:
-        raise HTTPException(status_code=404, detail="Pipeline not found")
-    pipeline_data: PipelineData = PipelineData(**pipeline_data)
-    pipeline_data.update_stage(PipelineStage.VIDEO_GENERATION, PipelineStatus.IN_PROGRESS)
-    # generate video
-    if not pipeline_data.full_audio_path:
-        raise HTTPException(status_code=500, detail="Full audio path not found")
-    if not pipeline_data.full_audio_duration:
-        raise HTTPException(status_code=500, detail="Full audio duration not found")
-    # generate video
-    video_dir = os.path.join(config.get('output.temp_directory', 'temp'), pipeline_data.path_id, 'video')
-    os.makedirs(video_dir, exist_ok=True)
-    video_path = os.path.join(video_dir, f"video_{datetime.now().strftime('%Y%m%d%H%M%S')}.mp4")
-    script_data = pipeline_data.script_data
-    video_gen = VideoGenerator(config=config,
-                               video_title=request.title,
-                               subtitle=request.subtitle,
-                               resolution=resolution_map[request.resolution],
-                               fps=request.fps,
-                               title_duration=request.title_duration,
-                               end_duration=request.end_duration,
-                               transition_duration=request.transition_duration,
-                               background_type=request.background_type)
-    generated_video_path = video_gen.generate_video(script_data, video_path)
-    pipeline_data.video_path = generated_video_path
-    pipeline_data.update_stage(PipelineStage.VIDEO_GENERATION, PipelineStatus.COMPLETED)
-    await pipelines_collection.update_one(
-        {"_id": ObjectId(pipeline_id)},
-        {"$set": pipeline_data.model_dump(mode="json")}
+    video_pipeline = await get_pipeline_by_id(video_pipeline_id)
+    
+    # use modular operation to generate video
+    video_pipeline = generate_video(
+        video_pipeline,
+        title=request.title,
+        subtitle=request.subtitle,
+        resolution=resolution_map[request.resolution],
+        fps=request.fps,
+        title_duration=request.title_duration,
+        end_duration=request.end_duration,
+        transition_duration=request.transition_duration,
+        background_type=request.background_type
     )
-    logger.info(f"video generated successfully: {generated_video_path}")
-    return pipeline_data
+    
+    # save to database
+    await update_pipeline_in_db(video_pipeline_id, video_pipeline)
+    logger.info(f"video generated successfully: {video_pipeline.video_path}")
+    return video_pipeline
 
 
-@router.put("/update_video_segment_background/{pipeline_id}", name="update video segment background")
-async def update_video_segment_background(pipeline_id: str, index: int, background: VideoSegmentBackground) -> VideoOutline:
+@router.put("/{video_pipeline_id}/segments/{index}/background", name="update video pipeline segment background")
+async def update_video_pipeline_segment_background(video_pipeline_id: str, index: int, background: VideoPipelineSegmentBackground) -> VideoPipelineOutline:
     logger.info("received request to update video segment background")
-    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
-    if not pipeline_data:
-        raise HTTPException(status_code=404, detail="Pipeline not found")
-    pipeline_data: PipelineData = PipelineData(**pipeline_data)
-    pipeline_data.video_outline.segments[index].background_colors = background.colors
-    pipeline_data.video_outline.segments[index].background_type = background.type
-    pipeline_data.video_outline.segments[index].background_image_path = background.image_path
-    await pipelines_collection.update_one(
-        {"_id": ObjectId(pipeline_id)},
-        {"$set": pipeline_data.model_dump(mode="json")}
+    video_pipeline = await get_pipeline_by_id(video_pipeline_id)
+    
+    # Use reusable function to update segment background
+    update_segment_background(
+        video_pipeline,
+        index,
+        background_colors=background.colors,
+        background_type=background.type,
+        background_image_path=background.image_path
     )
-    logger.info(f"video segment background updated successfully: {pipeline_data.video_outline.segments[index].background_colors}, {pipeline_data.video_outline.segments[index].background_type}, {pipeline_data.video_outline.segments[index].background_image_path}")
-    return pipeline_data.video_outline
+    
+    # update database
+    await update_pipeline_in_db(video_pipeline_id, video_pipeline)
+    
+    if not video_pipeline.video_outline:
+        raise HTTPException(status_code=404, detail="Video outline not found")
+    
+    logger.info(f"video segment background updated successfully: {background.colors}, {background.type}, {background.image_path}")
+    return video_pipeline.video_outline
 
 
-async def regenerate_audio_for_pipeline_segments(pipeline_id: str, provider: Optional[str] = 'elevenlabs') -> PipelineData:
+async def regenerate_video_pipeline_segment_audio(video_pipeline_id: str, provider: Optional[str] = 'elevenlabs') -> VideoPipeline:
     logger.info("received request to regenerate audio for pipeline segments")
-    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
-    if not pipeline_data:
-        raise HTTPException(status_code=404, detail="Pipeline not found")
-    pipeline_data: PipelineData = PipelineData(**pipeline_data)
-    script_data = pipeline_data.script_data
+    video_pipeline = await get_pipeline_by_id(video_pipeline_id)
+    script_data = video_pipeline.script_data
     if not script_data:
         raise HTTPException(status_code=500, detail="Script data not found")
-    output_dir = os.path.join(config.get('output.temp_directory', 'temp'), pipeline_data.path_id, 'audio')
+    output_dir = os.path.join(config.get('output.temp_directory', 'temp'), video_pipeline.path_id, 'audio')
     os.makedirs(output_dir, exist_ok=True)
     voiceover_gen = VoiceoverGenerator(
         provider=provider,
@@ -786,38 +641,32 @@ async def regenerate_audio_for_pipeline_segments(pipeline_id: str, provider: Opt
         voice_id=config.get('voiceover.voice_id'),
         output_dir=output_dir
     )
-    script_data_with_audio: ScriptData = voiceover_gen.generate_voiceovers(script_data)
-    pipeline_data.script_data = script_data_with_audio
+    script_data_with_audio: VideoPipelineScript = voiceover_gen.generate_voiceovers(script_data)
+    video_pipeline.script_data = script_data_with_audio
     logger.info(f"generated voiceovers for {len(script_data_with_audio.segments)} segments")
     # generate combined audio
     combined_audio_path = os.path.join(output_dir, 'full_voiceover.mp3')
     total_duration = voiceover_gen.generate_full_audio(script_data_with_audio, combined_audio_path)
-    pipeline_data.full_audio_path = combined_audio_path
-    pipeline_data.full_audio_duration = total_duration
+    video_pipeline.full_audio_path = combined_audio_path
+    video_pipeline.full_audio_duration = total_duration
     logger.info(f"combined audio generated: {combined_audio_path} ({total_duration:.1f}s)")
-    # update pipeline data
-    await pipelines_collection.update_one(
-        {"_id": ObjectId(pipeline_id)},
-        {"$set": pipeline_data.model_dump(mode="json")}
-    )
-    logger.info(f"audio regenerated successfully. pipeline ID: {pipeline_data.id}")
-    return pipeline_data
+    # update database using helper function
+    await update_pipeline_in_db(video_pipeline_id, video_pipeline)
+    logger.info(f"audio regenerated successfully. pipeline ID: {video_pipeline.id}")
+    return video_pipeline
 
-@router.get("/download_video/{pipeline_id}", name="download video")
-async def download_video(pipeline_id: str) -> FileResponse:
+@router.get("/{video_pipeline_id}/output/download", name="download video pipeline output")
+async def download_video_pipeline_output(video_pipeline_id: str) -> FileResponse:
     logger.info("received request to download video")
-    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
-    if not pipeline_data:
-        raise HTTPException(status_code=404, detail="Pipeline not found")
-    pipeline_data: PipelineData = PipelineData(**pipeline_data)
-    video_path = pipeline_data.video_path
+    video_pipeline = await get_pipeline_by_id(video_pipeline_id)
+    video_path = video_pipeline.video_path
     if not video_path:
         raise HTTPException(status_code=500, detail="Video path not found")
-    
+
     return FileResponse(
         path=video_path,
         media_type='video/mp4',
-        filename=f"{pipeline_data.script_data.title}-{datetime.now().strftime('%Y%m%d%H%M%S')}.mp4"
+        filename=f"{video_pipeline.script_data.title}-{datetime.now().strftime('%Y%m%d%H%M%S')}.mp4"
     )
 
 def parse_range_header(range_header: str, file_size: int) -> Tuple[int, int]:
@@ -829,19 +678,16 @@ def parse_range_header(range_header: str, file_size: int) -> Tuple[int, int]:
     end = int(byte_range.group(2)) if byte_range.group(2) else file_size - 1
     return start, end
 
-@router.get("/stream_video/{pipeline_id}", name="stream video")
-async def stream_video(pipeline_id: str, request: Request) -> StreamingResponse:
+@router.get("/{video_pipeline_id}/output/stream", name="stream video pipeline output")
+async def stream_video_pipeline_output(video_pipeline_id: str, request: Request) -> StreamingResponse:
     logger.info("received request to stream video")
-    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
-    if not pipeline_data:
-        raise HTTPException(status_code=404, detail="Pipeline not found")
-    pipeline_data: PipelineData = PipelineData(**pipeline_data)
-    video_path = pipeline_data.video_path
+    video_pipeline = await get_pipeline_by_id(video_pipeline_id)
+    video_path = video_pipeline.video_path
     if not video_path:
         raise HTTPException(status_code=500, detail="Video path not found")
     file_size = os.path.getsize(video_path)
     range_header = request.headers.get('range')
-    
+
     if not range_header:
         start = 0
         end = int(0.9 * file_size)
@@ -850,7 +696,7 @@ async def stream_video(pipeline_id: str, request: Request) -> StreamingResponse:
     content_length = end - start + 1
 
     def iter_video_file():
-        """ 
+        """
         generator to stream file in chunks
         """
         with open(video_path, 'rb') as f:
@@ -874,39 +720,36 @@ async def stream_video(pipeline_id: str, request: Request) -> StreamingResponse:
         }
     )
 
-@router.post("/add_pipeline_review/{pipeline_id}", name="add pipeline review")
-async def add_pipeline_review(pipeline_id: str, request: PipelineReviewRequest) -> PipelineData:
+@router.post("/{video_pipeline_id}/review", name="add video pipeline review")
+async def add_video_pipeline_review(video_pipeline_id: str, request: VideoPipelineReviewRequest) -> VideoPipeline:
     logger.info("received request to add pipeline review")
-    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
-    if not pipeline_data:
-        raise HTTPException(status_code=404, detail="Pipeline not found")
-    pipeline_data: PipelineData = PipelineData(**pipeline_data)
-    pipeline_data.rating = request.rating
-    pipeline_data.feedback = request.feedback
-    await pipelines_collection.update_one(
-        {"_id": ObjectId(pipeline_id)},
-        {"$set": pipeline_data.model_dump(mode="json")}
-    )
-    logger.info(f"pipeline review added successfully: {pipeline_data.rating}, {pipeline_data.feedback}")
-    return pipeline_data
+    video_pipeline = await get_pipeline_by_id(video_pipeline_id)
+    
+    if request.rating is not None:
+        video_pipeline.rating = request.rating
+    if request.feedback is not None:
+        video_pipeline.feedback = request.feedback
+    
+    # update database
+    await update_pipeline_in_db(video_pipeline_id, video_pipeline)
+    
+    logger.info(f"pipeline review added successfully: {video_pipeline.rating}, {video_pipeline.feedback}")
+    return video_pipeline
 
-@router.websocket("/pipeline_state_socket/{pipeline_id}/ws", name="pipeline state socket")
-async def pipeline_state_socket(pipeline_id: str, websocket: WebSocket) -> PipelineData:
+@router.websocket("/{video_pipeline_id}/ws", name="video pipeline state socket")
+async def video_pipeline_state_socket(video_pipeline_id: str, websocket: WebSocket) -> VideoPipeline:
     logger.info("received request to connect to pipeline state socket")
-    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
-    if not pipeline_data:
-        raise HTTPException(status_code=404, detail="Pipeline not found")
-    pipeline_data: PipelineData = PipelineData(**pipeline_data)
+    video_pipeline = await get_pipeline_by_id(video_pipeline_id)
     await websocket.accept()
     while True:
         # wait for updates to the pipeline data
         await asyncio.sleep(1)
         # send updated pipeline data to the client
-        await websocket.send_json(pipeline_data.model_dump(mode="json", exclude={"user_id"}))
+        await websocket.send_json(video_pipeline.model_dump(mode="json", exclude={"user_id"}))
 
-async def run_all_pipeline_operations_background(pipeline_id: str, 
-                                                 target_segments: int, 
-                                                 segment_duration: int, 
+async def run_all_video_pipeline_operations_background(video_pipeline_id: str,
+                                                 target_segments: int,
+                                                 segment_duration: int,
                                                  provider: str,
                                                  title: Optional[str] = None,
                                                  subtitle: Optional[str] = None,
@@ -916,161 +759,56 @@ async def run_all_pipeline_operations_background(pipeline_id: str,
                                                  end_duration: Optional[float] = 3.0,
                                                  transition_duration: Optional[float] = 0.5,
                                                  background_type: Optional[BackgroundType] = BackgroundType.GRADIENT) -> None:
-    pipeline_data: Union[Dict[str, Any], None] = await pipelines_collection.find_one({"_id": ObjectId(pipeline_id)})
-    if not pipeline_data:
-        logger.error(f"pipeline not found with id: {pipeline_id}")
-        return
-    pipeline_data: PipelineData = PipelineData(**pipeline_data)
-    pipeline_data.update_stage(PipelineStage.CONTENT_ANALYSIS, PipelineStatus.IN_PROGRESS)
-    # check if openai api key is set
-    config = get_config()
-    if not config.openai_api_key:
-        logger.error("openai api key required")
-        pipeline_data.update_stage(PipelineStage.CONTENT_ANALYSIS, PipelineStatus.FAILED)
-        pipelines_collection.update_one(
-            {"_id": ObjectId(pipeline_id)},
-            {"$set": pipeline_data.model_dump(mode="json")}
-        )
-        raise HTTPException(status_code=500, detail="OpenAI API key not set")
-    # check if parsed content is set
-    if not pipeline_data.parsed_content:
-        logger.error("parsed content not found in pipeline data")
-        pipeline_data.update_stage(PipelineStage.CONTENT_ANALYSIS, PipelineStatus.FAILED)
-        await pipelines_collection.update_one(
-            {"_id": ObjectId(pipeline_id)},
-            {"$set": pipeline_data.model_dump(mode="json")}
-        )
-        raise HTTPException(status_code=500, detail="Parsed content not found")
-    # process context
-    pdf_content = pipeline_data.parsed_content
-    images_metadata = pipeline_data.images_metadata or []
-    logger.info(f"loaded {len(pdf_content.sections)} sections and {len(images_metadata)} images")
-    # process context into chunks
-    logger.info("processing context into chunks")
-    all_content = ""
-    for section in pdf_content.sections:
-        all_content += section.content
-    prompts_dir = config.get_prompts_directory()
-    chunk_length = config.get('content.chunk_length', 4000)
-
-    context_processor = ContextProcessor(
-            all_content,
-            config.openai_api_key,
-            pdf_content.title,
-            chunk_length=chunk_length,
-            split_by='\n',
-            prompts_dir=prompts_dir
-        )
-    chunks: List[ContextChunk] = context_processor.get_chunks()
-    pipeline_data.chunks = chunks
-    # store context processor information
-    pipeline_data.context_processor_info = ContextProcessorInfo(
-        document_title=pdf_content.title,
-        chunk_length=chunk_length,
-        split_by='\n',
-        total_chunks=len(chunks),
-        total_content_length=len(all_content)
-    )
-    logger.info(f"stored context processor information with total chunks: {len(chunks)} and total content length: {len(all_content)}")
-    # create video outline
-    logger.info("creating video outline")
-    analyzer = ContentAnalyzer(
-        api_key=config.openai_api_key,
+    # get pipeline using helper function
+    video_pipeline = await get_pipeline_by_id(video_pipeline_id)
+    
+    # use modular operation to process content
+    video_pipeline = process_content(
+        video_pipeline,
+        skip_stock=False,
         target_segments=target_segments,
         segment_duration=segment_duration,
-        prompts_dir=prompts_dir
+        openai_api_key=config.openai_api_key,
+        unsplash_access_key=config.unsplash_access_key,
+        pexels_api_key=config.pexels_api_key,
+        prompts_dir=config.get_prompts_directory()
     )
-    outline: VideoOutline = analyzer.analyze_content(
-        document_title=pdf_content.title,
-        chunks=chunks,
-        images_metadata=images_metadata
-    )
-    logger.info("fetching stock images")
-    stock_images_dir = os.path.join(config.get('output.temp_directory', 'temp'), pipeline_data.path_id, 'images', 'stock_images')
-    fetcher = StockImageFetcher(config.unsplash_access_key, 
-                                config.pexels_api_key, output_dir=stock_images_dir)
-    availability = fetcher.is_available()
-    if any(availability.values()):
-        preferred = config.get('images.preferred_stock_provider', 'unsplash')
-        outline.segments = fetcher.fetch_for_segments(outline.segments, preferred)
-    else:
-        logger.info("no stock image api keys available")
-    # update pipeline data
-    pipeline_data.video_outline = outline
-    pipeline_data.update_stage(PipelineStage.CONTENT_ANALYSIS, PipelineStatus.COMPLETED)
-    # save pipeline data
-    await pipelines_collection.update_one(
-        {"_id": ObjectId(pipeline_id)},
-        {"$set": pipeline_data.model_dump(mode="json")}
-    )
-    pipeline_data.update_stage(PipelineStage.SCRIPT_GENERATION, PipelineStatus.IN_PROGRESS)
-    # fetch video outline
-    video_outline = pipeline_data.video_outline
-    if not video_outline:
-        raise HTTPException(status_code=500, detail="Video outline not found")
-    # generate scripts
-    script_gen = ScriptGenerator(api_key=config.openai_api_key, prompts_dir=config.get_prompts_directory())
-    script_data: ScriptData = script_gen.generate_script(video_outline)
-    pipeline_data.script_data = script_data
-    logger.info(f"generated scripts for {len(script_data.segments)} segments")
-    # generate voiceovers
-    output_dir = os.path.join(config.get('output.temp_directory', 'temp'), pipeline_data.path_id, 'audio')
-    os.makedirs(output_dir, exist_ok=True)
-    voiceover_gen = VoiceoverGenerator(
+    
+    # save to database
+    await update_pipeline_in_db(video_pipeline_id, video_pipeline)
+    
+    # use modular operation to generate scripts
+    video_pipeline = generate_scripts(
+        video_pipeline,
         provider=provider,
-        api_key=config.elevenlabs_api_key,
+        openai_api_key=config.openai_api_key,
+        elevenlabs_api_key=config.elevenlabs_api_key,
         voice_id=config.get('voiceover.voice_id'),
-        output_dir=output_dir
+        prompts_dir=config.get_prompts_directory()
     )
-    script_data_with_audio: ScriptData = voiceover_gen.generate_voiceovers(script_data)
-    pipeline_data.script_data = script_data_with_audio
-    logger.info(f"generated voiceovers for {len(script_data_with_audio.segments)} segments")
-    # generate combined audio
-    combined_audio_path = os.path.join(output_dir, 'full_voiceover.mp3')
-    total_duration = voiceover_gen.generate_full_audio(script_data_with_audio, combined_audio_path)
-    pipeline_data.full_audio_path = combined_audio_path
-    pipeline_data.full_audio_duration = total_duration
-    logger.info(f"combined audio generated: {combined_audio_path} ({total_duration:.1f}s)")
-    # update pipeline data
-    pipeline_data.update_stage(PipelineStage.SCRIPT_GENERATION, PipelineStatus.COMPLETED)
-    await pipelines_collection.update_one(
-        {"_id": ObjectId(pipeline_id)},
-        {"$set": pipeline_data.model_dump(mode="json")}
+    
+    # save to database
+    await update_pipeline_in_db(video_pipeline_id, video_pipeline)
+    
+    # use modular operation to generate video
+    video_pipeline = generate_video(
+        video_pipeline,
+        title=title,
+        subtitle=subtitle,
+        resolution=resolution_map[resolution],
+        fps=fps,
+        title_duration=title_duration,
+        end_duration=end_duration,
+        transition_duration=transition_duration,
+        background_type=background_type
     )
-    logger.info(f"scripts and voiceovers generated. pipeline ID: {pipeline_data.id}")
+    # save to database
+    await update_pipeline_in_db(video_pipeline_id, video_pipeline)
+    logger.info(f"all pipeline operations completed successfully. pipeline id: {video_pipeline.id}")
+    return video_pipeline
 
-    pipeline_data.update_stage(PipelineStage.VIDEO_GENERATION, PipelineStatus.IN_PROGRESS)
-    # generate video
-    if not pipeline_data.full_audio_path:
-        raise HTTPException(status_code=500, detail="Full audio path not found")
-    if not pipeline_data.full_audio_duration:
-        raise HTTPException(status_code=500, detail="Full audio duration not found")
-    # generate video
-    video_dir = os.path.join(config.get('output.temp_directory', 'temp'), pipeline_data.path_id, 'video')
-    os.makedirs(video_dir, exist_ok=True)
-    video_path = os.path.join(video_dir, f"video_{datetime.now().strftime('%Y%m%d%H%M%S')}.mp4")
-    script_data = pipeline_data.script_data
-    video_gen = VideoGenerator(config=config,
-                               video_title=title,
-                               subtitle=subtitle,
-                               resolution=resolution_map[resolution],
-                               fps=fps,
-                               title_duration=title_duration,
-                               end_duration=end_duration,
-                               transition_duration=transition_duration,
-                               background_type=background_type)
-    generated_video_path = video_gen.generate_video(script_data, video_path)
-    pipeline_data.video_path = generated_video_path
-    pipeline_data.update_stage(PipelineStage.VIDEO_GENERATION, PipelineStatus.COMPLETED)
-    await pipelines_collection.update_one(
-        {"_id": ObjectId(pipeline_id)},
-        {"$set": pipeline_data.model_dump(mode="json")}
-    )
-    logger.info(f"video generated successfully: {generated_video_path}")
-    return pipeline_data
-
-async def run_all_pipeline_operations(request: RunAllPipelineOperationsRequest, 
-                                      background_tasks: BackgroundTasks) -> PipelineData:
+async def run_all_video_pipeline_operations(request: RunVideoPipelineOperationsRequest,
+                                      background_tasks: BackgroundTasks) -> VideoPipelineSummary:
     logger.info("received request to start pipeline with url")
     if not request.url.startswith("http"):
         raise HTTPException(status_code=400, detail="Invalid URL must start with http or https")
@@ -1082,64 +820,55 @@ async def run_all_pipeline_operations(request: RunAllPipelineOperationsRequest,
             raise HTTPException(status_code=400, detail=f"Failed to download file from url: {request.url} with status code: {response.status_code}")
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=400, detail=f"Failed to download file from url: {request.url} with error: {str(e)}")
-    
+
     logger.info("creating pipeline data object")
-    pipeline_data = PipelineData()
-    pipeline_data.name = request.name
-    pipeline_data.description = request.description
-    pipeline_data.tags = request.tags or []
-    pipeline_data.projects = request.projects or []
-    pipeline_data.source_type = SourceType.HTML
-    pipeline_data.update_stage(PipelineStage.DOCUMENT_PROCESSING, 
-                               PipelineStatus.IN_PROGRESS)
-    
-    
+    video_pipeline = VideoPipeline()
+    video_pipeline.name = request.name
+    video_pipeline.description = request.description
+    video_pipeline.tags = request.tags or []
+    video_pipeline.projects = request.projects or []
+    video_pipeline.source_type = SourceType.HTML
+    video_pipeline.update_stage(VideoPipelineStage.DOCUMENT_PROCESSING,
+                               VideoPipelineStatus.IN_PROGRESS)
+
+
     logger.info("pipeline data object created")
     # create temp directory for metadata
     temp_dir = config.get('output.temp_directory', 'temp')
-    images_dir = os.path.join(temp_dir, pipeline_data.id, 'images')
+    images_dir = os.path.join(temp_dir, video_pipeline.id, 'images')
     Path(images_dir).mkdir(parents=True, exist_ok=True)
     logger.info(f"created temp directory for metadata: {images_dir}")
     # save file to temp directory
-    with open(os.path.join(temp_dir, pipeline_data.id, 'data.html'), 'wb') as f:
+    with open(os.path.join(temp_dir, video_pipeline.id, 'data.html'), 'wb') as f:
         f.write(response.content)
-    logger.info(f"saved file to temp directory: {os.path.join(temp_dir, pipeline_data.id, 'data.html')}")
-    pipeline_data.source_path = os.path.join(temp_dir, pipeline_data.id, 'data.html')
-    
-   # process html file
-    with HTMLProcessor(html_path=request.url, images_output_dir=images_dir) as processor:
-        content: ParsedContent = processor.extract_structured_content()
-        pipeline_data.parsed_content = content
+    logger.info(f"saved file to temp directory: {os.path.join(temp_dir, video_pipeline.id, 'data.html')}")
+    video_pipeline.source_path = os.path.join(temp_dir, video_pipeline.id, 'data.html')
 
-        # logging content info
-        logger.info(f"title: {content.title}")
-        logger.info(f"total pages: {content.total_pages}")
-        logger.info(f"sections: {len(content.sections)}")
-
-         # extract and label images if requested
-        logger.info("labeling images")
-        processor.label_images(config.openai_api_key, config.get_prompts_directory())
-        pipeline_data.images_metadata = processor.images_metadata
-        logger.info(f"labeled {len(processor.images_metadata)} images")
-    
-    pipeline_data.update_stage(PipelineStage.DOCUMENT_PROCESSING, PipelineStatus.COMPLETED)
+    # process HTML document using modular operation
+    video_pipeline = process_html_document(
+        video_pipeline,
+        html_path=request.url,
+        extract_images=True,
+        openai_api_key=config.openai_api_key,
+        prompts_dir=config.get_prompts_directory()
+    )
 
     # save pipeline data to database
     logger.info("saving pipeline data to database")
-    pipeline_data.path_id = pipeline_data.id
-    db_pipeline = await pipelines_collection.insert_one(pipeline_data.model_dump(mode="json"))
-    pipeline_data.id = str(db_pipeline.inserted_id)
-    logger.info(f"pipeline data saved to database with id: {pipeline_data.id}")
+    video_pipeline.path_id = video_pipeline.id
+    db_pipeline = await video_pipelines_collection.insert_one(video_pipeline.model_dump(mode="json"))
+    video_pipeline.id = str(db_pipeline.inserted_id)
+    logger.info(f"pipeline data saved to database with id: {video_pipeline.id}")
     # we have to update the id to the actual id because the id is generated by mongodb and not by us
-    await pipelines_collection.update_one(
-            {"_id": ObjectId(db_pipeline.inserted_id)}, 
-            {"$set": {"id": pipeline_data.id}}
+    await video_pipelines_collection.update_one(
+            {"_id": ObjectId(db_pipeline.inserted_id)},
+            {"$set": {"id": video_pipeline.id}}
         )
-    background_tasks.add_task(run_all_pipeline_operations_background, pipeline_data.id, 
-                              request.target_segments, 
-                              request.segment_duration, 
-                              request.provider, 
-                              request.title, request.subtitle, request.resolution, 
-                              request.fps, request.title_duration, request.end_duration, 
+    background_tasks.add_task(run_all_video_pipeline_operations_background, video_pipeline.id,
+                              request.target_segments,
+                              request.segment_duration,
+                              request.provider,
+                              request.title, request.subtitle, request.resolution,
+                              request.fps, request.title_duration, request.end_duration,
                               request.transition_duration, request.background_type)
-    return SummaryPipelineDataResponse(**pipeline_data.model_dump(mode="json"))
+    return VideoPipelineSummary(**video_pipeline.model_dump(mode="json"))

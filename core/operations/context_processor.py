@@ -8,7 +8,8 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from openai import OpenAI
 from utils.logger import get_logger
-from core.data.pipeline import ContextChunk
+from utils.config_loader import get_config
+from core.data import VideoPipelineContextChunk
 logger = get_logger(__name__)
 
 
@@ -45,7 +46,6 @@ class ContextProcessor:
         
         # initialize jinja2 environment for prompt templates
         if prompts_dir is None:
-            from utils.config_loader import get_config
             config = get_config()
             prompts_dir = config.get_prompts_directory()
         
@@ -100,16 +100,16 @@ class ContextProcessor:
             chunks.append(current_chunk)
         return chunks
     
-    def get_chunks(self) -> List[ContextChunk]:
+    def get_chunks(self) -> List[VideoPipelineContextChunk]:
         """
         get the chunks of the context with summaries.
         returns:
-            list of ContextChunk objects
+            list of VideoPipelineContextChunk objects
         """
         chunks: List[str] = self._split_context()
-        data: List[ContextChunk] = []
+        data: List[VideoPipelineContextChunk] = []
         for chunk in chunks:
             summary: str = self._generate_summary(chunk)
-            data.append(ContextChunk(chunk=chunk, summary=summary))
+            data.append(VideoPipelineContextChunk(chunk=chunk, summary=summary))
         return data
 

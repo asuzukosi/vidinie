@@ -1,10 +1,8 @@
 from pydantic import BaseModel, Field
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Dict
 from datetime import datetime
-from core.data.pipeline import SourceType
+from core.data import SourceType, BackgroundType, VideoPipelineContentMetadata
 from enum import Enum
-
-from core.data.pipeline import BackgroundType, PipelineStageStatistics, ParsedContentMetadata
 
 class VideoResolution(str, Enum):
     """video resolution."""
@@ -13,26 +11,26 @@ class VideoResolution(str, Enum):
     RESOLUTION_720P = "720P"
     RESOLUTION_480P = "480P"
 
-class StartPipelineRequest(BaseModel):
+class CreateVideoPipelineRequest(BaseModel):
     url: str
     name: str
     description: str
     tags: Optional[List[str]] = None
     projects: Optional[List[str]] = None
 
-class SummaryPipelineDataResponse(BaseModel):
+class VideoPipelineSummary(BaseModel):
     # identification
     id: str
     path_id: Optional[str] = None # id used by mongodb for internal use
     name: str = Field(default="")
     description: str = Field(default="")
-    tags: List[str] = Field(default_factory=list, nullable=True)  # tags of the pipeline
-    projects: List[str] = Field(default_factory=list, nullable=True)  # projects of the pipeline
-    
+    tags: List[str] = Field(default_factory=list, nullable=True)  # tags of the video pipeline
+    projects: List[str] = Field(default_factory=list, nullable=True)  # projects of the video pipeline
+
     # timing information
     updated_at: str = Field(default_factory=lambda: datetime.now().isoformat())
     created_at: str = Field(default_factory=lambda: datetime.now().isoformat())
-    
+
     #stage information
     current_stage: str = Field(default="")
     status: str  = Field(default="")
@@ -40,18 +38,18 @@ class SummaryPipelineDataResponse(BaseModel):
     source_path: Optional[str] = None
     source_type: Optional[SourceType] = None
 
-class DeletePipelineResponse(BaseModel):
-    pipeline_id: str
+class DeleteVideoPipelineResponse(BaseModel):
+    video_pipeline_id: str
     message: str
 
-class PipelineStageDetails(BaseModel):
+class VideoPipelineStageDetails(BaseModel):
     stage: str
     status: str
     next_stage: str
     previous_stage: str
-    stage_statistics: PipelineStageStatistics
+    stage_statuses: Optional[Dict[str, str]] = None
 
-class UpdatePipelineImageMetadataRequest(BaseModel):
+class UpdateVideoPipelineImageRequest(BaseModel):
     index: int
     filename: Optional[str] = None
     text_context: Optional[str] = None
@@ -62,30 +60,30 @@ class UpdatePipelineImageMetadataRequest(BaseModel):
     key_elements: Optional[List[str]] = None
     ai_relevance: Optional[str] = None
 
-class DeletePipelineImageResponse(BaseModel):
-    pipeline_id: str
+class DeleteVideoPipelineImageResponse(BaseModel):
+    video_pipeline_id: str
     filename: str
     message: str
     path_id: Optional[str] = None
 
-class ParsedContentDataMinimal(BaseModel):
+class VideoPipelineContentMinimal(BaseModel):
     title: Optional[str] = None
     total_pages: Optional[int] = None
     num_sections: Optional[int] = None
-    metadata: Optional[ParsedContentMetadata] = None
+    metadata: Optional[VideoPipelineContentMetadata] = None
 
-class DeletePipelineSectionResponse(BaseModel):
-    pipeline_id: str
+class DeleteVideoPipelineSectionResponse(BaseModel):
+    video_pipeline_id: str
     index: int
     message: str
     title: Optional[str] = None
 
-class CreateVideoOutlineRequest(BaseModel):
+class CreateVideoPipelineOutlineRequest(BaseModel):
     skip_stock: bool = False
     target_segments: int = 7
     segment_duration: int = 45
 
-class VideoGenerationRequest(BaseModel):
+class GenerateVideoPipelineRequest(BaseModel):
     title: Optional[str] = None
     subtitle: Optional[str] = None
     resolution: Optional[VideoResolution] = VideoResolution.RESOLUTION_720P
@@ -96,16 +94,16 @@ class VideoGenerationRequest(BaseModel):
     background_type: Optional[BackgroundType] = BackgroundType.GRADIENT
 
 
-class VideoSegmentBackground(BaseModel):
+class VideoPipelineSegmentBackground(BaseModel):
     colors: Optional[List[Tuple[int, int, int]]] = None
     type: Optional[BackgroundType] = BackgroundType.GRADIENT
     image_path: Optional[str] = None
 
-class PipelineReviewRequest(BaseModel):
+class VideoPipelineReviewRequest(BaseModel):
     rating: Optional[int] = None
     feedback: Optional[str] = None
 
-class RunAllPipelineOperationsRequest(BaseModel):
+class RunVideoPipelineOperationsRequest(BaseModel):
     url: str
     name: str
     description: str

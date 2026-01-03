@@ -2,6 +2,7 @@
 
 import { Search } from "lucide-react";
 import * as React from "react";
+import { useRouter } from "next/navigation";
 
 import {
   CommandDialog,
@@ -10,7 +11,6 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-  CommandSeparator,
 } from "@/components/ui/command";
 import { SidebarHeader } from "@/components/ui/sidebar";
 import { useEffect } from "react";
@@ -22,6 +22,7 @@ interface NavHeaderProps {
 
 export function NavHeader({ navItems }: NavHeaderProps) {
   const [open, setOpen] = React.useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -66,6 +67,9 @@ export function NavHeader({ navItems }: NavHeaderProps) {
                 key={item.id}
                 onSelect={() => {
                   setOpen(false);
+                  if (item.url) {
+                    router.push(item.url);
+                  }
                 }}
               >
                 <item.icon className="mr-2 h-4 w-4" />

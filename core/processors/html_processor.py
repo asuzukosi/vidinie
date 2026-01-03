@@ -16,8 +16,14 @@ from PIL import Image
 import requests
 from utils.logger import get_logger
 from datetime import datetime
-from core.processors.document_processor import DocumentProcessor
-from core.data.pipeline import ImageMetadata, ParsedContent, ParsedContentMetadata, ParsedContentSection
+from core.processors.base import DocumentProcessor
+from core.data import (
+    VideoPipelineImageMetadata,
+    VideoPipelineParsedContent,
+    VideoPipelineContentMetadata,
+    VideoPipelineContentSection,
+    VideoPipelineImageStats,
+)
 from core.operations.image_labeler import ImageLabeler
 
 logger = get_logger('html_processor')
@@ -42,7 +48,7 @@ class HTMLProcessor(DocumentProcessor):
         self.images_output_dir: str = images_output_dir
         self.soup = None
         self.html_content: str = None
-        self.images_metadata: List[ImageMetadata] = []
+        self.images_metadata: List[VideoPipelineImageMetadata] = []
         self.is_url = html_path.startswith(('http://', 'https://'))
         # create output directory for images
         Path(images_output_dir).mkdir(parents=True, exist_ok=True)
@@ -91,7 +97,7 @@ class HTMLProcessor(DocumentProcessor):
         logger.info("exxtracted text from html document")
         return text
     
-    def extract_structured_content(self) -> ParsedContent:
+    def extract_structured_content(self) -> VideoPipelineParsedContent:
         """
         extract text with structure information (headings, paragraphs, sections).
         returns:
@@ -102,15 +108,15 @@ class HTMLProcessor(DocumentProcessor):
         # extract title
         title = self._extract_title()
         # extract sections based on headings
-        sections: List[ParsedContentSection] = self._extract_sections()
+        sections: List[VideoPipelineContentSection] = self._extract_sections()
         # count "pages" (approximate by major sections)
         total_sections = len([s for s in sections if s.level == 1])
         
-        structured_content = ParsedContent()
+        structured_content = VideoPipelineParsedContent()
         structured_content.title = title
         structured_content.sections = sections
         structured_content.total_pages = max(total_sections, 1)
-        structured_content.metadata = ParsedContentMetadata(
+        structured_content.metadata = VideoPipelineContentMetadata(
             title=title,
             creator="html processor",
             producer="html processor",
@@ -142,13 +148,13 @@ class HTMLProcessor(DocumentProcessor):
         
         return "untitled document"
     
-    def _extract_sections(self) -> List[ParsedContentSection]:
+    def _extract_sections(self) -> List[VideoPipelineContentSection]:
         """
         extract sections from html based on heading tags.
         returns:
             list of sections with title and content
         """
-        sections: List[ParsedContentSection] = []
+        sections: List[VideoPipelineContentSection] = []
         current_section = None
         
         # find all heading and content elements
@@ -164,7 +170,7 @@ class HTMLProcessor(DocumentProcessor):
                 # start new section
                 level = int(tag_name[1])  # h1 -> 1, h2 -> 2, etc.
                 title = element.get_text().strip()
-                current_section = ParsedContentSection()
+                current_section = VideoPipelineContentSection()
                 current_section.title = title if title else "untitled section"
                 current_section.content = ""
                 current_section.level = level
@@ -180,7 +186,7 @@ class HTMLProcessor(DocumentProcessor):
         # if no sections found, create one with all content
         if not sections:
             text = self.extract_text()
-            sections.append(ParsedContentSection(
+            sections.append(VideoPipelineContentSection(
                 title="content",
                 content=text,
                 level=1
@@ -189,7 +195,7 @@ class HTMLProcessor(DocumentProcessor):
         logger.info(f"identified {len(sections)} sections")
         return sections
     
-    def extract_images(self, min_width: int = 100, min_height: int = 100) -> List[ImageMetadata]:
+    def extract_images(self, min_width: int = 100, min_height: int = 100) -> List[VideoPipelineImageMetadata]:
         """
         extract all images from the html document.
         args:
@@ -263,7 +269,7 @@ class HTMLProcessor(DocumentProcessor):
                 alt_text = img_tag.get('alt', '')
                 text_context = self._extract_text_context(img_tag)
                 # store metadata
-                image_metadata = ImageMetadata(
+                image_metadata = VideoPipelineImageMetadata(
                     filename=filename,
                     filepath=filepath,
                     page_number=1,  # html doesn't have pages, use 1
@@ -330,33 +336,34 @@ class HTMLProcessor(DocumentProcessor):
         # log saved metadata
         logger.info(f"Saved metadata to {metadata_path}")
         
-    def get_image_stats(self) -> Dict:
+    def get_image_stats(self) -> VideoPipelineImageStats:
         """
         get statistics about extracted images.
         returns:
-            dictionary with image statistics
+            VideoPipelineImageStats object with image statistics
         """
         if not self.images_metadata:
-            return {
-                "total_images": 0,
-                "average_size": 0,
-                "formats": {},
-                "pages_with_images": 0
-            }
+            return VideoPipelineImageStats(
+                total_images=0,
+                average_size=0,
+                total_size=0,
+                formats={},
+                pages_with_images=0
+            )
         
-        total_size = sum(img.size_bytes for img in self.images_metadata)
-        formats = {}
+        total_size = sum(img.size_bytes or 0 for img in self.images_metadata)
+        formats: Dict[str, int] = {}
         for img in self.images_metadata:
             fmt = img.format or 'unknown'
             formats[fmt] = formats.get(fmt, 0) + 1
         
-        return {
-            "total_images": len(self.images_metadata),
-            "average_size": total_size // len(self.images_metadata) if self.images_metadata else 0,
-            "total_size": total_size,
-            "formats": formats,
-            "pages_with_images": 1 if self.images_metadata else 0  # HTML is single "page"
-        }
+        return VideoPipelineImageStats(
+            total_images=len(self.images_metadata),
+            average_size=total_size // len(self.images_metadata) if self.images_metadata else 0,
+            total_size=total_size,
+            formats=formats,
+            pages_with_images=1 if self.images_metadata else 0  # HTML is single "page"
+        )
 
 
     def label_images(self, openai_api_key: str, prompts_dir: str):
@@ -365,7 +372,7 @@ class HTMLProcessor(DocumentProcessor):
         
         if images_metadata:
             stats = self.get_image_stats()
-            logger.info(f"extracted {stats['total_images']} images")
+            logger.info(f"extracted {stats.total_images} images")
             
             # label images with ai if api key is available
             if openai_api_key:

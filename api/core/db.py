@@ -10,4 +10,5 @@ db_client = motor.motor_asyncio.AsyncIOMotorClient(MONGODB_URI)
 database = db_client["vidinie"]
 
 users_collection = database["users"]
-pipelines_collection = database["pipelines"]
+video_pipelines_collection = database["video_pipelines"]
+payment_methods_collection = database["payment_methods"]

@@ -1,4 +1,4 @@
-import Checkout from '@/components/Checkout';
+import Checkout from '@/components/utils/Checkout';
 
 export default function PricingPage() {
   return (

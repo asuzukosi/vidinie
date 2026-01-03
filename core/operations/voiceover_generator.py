@@ -11,7 +11,7 @@ from pathlib import Path
 from utils.logger import get_logger
 from elevenlabs import save
 from pydub import AudioSegment
-from core.data.pipeline import ScriptData
+from core.data import VideoPipelineScript
 
 
 logger = get_logger(__name__)
@@ -80,7 +80,7 @@ class VoiceoverGenerator:
             logger.error("gtts package not installed. install with: pip install gtts")
             raise
     
-    def generate_voiceovers(self, script_data: ScriptData) -> ScriptData:
+    def generate_voiceovers(self, script_data: VideoPipelineScript) -> VideoPipelineScript:
         """
         generate voiceover audio for all segments.
         args:
@@ -194,7 +194,7 @@ class VoiceoverGenerator:
             logger.error(f"Error generating gTTS audio: {str(e)}")
             raise
     
-    def generate_full_audio(self, script_data: ScriptData, output_path: str) -> float:
+    def generate_full_audio(self, script_data: VideoPipelineScript, output_path: str) -> float:
         """
         generate a single audio file combining all segments.
         args:
@@ -218,7 +218,7 @@ class VoiceoverGenerator:
         logger.info(f"combined audio generated: {output_path} ({duration:.1f}s)")
         return duration
     
-    def save_metadata(self, script_data: ScriptData, output_path: str):
+    def save_metadata(self, script_data: VideoPipelineScript, output_path: str):
         """
         save script data with audio metadata.
         args:

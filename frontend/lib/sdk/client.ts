@@ -1,26 +1,70 @@
-import { ContextChunk, CreateVideoOutlineRequest, DeletePipelineImageResponse, DeletePipelineResponse, DeletePipelineSectionResponse, ImageMetadata,
-        ParsedContentDataMinimal, ParsedContentSection, PipelineData, PipelineReviewRequest, PipelineStageDetails,
-        ScriptData,
-        StartPipelineRequest, SummaryPipelineDataResponse, UpdatePipelineImageMetadataRequest, 
-        VideoGenerationRequest, 
-        VideoOutline, VideoSegment,
-        VideoSegmentBackground} from "./types";
+import { VideoPipelineContextChunk, CreateVideoPipelineOutlineRequest, DeleteVideoPipelineImageResponse, DeleteVideoPipelineResponse, DeleteVideoPipelineSectionResponse, VideoPipelineImageMetadata,
+        VideoPipelineContentMinimal, VideoPipelineContentSection, VideoPipeline, VideoPipelineReviewRequest, VideoPipelineStageDetails,
+        VideoPipelineScript,
+        CreateVideoPipelineRequest, VideoPipelineSummary, UpdateVideoPipelineImageRequest,
+        GenerateVideoPipelineRequest,
+        VideoPipelineOutline, VideoPipelineSegment,
+        VideoPipelineSegmentBackground, LoginResponse, RegisterResponse, User,
+        PaymentMethod, CreatePaymentMethodRequest, UpdatePaymentMethodRequest} from "./types";
+import frontendClient from "@/lib/api/client";
 
 export class VidinieAPIClient {
     private baseUrl: string;
-    private apiKey: string;
+    private token: string | null = null;
 
-    constructor(baseUrl: string, apiKey: string) {
+    constructor(baseUrl: string) {
         this.baseUrl = baseUrl;
-        this.apiKey = apiKey;
     }
 
-    async setAPIKey(apiKey: string) {
-        this.apiKey = apiKey;
+    setToken(token: string | null): void {
+        this.token = token;
+        // Also set token on frontend client to keep them in sync
+        frontendClient.setToken(token);
     }
 
-    async getAPIKey() {
-        return this.apiKey;
+    private getTokenFromMemory(): string | null {
+        return this.token;
+    }
+
+    private getAuthHeader(): string | null {
+        const token = this.getTokenFromMemory();
+        return token ? `Bearer ${token}` : null;
+    }
+
+    private getAuthHeaders(additionalHeaders: Record<string, string> = {}): Record<string, string> {
+        const authHeader = this.getAuthHeader();
+        if (!authHeader) {
+            throw new Error('Not authenticated. Please log in.');
+        }
+        return {
+            'Authorization': authHeader,
+            ...additionalHeaders,
+        };
+    }
+
+    /**
+     * Handles API response and checks for errors
+     * Throws error if response is not successful to prevent data from being passed forward
+     * Components should handle toast notifications individually
+     */
+    private async handleResponse<T>(response: Response, operationName: string): Promise<T> {
+        if (!response.ok) {
+            let errorMessage = `Operation failed: ${operationName}`;
+            
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.detail || errorData.error || errorData.message || errorMessage;
+            } catch {
+                // If response is not JSON, use status text
+                errorMessage = response.statusText || errorMessage;
+            }
+
+            // Throw error to prevent data from being passed forward
+            // Components should catch this and show toast notifications as needed
+            throw new Error(errorMessage);
+        }
+
+        return await response.json() as T;
     }
 
     async getBaseUrl() {
@@ -31,13 +75,13 @@ export class VidinieAPIClient {
         return this;
     }
 
-    async startPipelineWithFile(
+    async createVideoPipelineFromFile(
         name: string,
         description: string,
         tags: string[],
         projects: string[],
         file: File
-    ): Promise<SummaryPipelineDataResponse> {
+    ): Promise<VideoPipelineSummary> {
         const formData = new FormData();
         formData.append('name', name);
         formData.append('description', description);
@@ -45,384 +89,334 @@ export class VidinieAPIClient {
         projects.forEach(project => formData.append('projects', project));
         formData.append('file', file);
 
-        const response = await fetch(`${this.baseUrl}/pipelines/start_pipeline_with_file`, {
+        const response = await fetch(`${this.baseUrl}/video-pipelines/from-file`, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`,
-                // Note: Do not set Content-Type when using FormData; browser will set the correct boundary.
-            },
+            headers: this.getAuthHeaders(),
+            // Note: Do not set Content-Type when using FormData; browser will set the correct boundary.
             body: formData
         });
-        return response.json() as Promise<SummaryPipelineDataResponse>;
+        return this.handleResponse<VideoPipelineSummary>(response, "Create video pipeline from file");
     }
-    async startPipelieWithUrl(request: StartPipelineRequest): Promise<SummaryPipelineDataResponse> {
-        const response = await fetch(`${this.baseUrl}/pipelines/start_pipeline_with_url`, {
+    async createVideoPipelineFromUrl(request: CreateVideoPipelineRequest): Promise<VideoPipelineSummary> {
+        const response = await fetch(`${this.baseUrl}/video-pipelines/from-url`, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`,
-                'Content-Type': 'application/json'
-            },
+            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(request)
         });
-        return response.json() as Promise<SummaryPipelineDataResponse>;
+        return this.handleResponse<VideoPipelineSummary>(response, "Create video pipeline from URL");
     }
 
-    async getAllPipelines(): Promise<SummaryPipelineDataResponse[]> {
-        const response = await fetch(`${this.baseUrl}/pipelines/get_all_pipelines`, {
+    async getAllVideoPipelines(): Promise<VideoPipelineSummary[]> {
+        const response = await fetch(`${this.baseUrl}/video-pipelines/`, {
             method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`
-            }
+            headers: this.getAuthHeaders()
         });
-        return response.json() as Promise<SummaryPipelineDataResponse[]>;
+        return this.handleResponse<VideoPipelineSummary[]>(response, "Get all video pipelines");
     }
 
-    async deletePipeline(pipelineId: string): Promise<DeletePipelineResponse> {
-        const response = await fetch(`${this.baseUrl}/pipelines/delete_pipeline/${pipelineId}`, {
+    async deleteVideoPipeline(videoPipelineId: string): Promise<DeleteVideoPipelineResponse> {
+        const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}`, {
             method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`
-            }
+            headers: this.getAuthHeaders()
         });
-        return response.json() as Promise<DeletePipelineResponse>;
+        return this.handleResponse<DeleteVideoPipelineResponse>(response, "Delete video pipeline");
     }
 
-    async getPipelineDetails(pipelineId: string): Promise<PipelineData> {
-        const response = await fetch(`${this.baseUrl}/pipelines/get_pipeline_details/${pipelineId}`, {
+    async getVideoPipelineDetails(videoPipelineId: string): Promise<VideoPipeline> {
+        const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}`, {
             method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`
-            }
+            headers: this.getAuthHeaders()
         });
-        return response.json() as Promise<PipelineData>;
+        return this.handleResponse<VideoPipeline>(response, "Get video pipeline details");
     }
 
-    async getPipelineStageDetails(pipelineId: string): Promise<PipelineStageDetails> {
-        const response = await fetch(`${this.baseUrl}/pipelines/get_pipeline_stage_details/${pipelineId}`, {
+    async getVideoPipelineStageDetails(videoPipelineId: string): Promise<VideoPipelineStageDetails> {
+        const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/stages/stage`, {
             method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`
-            }
+            headers: this.getAuthHeaders()
         });
-        return response.json() as Promise<PipelineStageDetails>;
+        return this.handleResponse<VideoPipelineStageDetails>(response, "Get video pipeline stage details");
     }
 
-    async viewPipelineImages(pipelineId: string): Promise<ImageMetadata[]> {
-        const response = await fetch(`${this.baseUrl}/pipelines/view_pipeline_images/${pipelineId}`, {
+    async getVideoPipelineImages(videoPipelineId: string): Promise<VideoPipelineImageMetadata[]> {
+        const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/images`, {
             method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`
-            }
+            headers: this.getAuthHeaders()
         });
-        return response.json() as Promise<ImageMetadata[]>;
+        return this.handleResponse<VideoPipelineImageMetadata[]>(response, "Get video pipeline images");
     }
 
-    async addPipelineImage(
-        pipelineId: string,
+    async addVideoPipelineImage(
+        videoPipelineId: string,
         image: File,
         textContext: string = "",
         label: boolean = false
-    ): Promise<ImageMetadata> {
+    ): Promise<VideoPipelineImageMetadata> {
         const formData = new FormData();
         formData.append('image', image);
         formData.append('text_context', textContext);
         formData.append('label', String(label));
 
-        const response = await fetch(`${this.baseUrl}/pipelines/add_pipeline_image/${pipelineId}`, {
+        const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/images`, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`,
-                'Content-Type': 'multipart/form-data'
-            },
+            headers: this.getAuthHeaders(),
+            // Note: Do not set Content-Type when using FormData; browser will set the correct boundary.
             body: formData
         });
-        return response.json() as Promise<ImageMetadata>;
+        return this.handleResponse<VideoPipelineImageMetadata>(response, "Add video pipeline image");
     }
 
-    async updatePipelineImageMetadata(pipelineId: string, request: UpdatePipelineImageMetadataRequest): Promise<ImageMetadata> {
-        const response = await fetch(`${this.baseUrl}/pipelines/update_pipeline_image_metadata/${pipelineId}`, {
+    async updateVideoPipelineImage(videoPipelineId: string, request: UpdateVideoPipelineImageRequest): Promise<VideoPipelineImageMetadata> {
+        const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/images`, {
             method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`,
-                'Content-Type': 'application/json'
-            },
+            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(request)
         });
 
-        return response.json() as Promise<ImageMetadata>
+        return this.handleResponse<VideoPipelineImageMetadata>(response, "Update video pipeline image");
     }
 
-    async deletePipelineImage(pipelineId: string, index: number): Promise<DeletePipelineImageResponse> {
-        const response = await fetch(`${this.baseUrl}/pipelines/delete_pipeline_image/${pipelineId}`, {
+    async deleteVideoPipelineImage(videoPipelineId: string, index: number): Promise<DeleteVideoPipelineImageResponse> {
+        const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/images/${index}`, {
             method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`,
-                'Content-Type': 'application/json'
-            }
+            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' })
         });
-        return response.json() as Promise<DeletePipelineImageResponse>;
+        return this.handleResponse<DeleteVideoPipelineImageResponse>(response, "Delete video pipeline image");
     }
 
-    async getPipelineParsedContentInfo(pipelineId: string): Promise<ParsedContentDataMinimal> {
-        const response = await fetch(`${this.baseUrl}/pipelines/get_pipeline_parsed_content_info/${pipelineId}`, {
+    async getVideoPipelineContentInfo(videoPipelineId: string): Promise<VideoPipelineContentMinimal> {
+        const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/content`, {
             method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`,
-                'Content-Type': 'application/json'
-            }
+            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' })
         });
-        return response.json() as Promise<ParsedContentDataMinimal>;
+        return this.handleResponse<VideoPipelineContentMinimal>(response, "Get video pipeline content info");
     }
 
-    async getPipelineSections(pipelineId: string): Promise<ParsedContentSection[]> {
-        const response = await fetch(`${this.baseUrl}/pipelines/get_pipeline_sections/${pipelineId}`, {
+    async getVideoPipelineSections(videoPipelineId: string): Promise<VideoPipelineContentSection[]> {
+        const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/sections`, {
             method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`
-            }
+            headers: this.getAuthHeaders()
         });
-        return response.json() as Promise<ParsedContentSection[]>;
+        return this.handleResponse<VideoPipelineContentSection[]>(response, "Get video pipeline sections");
     }
 
-    async addPipelineSection(pipelineId: string, section: ParsedContentSection): Promise<ParsedContentSection> {
-        const response = await fetch(`${this.baseUrl}/pipelines/add_pipeline_section/${pipelineId}`, {
+    async addVideoPipelineSection(videoPipelineId: string, section: VideoPipelineContentSection): Promise<VideoPipelineContentSection> {
+        const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/sections`, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`,
-                'Content-Type': 'application/json'
-            },
+            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(section)
         });
-        return response.json() as Promise<ParsedContentSection>;
+        return this.handleResponse<VideoPipelineContentSection>(response, "Add video pipeline section");
     }
 
-    async updatePipelineSection(pipelineId: string, index: number, section: ParsedContentSection): Promise<ParsedContentSection> {
-        const response = await fetch(`${this.baseUrl}/pipelines/update_pipeline_section/${pipelineId}`, {
+    async updateVideoPipelineSection(videoPipelineId: string, index: number, section: VideoPipelineContentSection): Promise<VideoPipelineContentSection> {
+        const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/sections/${index}`, {
             method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`,
-                'Content-Type': 'application/json'
-            },
+            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(section)
         });
-        return response.json() as Promise<ParsedContentSection>;
+        return this.handleResponse<VideoPipelineContentSection>(response, "Update video pipeline section");
     }
 
-    async deletePipelineSection(pipelineId: string, index: number): Promise<DeletePipelineSectionResponse> {
-        const response = await fetch(`${this.baseUrl}/pipelines/delete_pipeline_section/${pipelineId}`, {
+    async deleteVideoPipelineSection(videoPipelineId: string, index: number): Promise<DeleteVideoPipelineSectionResponse> {
+        const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/sections/${index}`, {
             method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`
-            }
+            headers: this.getAuthHeaders()
         });
 
-        return response.json() as Promise<DeletePipelineSectionResponse>;
+        return this.handleResponse<DeleteVideoPipelineSectionResponse>(response, "Delete video pipeline section");
     }
 
-    async processContent(pipelineId: string, request: CreateVideoOutlineRequest): Promise<PipelineData> {
-        const response = await fetch(`${this.baseUrl}/pipelines/process_content/${pipelineId}`, {
+    async processVideoPipelineContent(videoPipelineId: string, request: CreateVideoPipelineOutlineRequest): Promise<VideoPipeline> {
+        const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/process`, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`,
-                'Content-Type': 'application/json'
-            },
+            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(request)
         });
-        return response.json() as Promise<PipelineData>;
-    }   
-
-    async getPipelineContextChunks(pipelineId: string): Promise<ContextChunk[]> {
-        const response = await fetch(`${this.baseUrl}/pipelines/get_pipeline_context_chunks/${pipelineId}`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`,
-                'Content-Type': 'application/json'
-            }
-        });
-        return response.json() as Promise<ContextChunk[]>;
+        return this.handleResponse<VideoPipeline>(response, "Process video pipeline content");
     }
 
-    async getPipelineVideoOutline(pipelineId: string): Promise<VideoOutline> {
-        const response = await fetch(`${this.baseUrl}/pipelines/get_pipeline_video_outline/${pipelineId}`, {
+    async getVideoPipelineContextChunks(videoPipelineId: string): Promise<VideoPipelineContextChunk[]> {
+        const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/context-chunks`, {
             method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`,
-                'Content-Type': 'application/json'
-            }
+            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' })
         });
-        return response.json() as Promise<VideoOutline>;
+        return this.handleResponse<VideoPipelineContextChunk[]>(response, "Get video pipeline context chunks");
     }
 
-    async getPipelineVideoOutlineSegments(pipelineId: string): Promise<VideoSegment[]> {
-        const response = await fetch(`${this.baseUrl}/pipelines/get_pipeline_video_outline_segments/${pipelineId}`, {
+    async getVideoPipelineOutline(videoPipelineId: string): Promise<VideoPipelineOutline> {
+        const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/outline`, {
             method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`
-            }
+            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' })
         });
-        return response.json() as Promise<VideoSegment[]>;
+        return this.handleResponse<VideoPipelineOutline>(response, "Get video pipeline outline");
     }
 
-    async addPipelineVideoOutlineSegment(pipelineId: string, segment: VideoSegment): Promise<VideoSegment> {
-        const response = await fetch(`${this.baseUrl}/pipelines/add_pipeline_video_outline_segment/${pipelineId}`, {
+    async getVideoPipelineOutlineSegments(videoPipelineId: string): Promise<VideoPipelineSegment[]> {
+        const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/outline/segments`, {
+            method: 'GET',
+            headers: this.getAuthHeaders()
+        });
+        return this.handleResponse<VideoPipelineSegment[]>(response, "Get video pipeline outline segments");
+    }
+
+    async addVideoPipelineOutlineSegment(videoPipelineId: string, segment: VideoPipelineSegment): Promise<VideoPipelineSegment> {
+        const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/outline/segments`, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`,
-                'Content-Type': 'application/json'
-            },
+            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(segment)
         });
-        return response.json() as Promise<VideoSegment>;
+        return this.handleResponse<VideoPipelineSegment>(response, "Add video pipeline outline segment");
     }
 
-    async updatePipelineVideoOutlineSegment(pipelineId: string, index: number, segment: VideoSegment): Promise<VideoSegment> {
-        const response = await fetch(`${this.baseUrl}/pipelines/update_pipeline_video_outline_segment/${pipelineId}`, {
+    async updateVideoPipelineOutlineSegment(videoPipelineId: string, index: number, segment: VideoPipelineSegment): Promise<VideoPipelineSegment> {
+        const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/outline/segments/${index}`, {
             method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`,
-                'Content-Type': 'application/json'
-            },
+            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(segment)
         });
-        return response.json() as Promise<VideoSegment>;
+        return this.handleResponse<VideoPipelineSegment>(response, "Update video pipeline outline segment");
     }
 
-    async deletePipelineVideoOutlineSegment(pipelineId: string, index: number): Promise<VideoSegment> {
-        const response = await fetch(`${this.baseUrl}/pipelines/delete_pipeline_video_outline_segment/${pipelineId}`, {
+    async deleteVideoPipelineOutlineSegment(videoPipelineId: string, index: number): Promise<VideoPipelineSegment> {
+        const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/outline/segments/${index}`, {
             method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`,
-                'Content-Type': 'application/json'
-            }
+            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' })
         });
-        return response.json() as Promise<VideoSegment>;
+        return this.handleResponse<VideoPipelineSegment>(response, "Delete video pipeline outline segment");
     }
 
-    async generateImagesForPipelineSegments(pipelineId: string, indexes: number[]): Promise<VideoSegment[]> {
-        const response = await fetch(`${this.baseUrl}/pipelines/generate_images_for_pipeline_segments/${pipelineId}`, {
+    async generateVideoPipelineSegmentImages(videoPipelineId: string, indexes: number[]): Promise<VideoPipelineSegment[]> {
+        const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/generate-segment-images`, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`,
-                'Content-Type': 'application/json'
-            },
+            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(indexes)
         });
-        return response.json() as Promise<VideoSegment[]>;
+        return this.handleResponse<VideoPipelineSegment[]>(response, "Generate video pipeline segment images");
     }
 
-    async generateScriptsAndVoiceovers(pipelineId: string, provider: string = 'elevenlabs'): Promise<PipelineData> {
-        const response = await fetch(`${this.baseUrl}/pipelines/generate_scripts_and_voiceovers/${pipelineId}`, {
+    async generateVideoPipelineScripts(videoPipelineId: string, provider: string = 'elevenlabs'): Promise<VideoPipeline> {
+        const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/generate-scripts`, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`,
-                'Content-Type': 'application/json'
-            },
+            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify({ provider })
         });
-        return response.json() as Promise<PipelineData>;
+        return this.handleResponse<VideoPipeline>(response, "Generate video pipeline scripts");
     }
 
-    async viewPipelineScriptData(pipelineId: string): Promise<ScriptData> {
-        const response = await fetch(`${this.baseUrl}/pipelines/view_pipeline_script_data/${pipelineId}`, {
+    async getVideoPipelineScripts(videoPipelineId: string): Promise<VideoPipelineScript> {
+        const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/scripts`, {
             method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`,
-                'Content-Type': 'application/json'
-            }   
+            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' })
         });
-        return response.json() as Promise<ScriptData>;
+        return this.handleResponse<VideoPipelineScript>(response, "Get video pipeline scripts");
     }
 
-    async updatePipelineScriptData(pipelineId: string, scriptData: ScriptData): Promise<ScriptData> {
-        const response = await fetch(`${this.baseUrl}/pipelines/update_pipeline_script_data/${pipelineId}`, {
+    async updateVideoPipelineScripts(videoPipelineId: string, scriptData: VideoPipelineScript): Promise<VideoPipelineScript> {
+        const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/scripts`, {
             method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`,
-                'Content-Type': 'application/json'
-            },
+            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(scriptData)
         });
-        return response.json() as Promise<ScriptData>;
+        return this.handleResponse<VideoPipelineScript>(response, "Update video pipeline scripts");
     }
 
-    async generateVideo(pipelineId: string, request: VideoGenerationRequest): Promise<PipelineData> {
-        const response = await fetch(`${this.baseUrl}/pipelines/generate_video/${pipelineId}`, {
+    async generateVideoPipelineOutput(videoPipelineId: string, request: GenerateVideoPipelineRequest): Promise<VideoPipeline> {
+        const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/generate`, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`,
-                'Content-Type': 'application/json'
-            },
+            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(request)
         });
-        return response.json() as Promise<PipelineData>;
+        return this.handleResponse<VideoPipeline>(response, "Generate video pipeline output");
     }
 
-    async updateVideoSegmentBackground(pipelineId: string, index: number, background: VideoSegmentBackground): Promise<VideoOutline> {
-        const response = await fetch(`${this.baseUrl}/pipelines/update_video_segment_background/${pipelineId}`, {
+    async updateVideoPipelineSegmentBackground(videoPipelineId: string, index: number, background: VideoPipelineSegmentBackground): Promise<VideoPipelineOutline> {
+        const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/segments/${index}/background`, {
             method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`,
-                'Content-Type': 'application/json'
-            },
+            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(background)
         });
-        return response.json() as Promise<VideoOutline>;
+        return this.handleResponse<VideoPipelineOutline>(response, "Update video pipeline segment background");
     }
 
-    async regenerateAudioForPipelineSegments(pipelineId: string, provider: string = 'elevenlabs'): Promise<PipelineData> {
-        const response = await fetch(`${this.baseUrl}/pipelines/regenerate_audio_for_pipeline_segments/${pipelineId}`, {
+    async regenerateVideoPipelineSegmentAudio(videoPipelineId: string, provider: string = 'elevenlabs'): Promise<VideoPipeline> {
+        const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/regenerate-audio`, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`,
-                'Content-Type': 'application/json'
-            },
+            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify({ provider })
         });
-        return response.json() as Promise<PipelineData>;
+        return this.handleResponse<VideoPipeline>(response, "Regenerate video pipeline segment audio");
     }
 
-    async downloadVideo(pipelineId: string): Promise<Blob> {
-        const response = await fetch(`${this.baseUrl}/pipelines/download_video/${pipelineId}`, {
+    async downloadVideoPipelineOutput(videoPipelineId: string): Promise<Blob> {
+        const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/output/download`, {
             method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`,
-                'Content-Type': 'application/json'
-            }
+            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' })
         });
+
+        if (!response.ok) {
+            let errorMessage = "Operation failed: Download video pipeline output";
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.detail || errorData.error || errorData.message || errorMessage;
+            } catch {
+                errorMessage = response.statusText || errorMessage;
+            }
+            // throw error - components should catch and show toast notifications
+            throw new Error(errorMessage);
+        }
+
         return response.blob() as Promise<Blob>;
     }
 
-    async streamVideo(pipelineId: string): Promise<Response> {
-        const response = await fetch(`${this.baseUrl}/pipelines/stream_video/${pipelineId}`, {
+    async streamVideoPipelineOutput(videoPipelineId: string): Promise<Response> {
+        const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/output/stream`, {
             method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`,
-                'Content-Type': 'application/json'
-            }
+            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' })
         });
+
+        if (!response.ok) {
+            let errorMessage = "Operation failed: Stream video pipeline output";
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.detail || errorData.error || errorData.message || errorMessage;
+            } catch {
+                errorMessage = response.statusText || errorMessage;
+            }
+            // throw error - components should catch and show toast notifications
+            throw new Error(errorMessage);
+        }
+
         return response;
     }
 
-    async addPipelineReview(pipelineId: string, request: PipelineReviewRequest): Promise<PipelineData> {
-        const response = await fetch(`${this.baseUrl}/pipelines/add_pipeline_review/${pipelineId}`, {
+    async addVideoPipelineReview(videoPipelineId: string, request: VideoPipelineReviewRequest): Promise<VideoPipeline> {
+        const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/review`, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`,
-                'Content-Type': 'application/json'
-            },
+            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(request)
         });
-        return response.json() as Promise<PipelineData>;
+        return this.handleResponse<VideoPipeline>(response, "Add video pipeline review");
     }
 
-    async getImageWithPath(path: string): Promise<Blob> {
-        const response = await fetch(`${this.baseUrl}/pipelines/get_image_with_path/${path}`, {
+    async getVideoPipelineImageWithPath(path: string): Promise<Blob> {
+        const response = await fetch(`${this.baseUrl}/video-pipelines/images/${path}`, {
             method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`,
-                'Content-Type': 'application/json'
-            }
+            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' })
         });
+
+        if (!response.ok) {
+            let errorMessage = "Operation failed: Get video pipeline image with path";
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.detail || errorData.error || errorData.message || errorMessage;
+            } catch {
+                errorMessage = response.statusText || errorMessage;
+            }
+            // throw error - components should catch and show toast notifications
+            throw new Error(errorMessage);
+        }
+
         return response.blob() as Promise<Blob>;
     }
 
@@ -430,10 +424,220 @@ export class VidinieAPIClient {
         filePath = filePath.replace("temp", "media");
         return `${this.baseUrl}/${filePath}`;
     }
+
+    // authentication methods
+    async login(email: string, password: string): Promise<LoginResponse> {
+        const response = await fetch(`${this.baseUrl}/users/login`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email, password }),
+        });
+
+        const data = await this.handleResponse<LoginResponse>(response, "Login");
+        
+        // store token in memory (will be synced from redux)
+        if (data.token) {
+            this.setToken(data.token);
+        }
+
+        return data;
+    }
+
+    async register(username: string, email: string, password: string): Promise<RegisterResponse> {
+        const response = await fetch(`${this.baseUrl}/users/register`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ username, email, password }),
+        });
+
+        return this.handleResponse<RegisterResponse>(response, "Register");
+    }
+
+    async getCurrentUser(): Promise<User | null> {
+        const token = this.getTokenFromMemory();
+        if (!token) {
+            return null;
+        }
+
+        try {
+            const response = await fetch(`${this.baseUrl}/users/me`, {
+                method: 'GET',
+                headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch user');
+            }
+
+            return await response.json();
+        } catch (error) {
+            // if token is invalid, clear it
+            this.setToken(null);
+            return null;
+        }
+    }
+
+    async updateUser(data: { username?: string; email?: string }): Promise<User> {
+        const response = await fetch(`${this.baseUrl}/users/me`, {
+            method: 'PUT',
+            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify(data),
+        });
+
+        return this.handleResponse<User>(response, "Update user");
+    }
+
+    logout(): void {
+        this.setToken(null);
+        // frontend client token is already cleared by setToken above
+    }
+
+
+    async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+        const response = await fetch(`${this.baseUrl}/users/change-password`, {
+            method: 'POST',
+            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({
+                current_password: currentPassword,
+                new_password: newPassword,
+            }),
+        });
+
+        await this.handleResponse<{ message: string }>(response, "Change password");
+    }
+
+    getUser(): { id: string; username: string; email: string } | null {
+        // user data should be retrieved from Redux, not local storage
+        // this method is kept for backward compatibility but should not be used
+        return null;
+    }
+
+    async uploadProfilePicture(file: File): Promise<{ message: string; profile_picture: string }> {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch(`${this.baseUrl}/users/profile-picture`, {
+            method: 'POST',
+            headers: this.getAuthHeaders(),
+            // note: do not set Content-Type when using FormData; browser will set the correct boundary.
+            body: formData
+        });
+
+        return this.handleResponse<{ message: string; profile_picture: string }>(response, "Upload profile picture");
+    }
+
+    async getProfilePicture(): Promise<{ profile_picture: string; url: string }> {
+        const response = await fetch(`${this.baseUrl}/users/profile-picture`, {
+            method: 'GET',
+            headers: this.getAuthHeaders()
+        });
+
+        const data = await this.handleResponse<{ profile_picture: string; url: string }>(response, "Get profile picture");
+        // return full URL
+        return {
+            profile_picture: data.profile_picture,
+            url: `${this.baseUrl}${data.url}`
+        };
+    }
+
+    async deleteProfilePicture(): Promise<{ message: string }> {
+        const response = await fetch(`${this.baseUrl}/users/profile-picture`, {
+            method: 'DELETE',
+            headers: this.getAuthHeaders()
+        });
+
+        return this.handleResponse<{ message: string }>(response, "Delete profile picture");
+    }
+
+    getProfilePictureUrl(profilePicturePath: string | null | undefined): string | null {
+        if (!profilePicturePath) return null;
+        return `${this.baseUrl}/media/${profilePicturePath}`;
+    }
+
+    async updateSubscription(subscription: string): Promise<User> {
+        const response = await fetch(`${this.baseUrl}/users/subscription`, {
+            method: 'PUT',
+            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ subscription }),
+        });
+
+        return this.handleResponse<User>(response, "Update subscription");
+    }
+
+    async getPaymentMethods(): Promise<PaymentMethod[]> {
+        const response = await fetch(`${this.baseUrl}/users/payment-methods`, {
+            method: 'GET',
+            headers: this.getAuthHeaders()
+        });
+
+        return this.handleResponse<PaymentMethod[]>(response, "Get payment methods");
+    }
+
+    async createPaymentMethod(request: CreatePaymentMethodRequest): Promise<PaymentMethod> {
+        const response = await fetch(`${this.baseUrl}/users/payment-methods`, {
+            method: 'POST',
+            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify(request),
+        });
+
+        return this.handleResponse<PaymentMethod>(response, "Create payment method");
+    }
+
+    async getPaymentMethod(paymentMethodId: string): Promise<PaymentMethod> {
+        const response = await fetch(`${this.baseUrl}/users/payment-methods/${paymentMethodId}`, {
+            method: 'GET',
+            headers: this.getAuthHeaders()
+        });
+
+        return this.handleResponse<PaymentMethod>(response, "Get payment method");
+    }
+
+    async updatePaymentMethod(paymentMethodId: string, request: UpdatePaymentMethodRequest): Promise<PaymentMethod> {
+        const response = await fetch(`${this.baseUrl}/users/payment-methods/${paymentMethodId}`, {
+            method: 'PUT',
+            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify(request),
+        });
+
+        return this.handleResponse<PaymentMethod>(response, "Update payment method");
+    }
+
+    async deletePaymentMethod(paymentMethodId: string): Promise<{ message: string }> {
+        const response = await fetch(`${this.baseUrl}/users/payment-methods/${paymentMethodId}`, {
+            method: 'DELETE',
+            headers: this.getAuthHeaders()
+        });
+
+        return this.handleResponse<{ message: string }>(response, "Delete payment method");
+    }
+
+    async getCustomerId(): Promise<{ stripe_customer_id: string | null }> {
+        const response = await fetch(`${this.baseUrl}/users/customer-id`, {
+            method: 'GET',
+            headers: this.getAuthHeaders()
+        });
+
+        return this.handleResponse<{ stripe_customer_id: string | null }>(response, "Get customer ID");
+    }
+
+    async updateCustomerId(stripeCustomerId: string): Promise<User> {
+        const response = await fetch(`${this.baseUrl}/users/customer-id`, {
+            method: 'PUT',
+            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ stripe_customer_id: stripeCustomerId }),
+        });
+
+        return this.handleResponse<User>(response, "Update customer ID");
+    }
 }
 
 // create a singleton instance of the client
-const client = new VidinieAPIClient(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
-     process.env.NEXT_PUBLIC_API_KEY || '');
+const client = new VidinieAPIClient(
+    process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+);
 
 export default client;

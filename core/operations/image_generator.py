@@ -10,7 +10,8 @@ from pathlib import Path
 from openai import OpenAI
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from utils.logger import get_logger
-from core.data.pipeline import VideoSegment, SegmentImage
+from utils.config_loader import get_config
+from core.data import VideoPipelineSegment, VideoPipelineSegmentImage
 
 logger = get_logger(__name__)
 
@@ -48,7 +49,6 @@ class ImageGenerator:
         
         # initialize jinja2 environment for prompt templates
         if prompts_dir is None:
-            from utils.config_loader import get_config
             config = get_config()
             prompts_dir = config.get_prompts_directory()
         
@@ -57,7 +57,7 @@ class ImageGenerator:
             autoescape=select_autoescape(['html', 'xml'])
         )
     
-    def generate_image(self, segment: VideoSegment, output_filename: Optional[str] = None) -> Optional[SegmentImage]:
+    def generate_image(self, segment: VideoPipelineSegment, output_filename: Optional[str] = None) -> Optional[VideoPipelineSegmentImage]:
         """
         generate an image for a video segment.
         
@@ -105,7 +105,7 @@ class ImageGenerator:
             
             logger.info(f"generated image saved to: {output_path}")
             
-            return SegmentImage(
+            return VideoPipelineSegmentImage(
                 source='ai_generated',
                 query=prompt,
                 path=str(output_path)
@@ -115,7 +115,7 @@ class ImageGenerator:
             logger.error(f"failed to generate image: {str(e)}", exc_info=True)
             return None
     
-    def _create_image_prompt(self, segment: VideoSegment) -> str:
+    def _create_image_prompt(self, segment: VideoPipelineSegment) -> str:
         """
         create image generation prompt from segment data.
         args:
@@ -130,8 +130,8 @@ class ImageGenerator:
         
         return prompt.strip()
     
-    def generate_for_segments(self, segments: List[VideoSegment], 
-                              pipeline_id: Optional[str] = None) -> List[VideoSegment]:
+    def generate_for_segments(self, segments: List[VideoPipelineSegment], 
+                              pipeline_id: Optional[str] = None) -> List[VideoPipelineSegment]:
         """
         generate images for multiple segments.
         only generates images for segments that specify ai_generated source.
