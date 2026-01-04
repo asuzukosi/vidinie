@@ -7,7 +7,7 @@ services:
     networks:
       - vidinie-network
     ports:
-      - "3000:8000"
+      - "8000:8000"
     environment:
       - .env
     depends_on:
