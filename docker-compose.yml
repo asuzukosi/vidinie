@@ -1,40 +1,38 @@
 version: '3.8'
 
 services:
-  backend:
+  vidinie-backend:
     build:
       context: .
       dockerfile: Dockerfile.backend
+    networks:
+      - vidinie-network
     ports:
       - "8000:8000"
     environment:
       - .env
     depends_on:
       - mongodb
-    networks:
-      - vidinie-network
-  frontend:
+  vidinie-frontend:
     build:
       context: .
       dockerfile: Dockerfile.frontend
+    networks:
+      - vidinie-network
     ports:
       - "3000:3000"
     environment:
       - .env
     depends_on:
       - backend
+  mongodb:
+    image: mongo
     networks:
       - vidinie-network
-  mongodb:
-    image: mongodb/mongodb-community-server:8.0-ubi8
     environment:
       - MONGO_INITDB_ROOT_USERNAME=admin
       - MONGO_INITDB_ROOT_PASSWORD=admin
-    volumes:
-      - type: bind
-        source: ./mongodb_data
-        target: /data/db
-    networks:
-      - vidinie-network
+    ports:
+      - "27017:27017"
 networks:
-  - vidinie-network
+  vidinie-network:

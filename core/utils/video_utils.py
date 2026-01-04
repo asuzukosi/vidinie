@@ -46,8 +46,8 @@ class VideoUtils:
     @staticmethod
     def create_gradient_background(
         width: int, height: int, 
-        color1: Tuple[int, int, int] = (254, 234, 201),
-        color2: Tuple[int, int, int] = (255, 205, 201),
+        color1: Tuple[int, int, int] = (0, 0, 0),
+        color2: Tuple[int, int, int] = (0, 0, 0),
         direction: Literal['vertical', 'horizontal'] = 'vertical'
     ) -> np.ndarray:
         """
@@ -237,7 +237,7 @@ class VideoUtils:
         """
         background_options = background_options or {}
         if background_type == "solid":
-            color = background_options.get('color', (255, 255, 255))
+            color = background_options.get('color', (0, 0, 0))
             logger.info(f"creating background with solid color")
             return VideoUtils.create_solid_background(width, height, color)
         elif background_type == "image":
@@ -249,11 +249,11 @@ class VideoUtils:
             logger.info(f"creating background with image")
             return VideoUtils.create_image_background(width, height, image_path, mode, fill_color)
         elif background_type == "composite":
-            # Composite: overlay image on a gradient background.
+            # composite: overlay image on a gradient background.
             logger.info(f"creating composite background with gradient and an image overlayed")
             # gradient part
-            color1 = background_options.get('color1', (254, 234, 201))
-            color2 = background_options.get('color2', (255, 205, 201))
+            color1 = background_options.get('color1', (0, 0, 0))
+            color2 = background_options.get('color2', (0, 0, 0))
             direction = background_options.get('direction', 'vertical')
             gradient_bg = VideoUtils.create_gradient_background(width, height, color1, color2, direction)
             # image part
@@ -274,8 +274,8 @@ class VideoUtils:
             )
             return composited
         else:  # gradient (default)
-            color1 = background_options.get('color1', (254, 234, 201))
-            color2 = background_options.get('color2', (255, 205, 201))
+            color1 = background_options.get('color1', (0, 0, 0))
+            color2 = background_options.get('color2', (0, 0, 0))
             direction = background_options.get('direction', 'vertical')
             logger.info(f"creating background with gradient")
             return VideoUtils.create_gradient_background(width, height, color1, color2, direction)

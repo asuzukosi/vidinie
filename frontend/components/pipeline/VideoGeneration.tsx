@@ -1,19 +1,101 @@
 "use client";
 
+import { useState } from "react";
 import { VideoPlayer } from "@/components/utils/VideoPlayer";
+import { GenerateVideoPipelineRequest, VideoPipelineReviewRequest } from "@/lib/sdk/types";
+import { Button } from "@/components/ui/button";
+import { IconPlus } from "@tabler/icons-react";
+import { Loader2 } from "lucide-react";
+import { VideoGenerationModal } from "@/components/modals/VideoGenerationModal";
+import { ReviewAndFeedback } from "@/components/pipeline/ReviewAndFeedback";
 
 interface VideoGenerationProps {
     videoPipelineId: string;
+    videoPath?: string;
+    rating?: number;
+    feedback?: string;
+    updated_at?: string;
+    onVideoGeneration?: (data: GenerateVideoPipelineRequest) => void;
+    onReviewAndFeedback?: (data: VideoPipelineReviewRequest) => void;
+    isGeneratingVideo?: boolean;
+    isSubmittingReview?: boolean;
+    defaultVideoTitle?: string;
+    defaultVideoSubtitle?: string;
 }
 
-export function VideoGeneration({ videoPipelineId }: VideoGenerationProps) {
+export function VideoGeneration({ 
+    videoPipelineId,
+    videoPath,
+    rating,
+    feedback,
+    updated_at,
+    onVideoGeneration,
+    onReviewAndFeedback,
+    isGeneratingVideo = false,
+    isSubmittingReview = false,
+    defaultVideoTitle = "",
+    defaultVideoSubtitle = ""
+}: VideoGenerationProps) {
+    const [isVideoGenerationModalOpen, setIsVideoGenerationModalOpen] = useState(false);
+
+    const handleVideoGenerationSubmit = (data: GenerateVideoPipelineRequest) => {
+        if (onVideoGeneration) {
+            onVideoGeneration(data);
+        }
+        setIsVideoGenerationModalOpen(false);
+    };
+
+    if (!videoPath) {
+        return (
+            <>
+                <div className="space-y-8 pt-8">
+                    <div className="max-w-4xl mx-auto space-y-6">
+                        <h3 className="font-semibold text-sm">Generated Video</h3>
+                        <p className="text-sm text-muted-foreground">No video available yet.</p>
+                        {onVideoGeneration && (
+                            <Button variant="outline" size="sm"
+                                onClick={() => setIsVideoGenerationModalOpen(true)}
+                                disabled={isGeneratingVideo}
+                                className="w-full flex items-center justify-center gap-2 text-xs border-dashed border-zinc-300 text-zinc-500 hover:text-zinc-700 hover:border-zinc-500">
+                                {isGeneratingVideo ? (
+                                    <Loader2 className="size-4 animate-spin" />
+                                ) : (
+                                    <IconPlus className="size-4" />
+                                )}
+                                Generate Video
+                            </Button>
+                        )}
+                    </div>
+                </div>
+                <VideoGenerationModal
+                    open={isVideoGenerationModalOpen}
+                    onOpenChange={setIsVideoGenerationModalOpen}
+                    onSubmit={handleVideoGenerationSubmit}
+                    defaultTitle={defaultVideoTitle}
+                    defaultSubtitle={defaultVideoSubtitle}
+                />
+            </>
+        );
+    }
+
     return (
         <div className="space-y-8 pt-8">
-            <div className="max-w-4xl mx-auto">
-                <div className="space-y-4 mb-4">
+            <div className="max-w-4xl mx-auto space-y-6">
+                <div className="space-y-4">
                     <h3 className="font-semibold text-sm">Generated Video</h3>
                     <VideoPlayer videoPipelineId={videoPipelineId} />
                 </div>
+                {videoPath && (
+                    <div className="pt-6 border-t">
+                        <ReviewAndFeedback 
+                            rating={rating}
+                            feedback={feedback}
+                            updated_at={updated_at}
+                            onReviewAndFeedback={onReviewAndFeedback}
+                            isSubmittingReview={isSubmittingReview}
+                        />
+                    </div>
+                )}
             </div>
         </div>
     );

@@ -4,12 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import {
   IconChevronRight,
 } from "@tabler/icons-react";
-import { PlayIcon, Loader2, Lock } from "lucide-react";
+import { PlayIcon, Loader2, Lock, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CircularProgress } from "@/components/ui/circular-progress";
 import { StepIndicator } from "@/components/ui/step-indicator";
+import { Badge } from "@/components/ui/badge";
 import { pipelineProcessingStages } from "@/lib/sdk/constants";
-import { VideoPipelineProcessingStage, VideoPipelineStage, VideoPipelineStageStatuses, VideoPipelineStatus, GenerateVideoPipelineRequest, CreateVideoPipelineOutlineRequest, VideoPipelineReviewRequest } from "@/lib/sdk/types";
+import { VideoPipelineProcessingStage, VideoPipelineStage, VideoPipelineStageStatuses, VideoPipelineStatus, GenerateVideoPipelineRequest, CreateVideoPipelineOutlineRequest } from "@/lib/sdk/types";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -20,7 +21,6 @@ import {
 import { toast } from "sonner";
 import { VideoGenerationModal } from "@/components/modals/VideoGenerationModal";
 import { OutlineContentModal } from "@/components/modals/OutlineContentModal";
-import { ReviewFeedbackModal } from "@/components/modals/ReviewFeedbackModal";
 
 
 interface PipelineStagesManagerProps {
@@ -28,7 +28,6 @@ interface PipelineStagesManagerProps {
   onGenerateOutlineContent: (data: CreateVideoPipelineOutlineRequest) => void;
   onScriptAndAudioGeneration: () => void;
   onVideoGeneration: (data: GenerateVideoPipelineRequest) => void;
-  onReviewAndFeedback: (data: VideoPipelineReviewRequest) => void;
   onStageSelect?: (stage: VideoPipelineStage | null) => void;
   selectedStage?: VideoPipelineStage | null;
   defaultVideoTitle?: string;
@@ -43,7 +42,6 @@ export function VideoPipelineStagesManager({
   onGenerateOutlineContent, 
   onScriptAndAudioGeneration,
   onVideoGeneration,
-  onReviewAndFeedback,
   onStageSelect,
   selectedStage: externalSelectedStage,
   defaultVideoTitle = "",
@@ -51,14 +49,12 @@ export function VideoPipelineStagesManager({
   isProcessingContent = false,
   isGeneratingScripts = false,
   isGeneratingVideo = false,
-  isSubmittingReview = false,
 }: PipelineStagesManagerProps) {
   const [currentSteps, setCurrentSteps] = useState<VideoPipelineProcessingStage[]>(pipelineProcessingStages);
   const [internalOpenStepId, setInternalOpenStepId] = useState<VideoPipelineStage | null>(VideoPipelineStage.DOCUMENT_PROCESSING);
   const [completedCount, setCompletedCount] = useState(0);
   const [isVideoGenerationModalOpen, setIsVideoGenerationModalOpen] = useState(false);
   const [isOutlineContentModalOpen, setIsOutlineContentModalOpen] = useState(false);
-  const [isReviewFeedbackModalOpen, setIsReviewFeedbackModalOpen] = useState(false);
   
   // use external selectedStage if provided, otherwise use internal state
   const openStepId = externalSelectedStage !== undefined ? externalSelectedStage : internalOpenStepId;
@@ -105,9 +101,6 @@ export function VideoPipelineStagesManager({
       case VideoPipelineStage.VIDEO_GENERATION:
         setIsVideoGenerationModalOpen(true);
         break;
-      case VideoPipelineStage.REVIEW_AND_FEEDBACK:
-        setIsReviewFeedbackModalOpen(true);
-        break;
     }
   }
 
@@ -119,9 +112,6 @@ export function VideoPipelineStagesManager({
     onVideoGeneration(data);
   }
 
-  const handleReviewFeedbackSubmit = (data: VideoPipelineReviewRequest) => {
-    onReviewAndFeedback(data);
-  }
 
   const getStageStatus = (stepId: VideoPipelineStage | string): VideoPipelineStatus | null => {
     return pipelineStageStatuses[stepId as VideoPipelineStage] || null;
@@ -139,8 +129,6 @@ export function VideoPipelineStagesManager({
         return isStatusInProgress || isGeneratingScripts;
       case VideoPipelineStage.VIDEO_GENERATION:
         return isStatusInProgress || isGeneratingVideo;
-      case VideoPipelineStage.REVIEW_AND_FEEDBACK:
-        return isSubmittingReview;
       default:
         return isStatusInProgress;
     }
@@ -173,20 +161,28 @@ export function VideoPipelineStagesManager({
               Create with Vidinie
             </h3>
             <div className="mt-2 flex items-center mb-4">
-              <CircularProgress
-                completed={remainingCount}
-                total={currentSteps.length}
-              />
-              <div className="ml-1.5 mr-3 text-muted-foreground" >
-                <span className="font-medium text-foreground">
-                  {remainingCount}
-                </span>{" "}
-                of{" "}
-                <span className="font-medium text-foreground">
-                  {currentSteps.length} stages
-                </span>{" "}
-                left
-              </div>
+              {remainingCount === 0 ? (
+                <Badge variant="outline" className="ml-2">
+                  Completed
+                </Badge>
+              ) : (
+                <>
+                  <CircularProgress
+                    completed={remainingCount}
+                    total={currentSteps.length}
+                  />
+                  <div className="ml-1.5 mr-3 text-muted-foreground" >
+                    <span className="font-medium text-foreground">
+                      {remainingCount}
+                    </span>{" "}
+                    of{" "}
+                    <span className="font-medium text-foreground">
+                      {currentSteps.length} stages
+                    </span>{" "}
+                    left
+                  </div>
+                </>
+              )}
             </div>
           </div>
     
@@ -305,6 +301,39 @@ export function VideoPipelineStagesManager({
                                 </TooltipProvider>
                               </div>
                               )}
+                              {step.completed && step.id !== VideoPipelineStage.DOCUMENT_PROCESSING && (
+                              <div className="flex justify-end mt-auto pt-2">
+                                <TooltipProvider>
+                                  <div className="flex items-end gap-1">
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="outline"
+                                          size="icon"
+                                          className="h-6 w-6"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleStepAction(step);
+                                          }}
+                                          disabled={isStageProcessing(step.id)}
+                                        >
+                                          {isStageProcessing(step.id) ? (
+                                            <Loader2 className="size-4 animate-spin" />
+                                          ) : (
+                                            <RefreshCw className="size-4" />
+                                          )}
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="bottom" align="end">
+                                        {isStageProcessing(step.id) 
+                                          ? "Regenerating..." 
+                                          : `Regenerate ${step.title}`}
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </div>
+                                </TooltipProvider>
+                              </div>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -333,11 +362,6 @@ export function VideoPipelineStagesManager({
           open={isOutlineContentModalOpen}
           onOpenChange={setIsOutlineContentModalOpen}
           onSubmit={handleOutlineContentSubmit}
-        />
-        <ReviewFeedbackModal
-          open={isReviewFeedbackModalOpen}
-          onOpenChange={setIsReviewFeedbackModalOpen}
-          onSubmit={handleReviewFeedbackSubmit}
         />
     </>
   );

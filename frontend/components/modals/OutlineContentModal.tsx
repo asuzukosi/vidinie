@@ -18,12 +18,12 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
-import { CreateVideoOutlineRequest } from "@/lib/sdk/types";
+import { CreateVideoPipelineOutlineRequest } from "@/lib/sdk/types";
 
 interface OutlineContentModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: CreateVideoOutlineRequest) => void;
+  onSubmit: (data: CreateVideoPipelineOutlineRequest) => void;
 }
 
 // Default values defined within the component
@@ -36,7 +36,7 @@ export function OutlineContentModal({
   onOpenChange,
   onSubmit,
 }: OutlineContentModalProps) {
-  const [formData, setFormData] = useState<CreateVideoOutlineRequest>({
+  const [formData, setFormData] = useState<CreateVideoPipelineOutlineRequest>({
     skip_stock: DEFAULT_SKIP_STOCK,
     target_segments: DEFAULT_TARGET_SEGMENTS,
     segment_duration: DEFAULT_SEGMENT_DURATION,
@@ -71,22 +71,6 @@ export function OutlineContentModal({
         <form onSubmit={handleSubmit}>
           <div className="py-4">
             <FieldGroup>
-              <Field orientation="horizontal">
-                <Checkbox
-                  id="skip_stock"
-                  checked={formData.skip_stock}
-                  onCheckedChange={(checked) =>
-                    setFormData({
-                      ...formData,
-                      skip_stock: checked === true,
-                    })
-                  }
-                />
-                <FieldLabel htmlFor="skip_stock">
-                  Skip Stock Images
-                </FieldLabel>
-              </Field>
-
               <Field>
                 <FieldLabel htmlFor="target_segments">Target Segments</FieldLabel>
                 <Input
@@ -103,8 +87,8 @@ export function OutlineContentModal({
                   }
                   required
                 />
-                <FieldDescription>
-                  Number of video segments to generate (1-50)
+                <FieldDescription className="text-xs text-muted-foreground">
+                  Number of video segments to generate (1-50). This determines the number of segments to be generated for your video.
                 </FieldDescription>
               </Field>
 
@@ -125,9 +109,24 @@ export function OutlineContentModal({
                   }
                   required
                 />
-                <FieldDescription>
-                  Duration of each segment in seconds (1-60)
+                <FieldDescription className="text-xs text-muted-foreground">
+                  Duration of each segment in seconds (1-60). This determines the duration of the content in each segment of your video.
                 </FieldDescription>
+              </Field>
+              <Field orientation="horizontal">
+                <Checkbox
+                  id="skip_stock"
+                  checked={!formData.skip_stock}
+                  onCheckedChange={(checked) =>
+                    setFormData({
+                      ...formData,
+                      skip_stock: !checked === true,
+                    })
+                  }
+                />
+                <FieldLabel htmlFor="skip_stock" className="text-xs text-muted-foreground">
+                  Use stock images
+                </FieldLabel>
               </Field>
             </FieldGroup>
           </div>

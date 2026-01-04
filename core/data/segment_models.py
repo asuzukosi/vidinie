@@ -25,7 +25,7 @@ class VideoPipelineSegment(BaseModel):
     audio_duration: Optional[float] = None
     voiceover_provider: Optional[str] = None
     # video generation settings
-    background_colors: Optional[List[Tuple[int, int, int]]] = Field(default_factory=lambda: [(254, 234, 201), (255, 205, 201)])
+    background_colors: Optional[List[Tuple[int, int, int]]] = Field(default_factory=lambda: [(0, 0, 0), (0, 0, 0)])
     background_type: Optional[BackgroundType] = Field(default=BackgroundType.GRADIENT)
     background_image_path: Optional[str] = None
 

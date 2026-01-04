@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Loader2, Trash2Icon } from "lucide-react";
 import { VideoPipelineTableItem } from "./VideoPipelineTable";
+import { toast } from "sonner";
 
 interface VideoPipelineDeleteButtonProps {
   videoPipeline: VideoPipelineTableItem;
@@ -25,12 +26,11 @@ export function VideoPipelineDeleteButton({
     e.stopPropagation(); // Prevent row click from firing
     setDeletePending(true);
     try {
-      const result = onDelete(videoPipeline);
-      if (result instanceof Promise) {
-        await result;
-      }
+      onDelete(videoPipeline);
+      toast.success("Video pipeline deleted successfully");
     } catch (error) {
       console.error("Delete failed:", error);
+      toast.error("Failed to delete video pipeline");
     } finally {
       setDeletePending(false);
     }

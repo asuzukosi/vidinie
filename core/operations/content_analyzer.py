@@ -314,15 +314,6 @@ def process_content(
         chunks: List[VideoPipelineContextChunk] = context_processor.get_chunks()
         pipeline.chunks = chunks
         
-        # Store context processor information
-        pipeline.context_processor_info = VideoPipelineContextProcessor(
-            document_title=pdf_content.title,
-            chunk_length=chunk_length,
-            split_by='\n',
-            total_chunks=len(chunks),
-            total_content_length=len(all_content)
-        )
-        
         logger.info(f"generated {len(chunks)} chunks")
         
         # create video outline

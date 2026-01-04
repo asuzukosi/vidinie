@@ -1,6 +1,6 @@
 "use client";
 
-import { ScriptData } from "@/lib/sdk/types";
+import { VideoPipelineScript } from "@/lib/sdk/types";
 import { Badge } from "@/components/ui/badge";
 import {
     Accordion,
@@ -9,20 +9,44 @@ import {
     AccordionTrigger,
 } from "@/components/ui/accordion";
 import { getLinkToImage } from "@/lib/utils";
+import { Button } from "../ui/button";
+import { IconPlus } from "@tabler/icons-react";
+import { Loader2 } from "lucide-react";
 
 interface ScriptAndVoiceoversProps {
-    scriptData?: ScriptData;
+    scriptData?: VideoPipelineScript;
     fullAudioPath?: string;
     fullAudioDuration?: number;
+    onScriptAndAudioGeneration?: () => void;
+    isGeneratingScripts?: boolean;
 }
 
-export function ScriptAndVoiceovers({ scriptData, fullAudioPath, fullAudioDuration }: ScriptAndVoiceoversProps) {
+export function ScriptAndVoiceovers({ 
+    scriptData, 
+    fullAudioPath, 
+    fullAudioDuration,
+    onScriptAndAudioGeneration,
+    isGeneratingScripts = false
+}: ScriptAndVoiceoversProps) {
     if (!scriptData || !scriptData.segments || scriptData.segments.length === 0) {
         return (
             <div className="space-y-8 pt-8">
                 <div className="max-w-4xl mx-auto space-y-6">
                     <h3 className="font-semibold text-sm">Script and Voiceovers</h3>
                     <p className="text-sm text-muted-foreground">No script data available yet.</p>
+                    {onScriptAndAudioGeneration && (
+                        <Button variant="outline" size="sm"
+                            onClick={onScriptAndAudioGeneration}
+                            disabled={isGeneratingScripts}
+                            className="w-full flex items-center justify-center gap-2 text-xs border-dashed border-zinc-300 text-zinc-500 hover:text-zinc-700 hover:border-zinc-500">
+                            {isGeneratingScripts ? (
+                                <Loader2 className="size-4 animate-spin" />
+                            ) : (
+                                <IconPlus className="size-4" />
+                            )}
+                            Generate Scripts and Voiceovers
+                        </Button>
+                    )}
                 </div>
             </div>
         );

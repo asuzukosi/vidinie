@@ -15,7 +15,6 @@ import numpy as np
 from core.data import (
     VideoPipelineScript,
     VideoPipelineSegment,
-    ImageSource,
     BackgroundType,
     VideoPipelineStage,
     VideoPipelineStatus,
@@ -101,7 +100,6 @@ class VideoGenerator:
         # create clips for each segment
         for i, segment in enumerate(script_data.segments, 1):
             logger.info(f"creating slide {i}/{len(script_data.segments)}: {segment.title}")
-            
             segment_clip = self._create_segment_clip(segment, i)
             if segment_clip is not None:
                 clips.append(segment_clip)
@@ -232,14 +230,7 @@ class VideoGenerator:
         """
         # check new image field from content analyzer
         if segment.image:
-            if segment.image.source == ImageSource.PDF and segment.image.path:
-                return segment.image.path
-            elif segment.image.source == ImageSource.STOCK and segment.image.query:
-                # stock image should have been fetched
-                return segment.image.path
-            elif segment.image.source == ImageSource.AI_GENERATED and segment.image.path:
-                # ai-generated image path
-                return segment.image.path
+            return segment.image.path
         return None
     
     def _create_background(self, segment: VideoPipelineSegment) -> np.ndarray:
@@ -253,14 +244,17 @@ class VideoGenerator:
         if self.background_type == BackgroundType.GRADIENT:
             return VideoUtils.create_gradient_background(
                 self.width, self.height,
-                color1=segment.background_colors[0] if segment.background_colors else None,
-                color2=segment.background_colors[1] if segment.background_colors else None
+                # color1=segment.background_colors[0] if segment.background_colors else None,
+                color1=(0, 0, 0),
+                # color2=segment.background_colors[1] if segment.background_colors else None
+                color2=(0, 0, 0),
             )
         elif self.background_type == BackgroundType.SOLID:
             # solid color
             return VideoUtils.create_solid_background(
                 self.width, self.height,
-                segment.background_colors[0] if segment.background_colors else None
+                # segment.background_colors[0] if segment.background_colors else None
+                color=(0, 0, 0),
             )
         elif self.background_type == BackgroundType.IMAGE:
             # image background
@@ -419,7 +413,7 @@ def generate_video(
         script_data = pipeline.script_data
         logger.info(f"Using script data for {len(script_data.segments)} segments")
         
-        # Generate video
+        # generate video
         video_dir = os.path.join(temp_dir, pipeline.id, 'video')
         os.makedirs(video_dir, exist_ok=True)
         
@@ -440,6 +434,10 @@ def generate_video(
         generated_video_path = video_gen.generate_video(script_data, video_path)
         pipeline.video_path = generated_video_path
         pipeline.output_path = generated_video_path
+        
+        # clear rating and feedback when video is regenerated
+        pipeline.rating = None
+        pipeline.feedback = None
         
         pipeline.update_stage(VideoPipelineStage.VIDEO_GENERATION, VideoPipelineStatus.COMPLETED)
         logger.info(f"Video generated successfully: {generated_video_path}")

@@ -19,12 +19,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { VideoGenerationRequest, VideoResolution, BackgroundType } from "@/lib/sdk/types";
+import { GenerateVideoPipelineRequest, VideoResolution, BackgroundType } from "@/lib/sdk/types";
 
 interface VideoGenerationModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: VideoGenerationRequest) => void;
+  onSubmit: (data: GenerateVideoPipelineRequest) => void;
   defaultTitle?: string;
   defaultSubtitle?: string;
 }
@@ -44,7 +44,7 @@ export function VideoGenerationModal({
   defaultTitle = "",
   defaultSubtitle = "",
 }: VideoGenerationModalProps) {
-  const [formData, setFormData] = useState<VideoGenerationRequest>({
+  const [formData, setFormData] = useState<GenerateVideoPipelineRequest>({
     title: defaultTitle,
     subtitle: defaultSubtitle,
     resolution: DEFAULT_RESOLUTION,

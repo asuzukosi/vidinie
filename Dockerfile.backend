@@ -4,23 +4,30 @@ FROM python:3.10-slim
 # set working directory
 WORKDIR /app
 
+# set PYTHONPATH to include the working directory
+ENV PYTHONPATH=/app
+
+# install system dependencies required for moviepy and other packages
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    libsm6 \
+    libxext6 \
+    libfontconfig1 \
+    libxrender1 \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
 # copy requirements file
 COPY requirements.txt .
 
 # install dependencies
-RUN pip install -r requirements.txt
-
-# copy fonts directory
-COPY fonts/ .
+RUN pip install --no-cache-dir -r requirements.txt
 
 # copy core directory
-COPY core/ .
-
-# copy utils directory
-COPY utils/ .
+COPY core/ ./core
 
 # copy api directory
-COPY api/ .
+COPY api/ ./api
 
 # copy .env file
 COPY .env .
@@ -31,5 +38,10 @@ COPY config.yaml .
 # expose port 8000
 EXPOSE 8000
 
+
+RUN echo '#!/bin/sh\nmkdir -p /app/temp && \nuvicorn api.main:app --host 0.0.0.0 --port 8000' > /app/start.sh
+
+RUN chmod +x /app/start.sh
+
 # start server
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["/bin/sh", "/app/start.sh"]

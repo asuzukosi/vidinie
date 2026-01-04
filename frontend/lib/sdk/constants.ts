@@ -29,11 +29,4 @@ export const pipelineProcessingStages: VideoPipelineProcessingStage[] = [
       completed: false,
       actionLabel: "Generate video",
     },
-    {
-      id: VideoPipelineStage.REVIEW_AND_FEEDBACK,
-      title: "Review and Feedback",
-      description: "Share your feedback about the video pipeline. Your rating and comments help us improve.",
-      completed: false,
-      actionLabel: "Submit review",
-    },
   ];

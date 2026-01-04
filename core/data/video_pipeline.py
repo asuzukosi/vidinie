@@ -17,7 +17,8 @@ from core.utils.logger import get_logger
 from core.data.enums import SourceType, VideoPipelineStatus, VideoPipelineStage
 from core.data.content_models import (
     VideoPipelineParsedContent,
-    VideoPipelineContextChunk
+    VideoPipelineContextChunk,
+    VideoPipelineContextProcessor
 )
 from core.data.image_models import VideoPipelineImageMetadata
 from core.data.segment_models import VideoPipelineOutline
@@ -70,9 +71,6 @@ class VideoPipeline(BaseModel):
 
     # configuration
     config: Optional[Dict[str, Any]] = None  # video pipeline configuration settings
-
-    # context processor information
-    context_processor_info: Optional[Dict[str, Any]] = None  # stores context processor config and results
 
     # status tracking
     current_stage: VideoPipelineStage = VideoPipelineStage.INITIALIZED  # current operation name

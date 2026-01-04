@@ -14,7 +14,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ videoPipelineId }) => 
     useEffect(() => {
         const getBaseUrl = async () => {
             const baseUrl = await client.getBaseUrl();
-            setVideoUrl(`${baseUrl}/pipelines/stream_video/${videoPipelineId}`);
+            setVideoUrl(`${baseUrl}/video-pipelines/${videoPipelineId}/output/stream`);
         };
         getBaseUrl();
     }, [videoPipelineId]);

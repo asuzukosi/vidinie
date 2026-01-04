@@ -25,7 +25,7 @@ requests
 pydub
 
 # video generation
-moviepy
+moviepy==1.0.3
 numpy
 
 # text-to-speech fallback

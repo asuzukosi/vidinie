@@ -9,7 +9,7 @@ import {
     VideoGeneration,
 } from "@/components/pipeline";
 import client from "@/lib/sdk/client";
-import { VideoPipeline, VideoPipelineStage, GenerateVideoPipelineRequest, CreateVideoPipelineOutlineRequest, VideoPipelineReviewRequest } from "@/lib/sdk/types";
+import { VideoPipeline, VideoPipelineStage, GenerateVideoPipelineRequest, CreateVideoPipelineOutlineRequest, VideoPipelineReviewRequest, VideoPipelineStatus } from "@/lib/sdk/types";
 import { LoadingPage } from "@/components/utils/LoadingPage";
 import { VideoPipelineStagesManager } from "@/components/pipeline/VideoPipelineStagesManager";
 import { VideoPipelineDetails } from "@/components/pipeline/VideoPipelineDetails";
@@ -34,6 +34,9 @@ export default function TaskDetailPage() {
         try {
             const result: VideoPipeline = await client.getVideoPipelineDetails(taskId);
             setVideoPipeline(result);
+            setIsProcessingContent(result.stage_statuses?.[VideoPipelineStage.CONTENT_ANALYSIS] === VideoPipelineStatus.IN_PROGRESS);
+            setIsGeneratingScripts(result.stage_statuses?.[VideoPipelineStage.SCRIPT_GENERATION] === VideoPipelineStatus.IN_PROGRESS);
+            setIsGeneratingVideo(result.stage_statuses?.[VideoPipelineStage.VIDEO_GENERATION] === VideoPipelineStatus.IN_PROGRESS);
         } catch (error) {
             console.error("Error fetching video pipeline:", error);
             toast.error(`Failed to retrieve video pipeline with id: ${taskId}`);
@@ -136,7 +139,6 @@ export default function TaskDetailPage() {
             </div>
         );
     }
-
     return (
         <div className="p-4">
             <div className="flex flex-row gap-6 mx-auto">
@@ -146,7 +148,6 @@ export default function TaskDetailPage() {
                         onGenerateOutlineContent={generateOutlineContent} 
                         onScriptAndAudioGeneration={scriptAndAudioGeneration} 
                         onVideoGeneration={videoGeneration} 
-                        onReviewAndFeedback={reviewAndFeedback}
                         onStageSelect={(stage) => setSelectedStage(stage)}
                         selectedStage={selectedStage}
                         defaultVideoTitle={videoPipeline.name}
@@ -154,7 +155,6 @@ export default function TaskDetailPage() {
                         isProcessingContent={isProcessingContent}
                         isGeneratingScripts={isGeneratingScripts}
                         isGeneratingVideo={isGeneratingVideo}
-                        isSubmittingReview={isSubmittingReview}
                     />
                     <VideoPipelineDetails 
                         name={videoPipeline.name} 
@@ -177,17 +177,21 @@ export default function TaskDetailPage() {
                             </CardContent>
                         </Card>
                     )}
-                    {shouldShowSection(VideoPipelineStage.CONTENT_ANALYSIS) && videoPipeline.video_outline && (
+                    {shouldShowSection(VideoPipelineStage.CONTENT_ANALYSIS) && (
                         <Card>
                             <CardHeader>
                                 <CardTitle>Content Analysis</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <ContentAnalyser videoOutline={videoPipeline.video_outline} />
+                                <ContentAnalyser 
+                                    videoOutline={videoPipeline.video_outline} 
+                                    onGenerateOutlineContent={generateOutlineContent}
+                                    isProcessingContent={isProcessingContent}
+                                />
                             </CardContent>
                         </Card>
                     )}
-                    {shouldShowSection(VideoPipelineStage.SCRIPT_GENERATION) && videoPipeline.script_data && (
+                    {shouldShowSection(VideoPipelineStage.SCRIPT_GENERATION) && (
                         <Card>
                             <CardHeader>
                                 <CardTitle>Script and Audio Generation</CardTitle>
@@ -197,17 +201,31 @@ export default function TaskDetailPage() {
                                     scriptData={videoPipeline.script_data}
                                     fullAudioPath={videoPipeline.full_audio_path}
                                     fullAudioDuration={videoPipeline.full_audio_duration}
+                                    onScriptAndAudioGeneration={scriptAndAudioGeneration}
+                                    isGeneratingScripts={isGeneratingScripts}
                                 />
                             </CardContent>
                         </Card>
                     )}
-                    {shouldShowSection(VideoPipelineStage.VIDEO_GENERATION) && videoPipeline.video_path && (
+                    {shouldShowSection(VideoPipelineStage.VIDEO_GENERATION) && (
                         <Card>
                             <CardHeader>
                                 <CardTitle>Video Generation</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <VideoGeneration videoPipelineId={taskId} />
+                                <VideoGeneration 
+                                    videoPipelineId={taskId}
+                                    videoPath={videoPipeline.video_path}
+                                    rating={videoPipeline.rating}
+                                    feedback={videoPipeline.feedback}
+                                    updated_at={videoPipeline.updated_at}
+                                    onVideoGeneration={videoGeneration}
+                                    onReviewAndFeedback={reviewAndFeedback}
+                                    isGeneratingVideo={isGeneratingVideo}
+                                    isSubmittingReview={isSubmittingReview}
+                                    defaultVideoTitle={videoPipeline.name}
+                                    defaultVideoSubtitle={videoPipeline.description}
+                                />
                             </CardContent>
                         </Card>
                     )}
