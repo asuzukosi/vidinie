@@ -1,6 +1,6 @@
 # ignore all font files by default
 # should add their own fonts
-*.ttf
+# *.ttf
 *.otf
 *.ttc
 
