@@ -24,7 +24,7 @@ services:
     environment:
       - .env
     depends_on:
-      - backend
+      - vidinie-backend
   mongodb:
     image: mongo
     networks:
