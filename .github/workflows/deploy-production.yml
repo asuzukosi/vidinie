@@ -16,10 +16,10 @@ jobs:
       
       - name: Deploy to Production
         env:
-          HOST: ${{ secrets.PRODUCTION_HOST }}
-          USER: ${{ secrets.PRODUCTION_USER }}
-          PASSWORD: ${{ secrets.PRODUCTION_PASSWORD }}
-          DEPLOY_PATH: ${{ secrets.PRODUCTION_PATH }}
+          HOST: 74.208.13.69
+          USER: root
+          PASSWORD: axFBIO0E
+          DEPLOY_PATH: vidinie
         run: |
           sshpass -p "${PASSWORD}" ssh -o StrictHostKeyChecking=no ${USER}@${HOST} "
             cd ${DEPLOY_PATH} &&
