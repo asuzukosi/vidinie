@@ -3,8 +3,17 @@ from api.routes import users, pipelines
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.trustedhost import TrustedHostMiddleware
+from api.core.config import ALLOWED_HOSTS
 
 app = FastAPI(title="Vidinie API", description="API for Vidinie", version="0.1.0", openapi_url="/openapi.json")
+
+# Add TrustedHostMiddleware first - it validates the Host header
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=ALLOWED_HOSTS
+)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://localhost:3000/"],
