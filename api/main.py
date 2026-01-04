@@ -3,11 +3,17 @@ from api.routes import users, pipelines
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
 app = FastAPI(title="Vidinie API", description="API for Vidinie", version="0.1.0", openapi_url="/openapi.json")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3000/"],
+    allow_origins=["http://localhost:3000", "http://localhost:3000/", 
+                   "https://vidinie.com", "https://api.vidinie.com"] + [os.getenv("FRONTEND_URL")],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
