@@ -11,16 +11,21 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       
+      - name: Install sshpass
+        run: sudo apt-get install -y sshpass
+      
       - name: Deploy to Production
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.PRODUCTION_HOST }}
-          username: ${{ secrets.PRODUCTION_USER }}
-          password: ${{ secrets.PRODUCTION_PASSWORD }}
-          script: |
-            cd ${{ secrets.PRODUCTION_API_PATH }}
-            git pull origin production
-            git checkout production
-            docker-compose -f docker-compose.yml build
-            docker-compose down
+        env:
+          HOST: ${{ secrets.PRODUCTION_HOST }}
+          USER: ${{ secrets.PRODUCTION_USER }}
+          PASSWORD: ${{ secrets.PRODUCTION_PASSWORD }}
+          DEPLOY_PATH: ${{ secrets.PRODUCTION_PATH }}
+        run: |
+          sshpass -p "${PASSWORD}" ssh -o StrictHostKeyChecking=no ${USER}@${HOST} "
+            cd ${DEPLOY_PATH} &&
+            git pull origin production &&
+            git checkout production &&
+            docker-compose -f docker-compose.yml build &&
+            docker-compose down &&
             docker-compose up -d
+          "
