@@ -47,7 +47,7 @@ email-validator
 dnspython
 passlib[bcrypt]
 bcrypt
-jwt
+PyJWT
 python-multipart
 uvicorn
 python-jose[cryptography]
