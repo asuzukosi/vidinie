@@ -16,9 +16,10 @@ jobs:
           HOST: ${{secrets.PRODUCTION_HOST }}
           USER: ${{secrets.PRODUCTION_USER}}
           PASSWORD: ${{secrets.PRODUCTION_PASSWORD}}
+          PATH: ${{secrets.PRODUCTION_API_PATH}}
         run: |
           sshpass -p "${PASSWORD}" ssh -o StrictHostKeyChecking=no ${USER}@${HOST} '
-            cd ${{secrets.PRODUCTION_API_PATH}} &&
+            cd ${PATH} &&
             git pull origin production && git checkout production &&
             docker-compose -f docker-compose.yml build &&
             docker-compose down &&
