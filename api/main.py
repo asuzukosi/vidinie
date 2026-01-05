@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-app = FastAPI(title="vidinie backend service api", description="API for Vidinie", version="0.1.0", openapi_url="/openapi.json")
+app = FastAPI(title="[vidinie] backend service api", description="API for Vidinie", version="0.1.0", openapi_url="/openapi.json")
 
 app.add_middleware(
     CORSMiddleware,
