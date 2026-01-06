@@ -288,7 +288,6 @@ export interface VideoPipelineProcessingStage {
 // authentication types
 export interface LoginResponse {
     id: string;
-    username: string;
     email: string;
     token: string;
     created_at: string;
@@ -301,7 +300,6 @@ export interface LoginResponse {
 
 export interface RegisterResponse {
     id: string;
-    username: string;
     email: string;
     created_at: string;
     updated_at: string;
@@ -311,7 +309,6 @@ export interface RegisterResponse {
 
 export interface User {
     id: string;
-    username: string;
     email: string;
     created_at: string;
     updated_at: string;
@@ -321,33 +318,34 @@ export interface User {
     stripe_customer_id?: string | null;
 }
 
-// payment Method Types
-export interface PaymentMethodCard {
-    brand: string;
-    last4: string;
-    exp_month: number;
-    exp_year: number;
+// subscription types
+export enum SubscriptionType {
+    FREE = "free",
+    PRO = "starter",
+    ENTERPRISE = "professional"
 }
 
-export interface PaymentMethod {
+export enum SubscriptionStatus {
+    ACTIVE = "active",
+    CANCELED = "canceled",
+    PAST_DUE = "past_due",
+    UNPAID = "unpaid",
+    TRIALING = "trialing",
+    INCOMPLETE = "incomplete",
+    INCOMPLETE_EXPIRED = "incomplete_expired"
+}
+
+export interface Subscription {
     id: string;
     user_id: string;
-    stripe_payment_method_id: string;
-    type: string;
-    card?: PaymentMethodCard | null;
-    is_default: boolean;
+    stripe_subscription_id?: string | null;
+    stripe_price_id?: string | null;
+    subscription_type: SubscriptionType;
+    status: SubscriptionStatus;
+    current_period_start?: string | null;
+    current_period_end?: string | null;
+    cancel_at_period_end: boolean;
+    canceled_at?: string | null;
     created_at: string;
     updated_at: string;
-}
-
-export interface CreatePaymentMethodRequest {
-    stripe_payment_method_id: string;
-    type?: string;
-    card?: PaymentMethodCard | null;
-    is_default?: boolean;
-}
-
-export interface UpdatePaymentMethodRequest {
-    is_default?: boolean;
-    card?: PaymentMethodCard | null;
 }

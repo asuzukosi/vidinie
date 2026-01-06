@@ -3,19 +3,19 @@ Helper functions for pipeline API routes.
 Provides reusable functions for common operations like retrieving pipelines.
 """
 
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from bson.objectid import ObjectId
 from fastapi import HTTPException
 from core.data import VideoPipeline
 from api.core.db import video_pipelines_collection
+from api.data.pipelines import VideoPipelineSummary
 from core.utils.logger import get_logger
-from core.utils.config_loader import config
-import os
-import shutil
 
 logger = get_logger('pipeline_helpers')
 
 async def get_pipeline_by_id(video_pipeline_id: str) -> VideoPipeline:
+    if video_pipelines_collection is None:
+        raise HTTPException(status_code=500, detail="Database is not initialized")
     try:
         video_pipeline_dict: Optional[Dict[str, Any]] = await video_pipelines_collection.find_one(
             {"_id": ObjectId(video_pipeline_id)}
@@ -31,6 +31,8 @@ async def get_pipeline_by_id(video_pipeline_id: str) -> VideoPipeline:
 
 
 async def update_pipeline_in_db(video_pipeline_id: str, pipeline: VideoPipeline) -> None:
+    if video_pipelines_collection is None:
+        raise HTTPException(status_code=500, detail="Database is not initialized")
     await video_pipelines_collection.update_one(
         {"_id": ObjectId(video_pipeline_id)},
         {"$set": pipeline.model_dump(mode="json")}
@@ -45,6 +47,8 @@ async def create_pipeline_in_db(pipeline: VideoPipeline) -> VideoPipeline:
     returns:
         the pipeline with the updated id field
     """
+    if video_pipelines_collection is None:
+        raise HTTPException(status_code=500, detail="Database is not initialized")
     logger.info("creating new pipeline in database")
     # insert pipeline into database
     db_pipeline = await video_pipelines_collection.insert_one(pipeline.model_dump(mode="json"))
@@ -60,30 +64,35 @@ async def create_pipeline_in_db(pipeline: VideoPipeline) -> VideoPipeline:
     return pipeline
 
 
-async def migrate_pipeline_files(old_id: str, new_id: str, pipeline: VideoPipeline) -> None:
+async def get_pipelines_for_user(user_id: str) -> List[VideoPipelineSummary]:
     """
-    move pipeline folder from old id path to new id path when MongoDB generates a new _id.
-    args:
-        old_id: the original UUID id before MongoDB save
-        new_id: the new MongoDB ObjectId string
-        pipeline: the VideoPipeline object (not used, kept for compatibility)
+    get all pipelines for a user
     """
-    if old_id == new_id:
-        return  # no migration needed
-    
-    temp_dir = config.get('output.temp_directory', 'temp')
-    old_path = os.path.join(temp_dir, old_id)
-    new_path = os.path.join(temp_dir, new_id)
-    
-    if not os.path.exists(old_path):
-        logger.info(f"No folder to migrate from {old_path}")
-        return
-    
-    logger.info(f"Moving pipeline folder from {old_path} to {new_path}")
-    
+    if video_pipelines_collection is None:
+        raise HTTPException(status_code=500, detail="database is not initialized")
     try:
-        # move the entire folder
-        shutil.move(old_path, new_path)
-        logger.info(f"Successfully moved pipeline folder from {old_id} to {new_id}")
+        pipelines: List[VideoPipelineSummary] = []
+        async for video_pipeline in video_pipelines_collection.find({"user_id": user_id}):
+            pipelines.append(VideoPipelineSummary(**video_pipeline))
+        return pipelines
     except Exception as e:
-        logger.error(f"Error moving pipeline folder from {old_id} to {new_id}: {str(e)}")
+        logger.error(f"error retrieving pipelines for user {user_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"error retrieving pipelines: {str(e)}")
+
+
+async def delete_pipeline_from_db(video_pipeline_id: str) -> None:
+    """
+    delete a pipeline from the database.
+    """
+    if video_pipelines_collection is None:
+        raise HTTPException(status_code=500, detail="database is not initialized")
+    try:
+        result = await video_pipelines_collection.delete_one({"_id": ObjectId(video_pipeline_id)})
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail="pipeline not found")
+        logger.info(f"pipeline deleted successfully with id: {video_pipeline_id}")
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise
+        logger.error(f"error deleting pipeline with id: {video_pipeline_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"error deleting pipeline: {str(e)}")

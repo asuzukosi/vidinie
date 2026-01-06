@@ -7,13 +7,12 @@ generates descriptions, labels, and context for each image.
 import os
 import base64
 import json
-from typing import List, Dict, Optional, Any, Union
+from typing import List, Dict
 from openai import OpenAI
 from jinja2 import Environment, FileSystemLoader, select_autoescape
-from pathlib import Path
 from core.utils.logger import get_logger
 from core.utils.config_loader import config
-from core.data import VideoPipeline, VideoPipelineImageMetadata
+from core.data import VideoPipelineImageMetadata
 
 logger = get_logger(__name__)
 
@@ -84,7 +83,7 @@ class ImageLabeler:
             
             # skip if already labeled
             if img_meta.label and img_meta.description:
-                logger.info(f"Image already labeled: {img_meta.get('label')}")
+                logger.info(f"image already labeled: {img_meta.label}")
                 continue
             
             image_path = img_meta.filepath
@@ -229,145 +228,3 @@ class ImageLabeler:
             json.dump(data, f, indent=2)
         logger.info(f"saved labeled metadata to {output_path}")
 
-
-def label_images(images_metadata: List[VideoPipelineImageMetadata]) -> List[VideoPipelineImageMetadata]:
-    """
-    convenience function to label images.
-    args:
-        images_metadata: list of image metadata
-    returns:
-        updated metadata with labels
-    """
-    labeler = ImageLabeler()
-    return labeler.label_images_batch(images_metadata)
-
-
-def save_image_file(image: Any, output_path: str) -> int:
-    """save an uploaded image file to disk."""
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    image_content = image.file.read()
-    image.file.seek(0)
-    with open(output_path, 'wb') as f:
-        f.write(image_content)
-    return len(image_content)
-
-
-def create_image_metadata(
-    image: Any,
-    filepath: str,
-    text_context: Optional[str] = None,
-    size_bytes: Optional[int] = None
-) -> VideoPipelineImageMetadata:
-    """create image metadata object from uploaded image."""
-    return VideoPipelineImageMetadata(
-        filename=image.filename or "unknown",
-        filepath=filepath,
-        page_number=1,
-        width=image.size[0] if hasattr(image, 'size') and image.size else None,
-        height=image.size[1] if hasattr(image, 'size') and image.size else None,
-        format=image.content_type.split("/")[1] if image.content_type else None,
-        mode="RGB",
-        size_bytes=size_bytes or 0,
-        text_context=text_context or "",
-        xref=None,
-        index_on_page=0
-    )
-
-
-def label_image_metadata(
-    image_metadata: VideoPipelineImageMetadata
-) -> VideoPipelineImageMetadata:
-    """Label an image using AI."""
-    labeler = ImageLabeler()
-    labeled_metadata = labeler.label_images_batch([image_metadata])
-    return labeled_metadata[0] if labeled_metadata else image_metadata
-
-
-def add_image_to_pipeline(
-    video_pipeline: VideoPipeline,
-    image: Any,
-    text_context: Optional[str] = None,
-    label: bool = False
-) -> VideoPipelineImageMetadata:
-    """Add an image to a video pipeline."""
-    if not image.filename or not image.filename.endswith((".png", ".jpg", ".jpeg", ".gif")):
-        raise ValueError("Invalid image type must be a PNG, JPG, or JPEG file")
-    
-    if not video_pipeline.id:
-        raise ValueError("Pipeline ID not found for this pipeline. Create a new pipeline object to continue")
-    
-    temp_dir = config.get('output.temp_directory', 'temp')
-    image_path = os.path.join(temp_dir, video_pipeline.id, "images", image.filename)
-    size_bytes = save_image_file(image, image_path)
-    image_metadata = create_image_metadata(image, image_path, text_context, size_bytes)
-    
-    if label:
-        image_metadata = label_image_metadata(image_metadata)
-    
-    video_pipeline.images_metadata.append(image_metadata)
-    return image_metadata
-
-
-def update_image_metadata(
-    image_metadata: VideoPipelineImageMetadata,
-    filename: Optional[str] = None,
-    text_context: Optional[str] = None,
-    description: Optional[str] = None,
-    relevance_score: Optional[float] = None,
-    image_type: Optional[str] = None,
-    key_elements: Optional[List[str]] = None,
-    ai_relevance: Optional[str] = None
-) -> VideoPipelineImageMetadata:
-    """update image metadata fields."""
-    if filename is not None:
-        image_metadata.filename = filename
-    if text_context is not None:
-        image_metadata.text_context = text_context
-    if description is not None:
-        image_metadata.description = description
-    if relevance_score is not None:
-        image_metadata.relevance_score = relevance_score
-    if image_type is not None:
-        image_metadata.image_type = image_type
-    if key_elements is not None:
-        image_metadata.key_elements = key_elements
-    if ai_relevance is not None:
-        image_metadata.ai_relevance = ai_relevance
-    return image_metadata
-
-
-def update_image_in_pipeline(
-    video_pipeline: VideoPipeline,
-    index: int,
-    **kwargs
-) -> VideoPipelineImageMetadata:
-    """update image metadata in a video pipeline."""
-    if index < 0 or index >= len(video_pipeline.images_metadata):
-        raise IndexError(f"Image index {index} out of range")
-    image_metadata = video_pipeline.images_metadata[index]
-    return update_image_metadata(image_metadata, **kwargs)
-
-
-def delete_image_file(filepath: str) -> bool:
-    """delete an image file from disk."""
-    if filepath and os.path.exists(filepath):
-        try:
-            os.remove(filepath)
-            return True
-        except Exception as e:
-            logger.warning(f"Failed to delete image file {filepath}: {str(e)}")
-            return False
-    return False
-
-
-def delete_image_from_pipeline(
-    video_pipeline: VideoPipeline,
-    index: int
-) -> VideoPipelineImageMetadata:
-    """delete an image from a video pipeline."""
-    if index < 0 or index >= len(video_pipeline.images_metadata):
-        raise IndexError(f"Image index {index} out of range")
-    image_metadata = video_pipeline.images_metadata.pop(index)
-    if image_metadata.filepath:
-        delete_image_file(image_metadata.filepath)
-    return image_metadata

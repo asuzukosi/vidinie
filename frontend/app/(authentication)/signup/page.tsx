@@ -22,16 +22,15 @@ export default function SignUpPage() {
     }
   }, [user, router]);
 
-  const handleSignup = async (username: string, email: string, password: string) => {
+  const handleSignup = async (email: string, password: string) => {
     try {
-      await client.register(username, email, password);
+      await client.register(email, password);
       toast.success("Account created successfully!");
       
       // auto-login after signup
       const response = await client.login(email, password);
       const userData = {
         id: response.id,
-        username: response.username,
         email: response.email,
         token: response.token,
         created_at: response.created_at,

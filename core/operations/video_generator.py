@@ -9,18 +9,14 @@ creates presentation-style explainer videos with:
 """
 
 import os
-from datetime import datetime
 from typing import Optional, Tuple
 import numpy as np
 from core.data import (
     VideoPipelineScript,
     VideoPipelineSegment,
     BackgroundType,
-    VideoPipelineStage,
-    VideoPipelineStatus,
 )
-from core.data import VideoPipeline
-from core.utils.config_loader import config
+from core.utils.config_loader import Config
 from PIL import Image
 if not hasattr(Image, 'ANTIALIAS'):
     Image.ANTIALIAS = Image.LANCZOS
@@ -35,7 +31,6 @@ from moviepy.video.fx.fadeout import fadeout
 from core.utils.video_utils import VideoUtils
 from core.utils.font_loader import FontLoader
 from core.utils.logger import get_logger
-from core.utils.config_loader import Config
 
 logger = get_logger("video_generator")
 
@@ -68,7 +63,7 @@ class VideoGenerator:
         self.background_type = background_type
         
         # initialize font loader
-        self.font_loader = FontLoader(config) # TODO: allow for setting of multiple font folders to load from
+        self.font_loader = FontLoader(config)
         VideoUtils.set_font_loader(self.font_loader)
         # video title will be set when generate_video is called
         self.video_title = video_title
@@ -112,10 +107,6 @@ class VideoGenerator:
         logger.info("concatenating video clips...")
         final_video = concatenate_videoclips(clips, method='compose')
         
-        # note: audio is already added per-segment in _create_segment_clip
-        # full audio track is optional and would need pipeline_id to locate
-        # for now, we rely on per-segment audio which is already set
-        
         # write video file
         logger.info(f"writing video to {output_path}...")
         final_video.write_videofile(
@@ -125,7 +116,6 @@ class VideoGenerator:
             audio_codec=self.config.get('output.audio_codec', 'aac'),
             temp_audiofile='temp_audio.m4a',
             remove_temp=True,
-            # logger=None  # suppress moviepy's verbose output
         )
         
         logger.info(f"video generated successfully: {output_path}")
@@ -244,16 +234,13 @@ class VideoGenerator:
         if self.background_type == BackgroundType.GRADIENT:
             return VideoUtils.create_gradient_background(
                 self.width, self.height,
-                # color1=segment.background_colors[0] if segment.background_colors else None,
                 color1=(0, 0, 0),
-                # color2=segment.background_colors[1] if segment.background_colors else None
                 color2=(0, 0, 0),
             )
         elif self.background_type == BackgroundType.SOLID:
             # solid color
             return VideoUtils.create_solid_background(
                 self.width, self.height,
-                # segment.background_colors[0] if segment.background_colors else None
                 color=(0, 0, 0),
             )
         elif self.background_type == BackgroundType.IMAGE:
@@ -317,7 +304,6 @@ class VideoGenerator:
 
         line_spacing = 30
         # fixed video title at top (all segments)
-        # use darker color for better contrast on pastel backgrounds
         img, space_used = VideoUtils.add_text_to_image(
             img,
             self.video_title,
@@ -353,97 +339,12 @@ class VideoGenerator:
                 img, space_used = VideoUtils.add_text_to_image(
                     img,
                     point_text,
-                    position=(position_x + 20, position_y),  # indented for bullet
+                    position=(position_x + 20, position_y),
                     font_size=40,
                     color=(255, 255, 255),
-                    max_width=text_area_width - 40,  # account for indentation
+                    max_width=text_area_width - 40,
                     align='left'
                 )
                 position_y += space_used + line_spacing
         
         return np.array(img)
-
-
-def generate_video(
-    pipeline: VideoPipeline,
-    title: Optional[str] = None,
-    subtitle: Optional[str] = None,
-    resolution: tuple = (1920, 1080),
-    fps: int = 30,
-    title_duration: float = 3.0,
-    end_duration: float = 3.0,
-    transition_duration: float = 0.5,
-    background_type: Optional[BackgroundType] = None
-) -> VideoPipeline:
-    """
-    generate video from script and audio.
-    args:
-        pipeline: video pipeline object with script data and full audio path
-        title: video title
-        subtitle: video subtitle
-        resolution: video resolution (width, height)
-        fps: frames per second
-        title_duration: title screen duration in seconds
-        end_duration: end screen duration in seconds
-        transition_duration: transition duration in seconds
-        background_type: background type
-    returns:
-        updated video pipeline with video path
-    """
-    temp_dir = config.get('output.temp_directory', 'temp')
-    
-    pipeline.update_stage(VideoPipelineStage.VIDEO_GENERATION, VideoPipelineStatus.IN_PROGRESS)
-    
-    if not pipeline.full_audio_path:
-        logger.error("Full audio path not found in pipeline data")
-        pipeline.update_stage(VideoPipelineStage.VIDEO_GENERATION, VideoPipelineStatus.FAILED)
-        return pipeline
-    
-    if not pipeline.full_audio_duration:
-        logger.error("Full audio duration not found in pipeline data")
-        pipeline.update_stage(VideoPipelineStage.VIDEO_GENERATION, VideoPipelineStatus.FAILED)
-        return pipeline
-    
-    if not pipeline.script_data:
-        logger.error("Script data not found in pipeline data")
-        pipeline.update_stage(VideoPipelineStage.VIDEO_GENERATION, VideoPipelineStatus.FAILED)
-        return pipeline
-    
-    try:
-        script_data = pipeline.script_data
-        logger.info(f"Using script data for {len(script_data.segments)} segments")
-        
-        # generate video
-        video_dir = os.path.join(temp_dir, pipeline.id, 'video')
-        os.makedirs(video_dir, exist_ok=True)
-        
-        video_path = os.path.join(video_dir, f"video_{datetime.now().strftime('%Y%m%d%H%M%S')}.mp4")
-        
-        video_gen = VideoGenerator(
-            config=config,
-            video_title=title or script_data.title,
-            subtitle=subtitle or "",
-            resolution=resolution,
-            fps=fps,
-            title_duration=title_duration,
-            end_duration=end_duration,
-            transition_duration=transition_duration,
-            background_type=background_type or BackgroundType.GRADIENT
-        )
-        
-        generated_video_path = video_gen.generate_video(script_data, video_path)
-        pipeline.video_path = generated_video_path
-        pipeline.output_path = generated_video_path
-        
-        # clear rating and feedback when video is regenerated
-        pipeline.rating = None
-        pipeline.feedback = None
-        
-        pipeline.update_stage(VideoPipelineStage.VIDEO_GENERATION, VideoPipelineStatus.COMPLETED)
-        logger.info(f"Video generated successfully: {generated_video_path}")
-        return pipeline
-        
-    except Exception as e:
-        logger.error(f"Error during video generation: {str(e)}", exc_info=True)
-        pipeline.update_stage(VideoPipelineStage.VIDEO_GENERATION, VideoPipelineStatus.FAILED)
-        return pipeline

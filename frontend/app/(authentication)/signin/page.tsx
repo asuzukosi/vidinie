@@ -28,7 +28,6 @@ export default function SignInPage() {
       // store all user data and token in redux
       const userData = {
         id: response.id,
-        username: response.username,
         email: response.email,
         token: response.token,
         created_at: response.created_at,

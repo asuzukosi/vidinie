@@ -33,7 +33,6 @@ export function NavFooter({
   user,
 }: {
   user: {
-    username: string;
     email: string;
     avatar?: string | null;
   };
@@ -58,10 +57,10 @@ export function NavFooter({
                 <DropdownMenuTrigger asChild>
                   <Avatar className="h-8 w-8 rounded-full">
                     {user.avatar && (
-                      <AvatarImage src={user.avatar} alt={user.username} />
+                      <AvatarImage src={user.avatar} alt={user.email} />
                     )}
                     <AvatarFallback className="rounded-full">
-                      {getInitials(user.username)}
+                      {getInitials(user.email)}
                     </AvatarFallback>
                   </Avatar>
                 </DropdownMenuTrigger>

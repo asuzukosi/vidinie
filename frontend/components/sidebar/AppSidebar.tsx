@@ -44,18 +44,16 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
       return client.getProfilePictureUrl(user.profile_picture);
     }
     // fallback to ui-avatars if no profile picture
-    if (user?.username) {
-      return `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username)}&background=random`;
+    if (user?.email) {
+      return `https://ui-avatars.com/api/?name=${encodeURIComponent(user.email)}&background=random`;
     }
     return null;
   };
 
   const userData = user ? {
-    username: user.username,
     email: user.email,
     avatar: getAvatarUrl() || null,
   } : {
-    username: "User",
     email: "",
     avatar: null,
   };
