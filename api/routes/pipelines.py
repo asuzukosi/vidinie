@@ -101,6 +101,9 @@ async def delete_pipeline_temp_directory(video_pipeline: VideoPipeline) -> None:
     else:
         logger.info(f"no temp directory found for pipeline with id: {video_pipeline.id}")
 
+async def any_stage_is_processing(video_pipeline: VideoPipeline) -> bool:
+    # check if any stage is processing
+    return video_pipeline.status == VideoPipelineStatus.IN_PROGRESS
 
 # pipeline stages to run in the order they are executed
 PIPELINE_STAGES = [
@@ -470,6 +473,9 @@ async def process_video_pipeline_content(video_pipeline_id: str, request: Create
     # verify ownership
     if video_pipeline.user_id != user.id:
         raise HTTPException(status_code=403, detail="Unauthorized")
+    # ensure no other stage is in progress
+    if await any_stage_is_processing(video_pipeline):
+        raise HTTPException(status_code=409, detail="another pipeline stage is currently in progress, please wait until it completes.")
     # process content
     skip_stock = request.skip_stock
     target_segments = request.target_segments
@@ -542,6 +548,9 @@ async def generate_video_pipeline_scripts(video_pipeline_id: str, request: Creat
     # verify ownership
     if video_pipeline.user_id != user.id:
         raise HTTPException(status_code=403, detail="Unauthorized")
+    # ensure no other stage is in progress
+    if await any_stage_is_processing(video_pipeline):
+        raise HTTPException(status_code=409, detail="another pipeline stage is currently in progress, please wait until it completes.")
     # use modular operation to generate scripts
     provider = request.provider
     voice_id = request.voice_id
@@ -565,6 +574,9 @@ async def generate_video_pipeline_output(video_pipeline_id: str, request: Genera
     # verify ownership
     if video_pipeline.user_id != user.id:
         raise HTTPException(status_code=403, detail="Unauthorized")
+    # ensure no other stage is in progress
+    if await any_stage_is_processing(video_pipeline):
+        raise HTTPException(status_code=409, detail="another pipeline stage is currently in progress, please wait until it completes.")
     # use modular operation to generate video
     title = request.title
     subtitle = request.subtitle
