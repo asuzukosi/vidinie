@@ -6,9 +6,9 @@ from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 import os
 from dotenv import load_dotenv
-from core.signals import connect_to_broadcast, disconnect_from_broadcast
-from core.config import initialize_config, destroy_config
-from core.db import initialize_db, disconnect_from_db
+from api.core.signals import connect_to_broadcast, disconnect_from_broadcast
+from api.core.config import initialize_config, destroy_config
+from api.core.db import initialize_db, disconnect_from_db
 
 load_dotenv()
 

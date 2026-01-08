@@ -9,17 +9,35 @@ import {
 } from "@/components/ui/accordion";
 import Image from "next/image";
 import { getLinkToImage } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { IconTrash } from "@tabler/icons-react";
 
 interface DocumentProcessingImageProps {
   image: VideoPipelineImageMetadata;
   index: number;
+  onDelete: () => void;
+  isDeleting?: boolean;
 }
 
-export function DocumentProcessingImage({ image, index }: DocumentProcessingImageProps) {
+export function DocumentProcessingImage({ image, index, onDelete, isDeleting = false }: DocumentProcessingImageProps) {
   return (
     <AccordionItem value={`image-${index}`}>
       <AccordionTrigger className="text-sm flex flex-row justify-between gap-2">
-        <span className="italic font-light">{image.label}</span>
+        <div className="flex items-center gap-2 flex-1">
+          <span className="italic font-light">{image.label || image.filename}</span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            disabled={isDeleting}
+          >
+            <IconTrash className="h-4 w-4" />
+          </Button>
+        </div>
       </AccordionTrigger>
       <AccordionContent className="flex flex-col gap-4">
         {getLinkToImage(image.filepath) && (
@@ -111,4 +129,3 @@ export function DocumentProcessingImage({ image, index }: DocumentProcessingImag
     </AccordionItem>
   );
 }
-

@@ -17,7 +17,6 @@ export class VidinieAPIClient {
 
     setToken(token: string | null): void {
         this.token = token;
-        // Also set token on frontend client to keep them in sync
         frontendClient.setToken(token);
     }
 
@@ -140,7 +139,7 @@ export class VidinieAPIClient {
     async deleteVideoPipelineImage(videoPipelineId: string, index: number): Promise<DeleteVideoPipelineImageResponse> {
         const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/images/${index}`, {
             method: 'DELETE',
-            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' })
+            headers: this.getAuthHeaders()
         });
         return this.handleResponse<DeleteVideoPipelineImageResponse>(response, "Delete video pipeline image");
     }
@@ -201,7 +200,7 @@ export class VidinieAPIClient {
     async downloadVideoPipelineOutput(videoPipelineId: string): Promise<Blob> {
         const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/output/download`, {
             method: 'GET',
-            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' })
+            headers: this.getAuthHeaders()
         });
 
         if (!response.ok) {
@@ -221,7 +220,7 @@ export class VidinieAPIClient {
     async streamVideoPipelineOutput(videoPipelineId: string): Promise<Response> {
         const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/output/stream`, {
             method: 'GET',
-            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' })
+            headers: this.getAuthHeaders()
         });
 
         if (!response.ok) {
@@ -246,8 +245,6 @@ export class VidinieAPIClient {
         });
         return this.handleResponse<VideoPipeline>(response, "Add video pipeline review");
     }
-
-    // ===== Authentication Methods =====
 
     async login(email: string, password: string): Promise<LoginResponse> {
         const response = await fetch(`${this.baseUrl}/users/login`, {
@@ -340,15 +337,6 @@ export class VidinieAPIClient {
         });
 
         return this.handleResponse<{ message: string; profile_picture: string }>(response, "Upload profile picture");
-    }
-    
-    async deleteProfilePicture(): Promise<{ message: string }> {
-        const response = await fetch(`${this.baseUrl}/users/profile-picture`, {
-            method: 'DELETE',
-            headers: this.getAuthHeaders()
-        });
-
-        return this.handleResponse<{ message: string }>(response, "Delete profile picture");
     }
 
     getProfilePictureUrl(profilePicturePath: string | null | undefined): string | null {

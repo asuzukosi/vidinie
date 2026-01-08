@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { VideoPipelineImageMetadata,
          VideoPipelineParsedContent, 
          VideoPipelineContentSection } from "@/lib/sdk/types";
@@ -15,14 +16,48 @@ import { capitalizeFirstChar } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { DocumentProcessingImage } from "./DocumentProcessingImage";
 import { Button } from "@/components/ui/button";
-import { IconPlus } from "@tabler/icons-react";
+import { IconTrash } from "@tabler/icons-react";
 import { toast } from "sonner";
+import client from "@/lib/sdk/client";
+import { AddImageDialog } from "@/components/pipeline/AddImageDialog";
+import { AddSectionDialog } from "@/components/pipeline/AddSectionDialog";
+
 interface DocumentProcessingProps {
     content?: VideoPipelineParsedContent;
     images?: VideoPipelineImageMetadata[];
+    videoPipelineId: string;
+    onRefresh: () => void;
 }
 
-export function DocumentProcessing({ content, images }: DocumentProcessingProps) {
+export function DocumentProcessing({ content, images, videoPipelineId, onRefresh }: DocumentProcessingProps) {
+    const [isDeletingImage, setIsDeletingImage] = useState<number | null>(null);
+    const [isDeletingSection, setIsDeletingSection] = useState<number | null>(null);
+
+    const handleDeleteImage = async (index: number) => {
+        setIsDeletingImage(index);
+        try {
+            await client.deleteVideoPipelineImage(videoPipelineId, index);
+            toast.success("Image deleted successfully");
+            setIsDeletingImage(null);
+            onRefresh();
+        } catch (error: any) {
+            toast.error(error.message || "Failed to delete image");
+            setIsDeletingImage(null);
+        }
+    };
+
+    const handleDeleteSection = async (index: number) => {
+        setIsDeletingSection(index);
+        try {
+            await client.deleteVideoPipelineSection(videoPipelineId, index);
+            toast.success("Section deleted successfully");
+            setIsDeletingSection(null);
+            onRefresh();
+        } catch (error: any) {
+            toast.error(error.message || "Failed to delete section");
+            setIsDeletingSection(null);
+        }
+    };
 
     if (!content) {
         return (
@@ -62,7 +97,23 @@ export function DocumentProcessing({ content, images }: DocumentProcessingProps)
                             {content?.sections.map((section: VideoPipelineContentSection, index: number) => (
                                 <AccordionItem key={index} value={capitalizeFirstChar(section.title || `section-${index}`)} className="text-sm">
                                     <AccordionTrigger className="text-sm flex flex-row justify-between gap-2">
-                                        <span className="italic font-light">{capitalizeFirstChar(section.title || `Section ${index + 1}`)}</span> 
+                                        <div className="flex items-center gap-2 flex-1">
+                                            <span className="italic font-light">{capitalizeFirstChar(section.title || `Section ${index + 1}`)}</span>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (confirm(`Are you sure you want to delete section "${section.title}"?`)) {
+                                                        handleDeleteSection(index);
+                                                    }
+                                                }}
+                                                disabled={isDeletingSection === index}
+                                            >
+                                                <IconTrash className="h-4 w-4" />
+                                            </Button>
+                                        </div>
                                     </AccordionTrigger>
                                     <AccordionContent className="flex flex-col gap-4 text-balance italic">
                                         <Badge variant="outline">{section.level} {section.level === 1 ? "level" : "levels"}</Badge>
@@ -71,12 +122,10 @@ export function DocumentProcessing({ content, images }: DocumentProcessingProps)
                                 </AccordionItem>
                             ))}
                         </Accordion>
-                        <Button variant="outline" size="sm"
-                            onClick={() => toast.success("Section addtion implemented yet")}
-                            className="w-full flex items-center justify-center gap-2 text-xs border-dashed border-zinc-300 text-zinc-500 hover:text-zinc-700 hover:border-zinc-500">
-                            <IconPlus className="size-4" />
-                            Add New Section
-                        </Button>
+                        <AddSectionDialog 
+                            videoPipelineId={videoPipelineId}
+                            onSuccess={onRefresh}
+                        />
                         </div>
                         <div className="space-y-4 mb-4">
                             <h3 className="font-semibold text-sm">Images</h3>
@@ -87,18 +136,26 @@ export function DocumentProcessing({ content, images }: DocumentProcessingProps)
                                     className="w-full"
                                 >
                                     {images.map((image, index) => (
-                                        <DocumentProcessingImage key={index} image={image} index={index} />
+                                        <DocumentProcessingImage 
+                                            key={index} 
+                                            image={image} 
+                                            index={index}
+                                            onDelete={() => {
+                                                if (confirm(`Are you sure you want to delete image "${image.label || image.filename}"?`)) {
+                                                    handleDeleteImage(index);
+                                                }
+                                            }}
+                                            isDeleting={isDeletingImage === index}
+                                        />
                                     ))}
                                 </Accordion>
                             ) : (
                                 <p className="text-sm text-muted-foreground">No images found</p>
                             )}
-                        <Button variant="outline" size="sm"
-                            onClick={() => toast.success("Image addtion implemented yet")}
-                            className="w-full flex items-center justify-center gap-2 text-xs border-dashed border-zinc-300 text-zinc-500 hover:text-zinc-700 hover:border-zinc-500">
-                            <IconPlus className="size-4" />
-                            Add New Image
-                        </Button>
+                            <AddImageDialog 
+                                videoPipelineId={videoPipelineId}
+                                onSuccess={onRefresh}
+                            />
                         </div>
                     </div>
                 </div>

@@ -28,7 +28,7 @@ export default function CreateVideoPipelineModal({
     onClose,
     onCreateTask,
   }: CreateTaskModalProps) {
-    const [activeTab, setActiveTab] = useState<TaskType>(TaskType.UPLOAD);
+    const [activeTab, setActiveTab] = useState<TaskType>(TaskType.URL);
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
     const [tags, setTags] = useState<string[]>([]);
@@ -148,17 +148,6 @@ export default function CreateVideoPipelineModal({
           {/* tabs */}
           <div className="mb-6 flex gap-2">
             <button
-              onClick={() => setActiveTab(TaskType.UPLOAD)}
-              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                activeTab === TaskType.UPLOAD
-                  ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900"
-                  : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
-              }`}
-            >
-              <IconUpload className="h-4 w-4" />
-              Upload PDF File
-            </button>
-            <button
               onClick={() => setActiveTab(TaskType.URL)}
               className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
                 activeTab === TaskType.URL
@@ -168,6 +157,17 @@ export default function CreateVideoPipelineModal({
             >
               <IconFileText className="h-4 w-4" />
               Link to Article
+            </button>
+            <button
+              onClick={() => setActiveTab(TaskType.UPLOAD)}
+              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                activeTab === TaskType.UPLOAD
+                  ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900"
+                  : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+              }`}
+            >
+              <IconUpload className="h-4 w-4" />
+              Upload PDF File
             </button>
           </div>
           {/* fields */}
@@ -225,8 +225,21 @@ export default function CreateVideoPipelineModal({
               </div>
             </FieldGroup>
             </div>
-          {/* upload file */}
-          {activeTab === TaskType.UPLOAD ? (
+          {/* content input */}
+          {activeTab === TaskType.URL ? (
+            <div>
+              <FieldLabel htmlFor="url">
+                  Link
+              </FieldLabel>
+              <Input
+                id="url"
+                value={selectedUrl}
+                onChange={(e) => setSelectedUrl(e.target.value)}
+                placeholder="Paste link to the article..."
+                className=" resize-none rounded-lg border border-zinc-300 bg-white p-4 text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white dark:placeholder-zinc-500"
+              />
+            </div>
+          ) : (
             <div
               onDragEnter={handleDrag}
               onDragLeave={handleDrag}
@@ -281,19 +294,6 @@ export default function CreateVideoPipelineModal({
                   </label>
                 </>
               )}
-            </div>
-          ) : (
-            <div>
-              <FieldLabel htmlFor="url">
-                  Link
-              </FieldLabel>
-              <Input
-                id="url"
-                value={selectedUrl}
-                onChange={(e) => setSelectedUrl(e.target.value)}
-                placeholder="Paste link to the article..."
-                className=" resize-none rounded-lg border border-zinc-300 bg-white p-4 text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white dark:placeholder-zinc-500"
-              />
             </div>
           )}
   

@@ -191,4 +191,3 @@ def process_document(
         logger.error(f"unsupported source type: {pipeline.source_type}")
         pipeline.update_stage(VideoPipelineStage.DOCUMENT_PROCESSING, VideoPipelineStatus.FAILED)
         return pipeline
-

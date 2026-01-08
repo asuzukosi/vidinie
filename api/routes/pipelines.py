@@ -15,7 +15,7 @@ from core.data import (
 )
 import asyncio
 from api.data.users import User
-from core.auth import JWTBearer
+from api.core.auth import JWTBearer
 from core.utils.logger import setup_logging, get_logger
 from api.operations.document_operations import (
     process_pdf_document,
@@ -47,8 +47,8 @@ from pathlib import Path
 from api.data.pipelines import CreateVideoPipelineRequest, VideoPipelineSummary, \
                                DeleteVideoPipelineResponse, DeleteVideoPipelineImageResponse, \
                                DeleteVideoPipelineSectionResponse, \
-                               CreateVideoPipelineOutlineRequest, GenerateVideoPipelineRequest, \
-                               VideoPipelineReviewRequest, VideoResolution
+                               CreateVideoPipelineOutlineRequest, CreateVideoPipelineScriptRequest, \
+                               VideoPipelineReviewRequest, VideoResolution, GenerateVideoPipelineRequest
 from core.utils.config_loader import config
 from datetime import datetime
 from typing import Optional, Tuple, List
@@ -65,7 +65,16 @@ logger = get_logger('pipelines')
 
 router = APIRouter(tags=["pipelines"])
 
+# keep track of resolutions in a map for easy lookup
+resolution_map = {
+    VideoResolution.RESOLUTION_4K: (3840, 2160),
+    VideoResolution.RESOLUTION_1080P: (1920, 1080),
+    VideoResolution.RESOLUTION_720P: (1280, 720),
+    VideoResolution.RESOLUTION_480P: (640, 480),
+}
 
+
+# special utility function to write content to file for pipeline
 async def write_content_to_file_for_pipeline(video_pipeline: VideoPipeline, 
                                              filename: str, 
                                              file_content: bytes) -> None:
@@ -81,7 +90,9 @@ async def write_content_to_file_for_pipeline(video_pipeline: VideoPipeline,
     broadcast_message(f"pipeline-tasks-{video_pipeline.id}", {"type": "pipeline_file_written", "pipeline_id": video_pipeline.id, "file_path": file_path})
     logger.info(f"pipeline data saved to database with id: {video_pipeline.id}, file saved to: {file_path}")
 
+# special utility function to delete pipeline temp directory
 async def delete_pipeline_temp_directory(video_pipeline: VideoPipeline) -> None:
+    # delete temp directory for pipeline
     temp_dir = config.get('output.temp_directory', 'temp')
     pipeline_dir = os.path.join(temp_dir, video_pipeline.id)
     if os.path.exists(pipeline_dir):
@@ -90,6 +101,129 @@ async def delete_pipeline_temp_directory(video_pipeline: VideoPipeline) -> None:
     else:
         logger.info(f"no temp directory found for pipeline with id: {video_pipeline.id}")
 
+
+# pipeline stages to run in the order they are executed
+PIPELINE_STAGES = [
+    VideoPipelineStage.DOCUMENT_PROCESSING,
+    VideoPipelineStage.CONTENT_ANALYSIS,
+    VideoPipelineStage.SCRIPT_GENERATION,
+    VideoPipelineStage.VIDEO_GENERATION,
+]
+# special utility function to run all the stages sequentialy
+async def run_next_stages(video_pipeline: VideoPipeline, stage: Optional[VideoPipelineStage] = None, **kwargs) -> VideoPipeline:
+    # get all stages after the current stage
+    logger.info(f"running next stages after: {stage}")
+    # get all stages after the current stage
+    if stage:
+        # if a stage is specified, run all stages after it
+        tasks_to_run = PIPELINE_STAGES[PIPELINE_STAGES.index(stage):]
+    else:
+        # if no stage is specified, run all stages
+        tasks_to_run = PIPELINE_STAGES
+    logger.info(f"tasks to run: {tasks_to_run}")
+    
+    # run each task in the order they are specified
+    
+    # check and run document processing task
+    if VideoPipelineStage.DOCUMENT_PROCESSING in tasks_to_run:
+        if video_pipeline.source_type == SourceType.PDF:
+            logger.info(f"running document processing task for pipeline: {video_pipeline.id}")
+            broadcast_message(f"pipeline-tasks-{video_pipeline.id}", {"type": "document_processing", "pipeline_id": video_pipeline.id, "status": VideoPipelineStatus.IN_PROGRESS})
+            # extract all the arguments from kwargs
+            extract_images = kwargs.get('extract_images', True)
+            pdf_content = kwargs.get('pdf_content', None)
+            pdf_path = kwargs.get('pdf_path', None)
+            if not pdf_content and not pdf_path:
+                raise ValueError("either pdf_content or pdf_path must be provided")
+            if pdf_content:
+                video_pipeline = process_pdf_document(video_pipeline, 
+                                                    extract_images=extract_images, 
+                                                    pdf_content=pdf_content)
+            elif pdf_path:
+                video_pipeline = process_pdf_document(video_pipeline, 
+                                                    extract_images=extract_images, 
+                                                    pdf_path=pdf_path)
+            else:
+                raise ValueError("either pdf_content or pdf_path must be provided")
+            # update database
+            await update_pipeline_in_db(video_pipeline.id, video_pipeline)
+            # broadcast message
+            broadcast_message(f"pipeline-tasks-{video_pipeline.id}", {"type": "document_processed", "pipeline_id": video_pipeline.id, "status": VideoPipelineStatus.COMPLETED})
+            logger.info(f"document processing task completed for pipeline: {video_pipeline.id}")
+        elif video_pipeline.source_type == SourceType.HTML:
+            logger.info(f"running document processing task for pipeline: {video_pipeline.id}")
+            broadcast_message(f"pipeline-tasks-{video_pipeline.id}", {"type": "document_processing", "pipeline_id": video_pipeline.id, "status": VideoPipelineStatus.IN_PROGRESS})
+            # extract all the arguments from kwargs
+            extract_images = kwargs.get('extract_images', True)
+            html_content = kwargs.get('html_content', None)
+            html_path = kwargs.get('html_path', None)
+            if not html_content and not html_path:
+                raise ValueError("either html_content or html_path must be provided")
+            if html_content:
+                video_pipeline = process_html_document(video_pipeline, 
+                                                    extract_images=extract_images, 
+                                                    html_content=html_content)
+            elif html_path:
+                video_pipeline = process_html_document(video_pipeline, 
+                                                    extract_images=extract_images, 
+                                                    html_path=html_path)
+            else:
+                raise ValueError("either html_content or html_path must be provided")
+                
+            # update database
+            await update_pipeline_in_db(video_pipeline.id, video_pipeline)
+            # broadcast message
+            broadcast_message(f"pipeline-tasks-{video_pipeline.id}", {"type": "document_processed", "pipeline_id": video_pipeline.id, "status": VideoPipelineStatus.COMPLETED})
+            logger.info(f"document processing task completed for pipeline: {video_pipeline.id}")
+        else:
+            raise ValueError(f"unsupported source type: {video_pipeline.source_type}")
+    
+    # check and run content analysis task
+    if VideoPipelineStage.CONTENT_ANALYSIS in tasks_to_run:
+        logger.info(f"running content analysis task for pipeline: {video_pipeline.id}")
+        broadcast_message(f"pipeline-tasks-{video_pipeline.id}", {"type": "content_analysis", "pipeline_id": video_pipeline.id, "status": VideoPipelineStatus.IN_PROGRESS})
+        # process content
+        skip_stock = kwargs.get('skip_stock', False)
+        target_segments = kwargs.get('target_segments', 7)
+        segment_duration = kwargs.get('segment_duration', 45)
+        # process content
+        video_pipeline = process_content(video_pipeline, 
+                                         skip_stock=skip_stock, 
+                                         target_segments=target_segments, 
+                                         segment_duration=segment_duration)
+        # update database
+        await update_pipeline_in_db(video_pipeline.id, video_pipeline)
+        broadcast_message(f"pipeline-tasks-{video_pipeline.id}", {"type": "content_processed", "pipeline_id": video_pipeline.id, "status": VideoPipelineStatus.COMPLETED})
+        logger.info(f"content analysis task completed for pipeline: {video_pipeline.id}")
+    
+    # check and run script genratiion task
+    if VideoPipelineStage.SCRIPT_GENERATION in tasks_to_run:
+        logger.info(f"running script generation task for pipeline: {video_pipeline.id}")
+        broadcast_message(f"pipeline-tasks-{video_pipeline.id}", {"type": "script_generation", "pipeline_id": video_pipeline.id, "status": VideoPipelineStatus.IN_PROGRESS})
+        # extract all the arguments from kwargs
+        provider = kwargs.get('provider', 'elevenlabs')
+        voice_id = kwargs.get('voice_id', None)
+        video_pipeline = generate_scripts(video_pipeline, provider=provider, voice_id=voice_id)
+        # update database
+        await update_pipeline_in_db(video_pipeline.id, video_pipeline)
+        # broadcast message
+        broadcast_message(f"pipeline-tasks-{video_pipeline.id}", {"type": "scripts_generated", "pipeline_id": video_pipeline.id, "status": VideoPipelineStatus.COMPLETED})
+        logger.info(f"script generation task completed for pipeline: {video_pipeline.id}")
+    
+    # check and run video generation task
+    if VideoPipelineStage.VIDEO_GENERATION in tasks_to_run:
+        logger.info(f"running video generation task for pipeline: {video_pipeline.id}")
+        broadcast_message(f"pipeline-tasks-{video_pipeline.id}", {"type": "video_generation", "pipeline_id": video_pipeline.id, "status": VideoPipelineStatus.IN_PROGRESS})
+        video_pipeline = generate_video(video_pipeline)
+        await update_pipeline_in_db(video_pipeline.id, video_pipeline)
+        broadcast_message(f"pipeline-tasks-{video_pipeline.id}", {"type": "video_generated", "pipeline_id": video_pipeline.id, "status": VideoPipelineStatus.COMPLETED})
+        logger.info(f"video generation task completed for pipeline: {video_pipeline.id}")
+
+    # all tasks completed for pipeline
+    logger.info(f"all tasks completed for pipeline: {video_pipeline.id}")
+    broadcast_message(f"pipeline-tasks-{video_pipeline.id}", {"type": "pipeline_completed", "pipeline_id": video_pipeline.id, "status": VideoPipelineStatus.COMPLETED})
+    logger.info(f"pipeline completed for pipeline: {video_pipeline.id}")
+    return video_pipeline
 
 @router.post("/from-file", name="create video pipeline from file", dependencies=[Depends(JWTBearer())])
 @error_wrapper("create video pipeline from file")
@@ -107,12 +241,10 @@ async def create_video_pipeline_from_file(
         raise HTTPException(status_code=401, detail="Unauthorized")
     logger.info("received request to start pipeline with file")
     if file.filename == "" or not file.filename.endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Invalid file type must be a PDF file")
-    
+        raise HTTPException(status_code=400, detail=f"invalid file type, only pdf files currently supported: {file.filename}")
     # read file content into memory
     file_content = await file.read()
     logger.info(f"read file content into memory: {len(file_content)} bytes")
-    
     # create pipeline data object
     logger.info("creating pipeline data object")
     video_pipeline = VideoPipeline(
@@ -127,15 +259,11 @@ async def create_video_pipeline_from_file(
     logger.info("pipeline data object created")
     video_pipeline = await create_pipeline_in_db(video_pipeline)
     broadcast_message(f"pipeline-tasks-{video_pipeline.id}", {"type": "pipeline_created", "pipeline_id": video_pipeline.id})
-    
-    # process document using in-memory content
-    video_pipeline = process_pdf_document(
-        video_pipeline,
-        extract_images=True,
-        pdf_content=file_content
-    )
-    broadcast_message(f"pipeline-tasks-{video_pipeline.id}", {"type": "document_processed", "pipeline_id": video_pipeline.id})
-    background_tasks.add_task(write_content_to_file_for_pipeline, video_pipeline, file.filename, file_content)
+    await write_content_to_file_for_pipeline(video_pipeline, file.filename, file_content)
+
+    # run all the stages sequentially in the background
+    background_tasks.add_task(run_next_stages, video_pipeline, stage=VideoPipelineStage.DOCUMENT_PROCESSING, pdf_content=file_content, pdf_path=file.filename)
+    # return pipeline summary
     return VideoPipelineSummary(**video_pipeline.model_dump(mode="json"))
 
 @router.post("/from-url", name="create video pipeline from url", dependencies=[Depends(JWTBearer())])
@@ -158,7 +286,6 @@ async def create_video_pipeline_from_url(request: CreateVideoPipelineRequest,
             raise HTTPException(status_code=400, detail=f"Failed to download file from url: {request.url} with status code: {response.status_code}")
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=400, detail=f"Failed to download file from url: {request.url} with error: {str(e)}")
-    
     logger.info("creating pipeline data object")
     video_pipeline = VideoPipeline(
         user_id=user.id,
@@ -173,17 +300,10 @@ async def create_video_pipeline_from_url(request: CreateVideoPipelineRequest,
     logger.info("saving pipeline data to database")
     video_pipeline = await create_pipeline_in_db(video_pipeline)
     broadcast_message(f"pipeline-tasks-{video_pipeline.id}", {"type": "pipeline_created", "pipeline_id": video_pipeline.id})
-    # get html content from response
-    html_content = response.text
-    logger.info(f"read HTML content into memory: {len(html_content)} characters")
-    # process document using in-memory content
-    video_pipeline = process_html_document(
-        video_pipeline,
-        html_content=html_content,
-        extract_images=True
-    )
-    broadcast_message(f"pipeline-tasks-{video_pipeline.id}", {"type": "document_processed", "pipeline_id": video_pipeline.id})
-    background_tasks.add_task(write_content_to_file_for_pipeline, video_pipeline, 'data.html', response.content)
+    await write_content_to_file_for_pipeline(video_pipeline, 'data.html', response.content)
+    # run all the stages sequentially in the background
+    background_tasks.add_task(run_next_stages, video_pipeline, stage=VideoPipelineStage.DOCUMENT_PROCESSING, html_content=response.text, html_path='data.html')
+    # return pipeline summary
     return VideoPipelineSummary(**video_pipeline.model_dump(mode="json"))
 
 @router.get("/", name="get all video pipelines")
@@ -341,7 +461,8 @@ async def delete_video_pipeline_section(video_pipeline_id: str,
 @router.post("/{video_pipeline_id}/process", name="process video pipeline content", dependencies=[Depends(JWTBearer())])
 @error_wrapper("process video pipeline content")
 async def process_video_pipeline_content(video_pipeline_id: str, request: CreateVideoPipelineOutlineRequest,
-                                         user_id: str = Depends(JWTBearer()),) -> VideoPipeline:
+                                         user_id: str = Depends(JWTBearer()),
+                                         background_tasks: BackgroundTasks = BackgroundTasks()) -> VideoPipeline:
     user = await get_user_by_id(user_id)
     if not user:
         raise HTTPException(status_code=401, detail="Unauthorized")
@@ -349,18 +470,19 @@ async def process_video_pipeline_content(video_pipeline_id: str, request: Create
     # verify ownership
     if video_pipeline.user_id != user.id:
         raise HTTPException(status_code=403, detail="Unauthorized")
-    # use modular operation to process content
-    broadcast_message(f"pipeline-tasks-{video_pipeline_id}", {"type": "content_processing", "pipeline_id": video_pipeline_id})
-    video_pipeline = process_content(
-        video_pipeline,
-        skip_stock=request.skip_stock,
-        target_segments=request.target_segments,
-        segment_duration=request.segment_duration
-    )
-    await update_pipeline_in_db(video_pipeline_id, video_pipeline)
-    broadcast_message(f"pipeline-tasks-{video_pipeline_id}", {"type": "content_processed", "pipeline_id": video_pipeline_id})
-    # save to database
-    return video_pipeline
+    # process content
+    skip_stock = request.skip_stock
+    target_segments = request.target_segments
+    segment_duration = request.segment_duration
+    # run content analysis task in the background
+    background_tasks.add_task(run_next_stages, 
+                              video_pipeline, 
+                              stage=VideoPipelineStage.CONTENT_ANALYSIS, 
+                              skip_stock=skip_stock, 
+                              target_segments=target_segments, 
+                              segment_duration=segment_duration)
+    # return pipeline summary
+    return VideoPipelineSummary(**video_pipeline.model_dump(mode="json"))
 
 @router.post("/{video_pipeline_id}/outline/segments", name="add video pipeline outline segment", dependencies=[Depends(JWTBearer())])
 @error_wrapper("add video pipeline outline segment")
@@ -408,8 +530,9 @@ async def delete_video_pipeline_outline_segment(video_pipeline_id: str, index: i
 
 @router.post("/{video_pipeline_id}/generate-scripts", name="generate video pipeline scripts")
 @error_wrapper("generate video pipeline scripts")
-async def generate_video_pipeline_scripts(video_pipeline_id: str, provider: Optional[str] = 'elevenlabs',
-                                          user_id: str = Depends(JWTBearer())) -> VideoPipeline:
+async def generate_video_pipeline_scripts(video_pipeline_id: str, request: CreateVideoPipelineScriptRequest,
+                                          user_id: str = Depends(JWTBearer()),
+                                          background_tasks: BackgroundTasks = BackgroundTasks()) -> VideoPipeline:
     user = await get_user_by_id(user_id)
     if not user:
         raise HTTPException(status_code=401, detail="Unauthorized")
@@ -420,29 +543,20 @@ async def generate_video_pipeline_scripts(video_pipeline_id: str, provider: Opti
     if video_pipeline.user_id != user.id:
         raise HTTPException(status_code=403, detail="Unauthorized")
     # use modular operation to generate scripts
-    broadcast_message(f"pipeline-tasks-{video_pipeline_id}", {"type": "scripts_generating", "pipeline_id": video_pipeline_id})
-    video_pipeline = generate_scripts(
-        video_pipeline,
-        provider=provider,
-        voice_id=config.get('voiceover.voice_id')
-    )
-    broadcast_message(f"pipeline-tasks-{video_pipeline_id}", {"type": "scripts_generated", "pipeline_id": video_pipeline_id})
-    # save to database
-    await update_pipeline_in_db(video_pipeline_id, video_pipeline)
-    logger.info(f"scripts and voiceovers generated. pipeline ID: {video_pipeline.id}")
-    return video_pipeline
-
-resolution_map = {
-    VideoResolution.RESOLUTION_4K: (3840, 2160),
-    VideoResolution.RESOLUTION_1080P: (1920, 1080),
-    VideoResolution.RESOLUTION_720P: (1280, 720),
-    VideoResolution.RESOLUTION_480P: (640, 480),
-}
+    provider = request.provider
+    voice_id = request.voice_id
+    # run script generation task in the background
+    background_tasks.add_task(run_next_stages, 
+                              video_pipeline, stage=VideoPipelineStage.SCRIPT_GENERATION, 
+                              provider=provider, voice_id=voice_id)
+    # return pipeline summary
+    return VideoPipelineSummary(**video_pipeline.model_dump(mode="json"))
 
 @router.post("/{video_pipeline_id}/generate", name="generate video pipeline output", dependencies=[Depends(JWTBearer())])
 @error_wrapper("generate video pipeline output")
 async def generate_video_pipeline_output(video_pipeline_id: str, request: GenerateVideoPipelineRequest,
-                                         user_id: str = Depends(JWTBearer())) -> VideoPipeline:
+                                         user_id: str = Depends(JWTBearer()),
+                                         background_tasks: BackgroundTasks = BackgroundTasks()) -> VideoPipeline:
     user = await get_user_by_id(user_id)
     if not user:
         raise HTTPException(status_code=401, detail="Unauthorized")
@@ -452,23 +566,22 @@ async def generate_video_pipeline_output(video_pipeline_id: str, request: Genera
     if video_pipeline.user_id != user.id:
         raise HTTPException(status_code=403, detail="Unauthorized")
     # use modular operation to generate video
-    broadcast_message(f"pipeline-tasks-{video_pipeline_id}", {"type": "video_generating", "pipeline_id": video_pipeline_id})
-    video_pipeline = generate_video(
-        video_pipeline,
-        title=request.title,
-        subtitle=request.subtitle,
-        resolution=resolution_map[request.resolution],
-        fps=request.fps,
-        title_duration=request.title_duration,
-        end_duration=request.end_duration,
-        transition_duration=request.transition_duration,
-        background_type=request.background_type
-    )
-    broadcast_message(f"pipeline-tasks-{video_pipeline_id}", {"type": "video_generated", "pipeline_id": video_pipeline_id})
-    # save to database
-    await update_pipeline_in_db(video_pipeline_id, video_pipeline)
-    logger.info(f"video generated successfully: {video_pipeline.video_path}")
-    return video_pipeline
+    title = request.title
+    subtitle = request.subtitle
+    resolution = resolution_map[request.resolution]
+    fps = request.fps
+    title_duration = request.title_duration
+    end_duration = request.end_duration
+    transition_duration = request.transition_duration
+    background_type = request.background_type
+    # run video generation task in the background
+    background_tasks.add_task(run_next_stages, 
+                              video_pipeline, stage=VideoPipelineStage.VIDEO_GENERATION, 
+                              title=title, subtitle=subtitle, resolution=resolution, 
+                              fps=fps, title_duration=title_duration, end_duration=end_duration, 
+                              transition_duration=transition_duration, background_type=background_type)
+    # return pipeline summary
+    return VideoPipelineSummary(**video_pipeline.model_dump(mode="json"))
 
 @router.get("/{video_pipeline_id}/output/download", name="download video pipeline output", dependencies=[Depends(JWTBearer())])
 @error_wrapper("download video pipeline output")

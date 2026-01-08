@@ -173,7 +173,12 @@ export default function TaskDetailPage() {
                                 <CardTitle>Document Processing</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <DocumentProcessing content={videoPipeline.parsed_content} images={videoPipeline.images_metadata} />
+                                <DocumentProcessing 
+                                    content={videoPipeline.parsed_content} 
+                                    images={videoPipeline.images_metadata}
+                                    videoPipelineId={taskId}
+                                    onRefresh={fetchVideoPipeline}
+                                />
                             </CardContent>
                         </Card>
                     )}
