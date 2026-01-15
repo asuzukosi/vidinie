@@ -4,10 +4,6 @@
     box-sizing: border-box;
 }
 
-a {
-    text-decoration: none !important;
-}
-
 body {
     font-family: 'Source Sans 3', sans-serif;
     background: #F5F5F7 url('noisybackground.jpg') center center / cover no-repeat fixed;
@@ -309,6 +305,10 @@ h1 {
     max-width: 900px;
     position: relative;
     z-index: 10;
+}
+
+.cta-secondary {
+    text-decoration: none;
 }
 
 .cta-primary,
@@ -843,6 +843,7 @@ h1 {
     }
     
     .signup {
+        text-decoration: none;
         padding: 10px 20px;
         font-size: 13px;
     }
