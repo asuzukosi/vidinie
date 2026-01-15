@@ -8,10 +8,11 @@ logger = get_logger("db")
 load_dotenv()
 
 MONGODB_URI = os.environ.get("MONGODB_URI", "mongodb://localhost:27017")
-db_client = None
-users_collection = None
-video_pipelines_collection = None
-subscriptions_collection = None
+db_client = motor.motor_asyncio.AsyncIOMotorClient(MONGODB_URI)
+database = db_client["vidinie"]
+users_collection = database["users"]
+video_pipelines_collection = database["video_pipelines"]
+subscriptions_collection = database["subscriptions"]
 
 async def initialize_db():
     """

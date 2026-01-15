@@ -331,7 +331,7 @@ async def get_video_pipeline_details(video_pipeline_id: str, user_id: str = Depe
         raise HTTPException(status_code=404, detail="Pipeline not found")
     if video_pipeline.user_id != user.id:
         raise HTTPException(status_code=403, detail="Unauthorized")
-    return VideoPipeline(**video_pipeline.model_dump(mode="json"), id=video_pipeline.id)
+    return video_pipeline
 
 @router.delete("/{video_pipeline_id}", name="delete video pipeline", 
                dependencies=[Depends(JWTBearer())])
@@ -625,18 +625,21 @@ def parse_range_header(range_header: str, file_size: int) -> Tuple[int, int]:
     end = int(byte_range.group(2)) if byte_range.group(2) else file_size - 1
     return start, end
 
-@router.get("/{video_pipeline_id}/output/stream", name="stream video pipeline output", dependencies=[Depends(JWTBearer())])
+@router.get("/{video_pipeline_id}/output/stream", name="stream video pipeline output", 
+            # dependencies=[Depends(JWTBearer())]
+            )
 @error_wrapper("stream video pipeline output")
 async def stream_video_pipeline_output(video_pipeline_id: str, request: Request,
-                                       user_id: str = Depends(JWTBearer())) -> StreamingResponse:
-    logger.info("received request to stream video")
-    user = await get_user_by_id(user_id)
-    if not user:
-        raise HTTPException(status_code=401, detail="Unauthorized")
+                                    #    user_id: str = Depends(JWTBearer())
+                                       ) -> StreamingResponse:
+    # logger.info("received request to stream video")
+    # user = await get_user_by_id(user_id)
+    # if not user:
+    #     raise HTTPException(status_code=401, detail="Unauthorized")
     video_pipeline = await get_pipeline_by_id(video_pipeline_id)
-    # verify ownership
-    if video_pipeline.user_id != user.id:
-        raise HTTPException(status_code=403, detail="Unauthorized")
+    # # verify ownership
+    # if video_pipeline.user_id != user.id:
+    #     raise HTTPException(status_code=403, detail="Unauthorized")
     video_path = video_pipeline.video_path
     if not video_path:
         raise HTTPException(status_code=500, detail="Video path not found")
