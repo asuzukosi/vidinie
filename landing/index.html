@@ -1,50 +1,42 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>vidinie.</title>
-        <link rel="icon" type="image/png" href="vidinie.png" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link
-            href="https://fonts.googleapis.com/css2?family=Bitcount:wght@100..900&display=swap"
-            rel="stylesheet"
-        />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link
-            href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap"
-            rel="stylesheet"
-        />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link
-            href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&display=swap"
-            rel="stylesheet"
-        />
-        <link rel="stylesheet" href="styles.css" />
-    </head>
-    <body>
-        <nav class="navbar">
-            <div class="nav-left">
-                <div class="logo" data-page="home">vidinie.</div>
-                <div class="nav-links">
-                    <a href="#" data-page="pricing">Pricing</a>
-                    <a href="#" data-page="features">Features</a>
-                    <a href="#" data-page="support">Support</a>
-                    <a href="#" data-page="faq">FAQ</a>
-                </div>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>vidinie.</title>
+    <link rel="icon" type="image/png" href="vidinie.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bitcount:wght@100..900&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-left">
+            <div class="logo" data-page="home">vidinie.</div>
+            <div class="nav-links">
+                <a href="#" data-page="pricing">Pricing</a>
+                <a href="#" data-page="features">Features</a>
+                <a href="#" data-page="support">Support</a>
+                <a href="#" data-page="faq">FAQ</a>
             </div>
+        </div>
             <div class="nav-actions">
                 <a href="https://app.vidinie.com/signin" class="login">Log in</a>
-                <a href="https://app.vidinie.com/signup" class="signup">Sign up</a>
+                <a href="https://app.vidinie.com/signup" target="_blank" class="signup">Sign up</a>
             </div>
-        </nav>
+    </nav>
 
-    <!-- page container -->
+    <!-- Page Container -->
     <div class="page-container">
-        <!-- home page -->
+        
+        <!-- Home Page -->
         <div class="page active" id="home">
             <main class="hero">
                 <div class="card-visual">
@@ -54,24 +46,17 @@
                     <div class="card card-right">
                         <img src="videoproduction.jpg" alt="Video Production" class="card-image">
                     </div>
-                    <h1>
-                        Transform articles into
-                        <span class="gradient-text">engaging videos.</span>
-                    </h1>
-                    <p class="subtitle">
-                        Upload your articles in any format. We'll create
-                        stunning videos in minutes.
-                    </p>
-                    <div class="app-buttons">
-                        <a href="https://app.vidinie.com/signup" class="cta-primary">
-                            Create Your First Video
-                        </a>
-                        <a href="https://app.vidinie.com/signup" class="cta-secondary">Watch Demo</a>
-                    </div>
-                </main>
-            </div>
+                </div>
+                <h1>Transform articles into <span class="gradient-text">engaging videos.</span></h1>
+                <p class="subtitle">Upload your articles in any format. We'll create stunning videos in minutes.</p>
+                <div class="app-buttons">
+                    <a href="https://app.vidinie.com/signup" target="_blank" class="cta-primary">Create Your First Video</a>
+                    <a href="https://app.vidinie.com/signup" target="_blank" class="cta-secondary">Watch Demo</a>
+                </div>
+            </main>
+        </div>
 
-        <!-- pricing page -->
+        <!-- Pricing Page -->
         <div class="page" id="pricing">
             <main class="content-page">
                 <h1>Simple, transparent <span class="gradient-text">pricing.</span></h1>
@@ -94,30 +79,28 @@
                         <button class="plan-btn">Get Started</button>
                     </div>
 
-                        <div class="pricing-card featured">
-                            <div class="popular-badge">Popular</div>
-                            <h3>Professional</h3>
-                            <div class="price">
-                                <span class="currency">$</span>
-                                <span class="amount">49</span>
-                                <span class="period">/month</span>
-                            </div>
-                            <p class="plan-desc">For content creators</p>
-                            <ul class="features-list">
-                                <li>Everything in Starter</li>
-                                <li>Premium templates</li>
-                                <li>Custom branding</li>
-                                <li>Priority support</li>
-                            </ul>
-                            <button class="plan-btn primary">
-                                Get Started
-                            </button>
+                    <div class="pricing-card featured">
+                        <div class="popular-badge">Popular</div>
+                        <h3>Professional</h3>
+                        <div class="price">
+                            <span class="currency">$</span>
+                            <span class="amount">49</span>
+                            <span class="period">/month</span>
                         </div>
+                        <p class="plan-desc">For content creators</p>
+                        <ul class="features-list">
+                            <li>Everything in Starter</li>
+                            <li>Premium templates</li>
+                            <li>Custom branding</li>
+                            <li>Priority support</li>
+                        </ul>
+                        <button class="plan-btn primary">Get Started</button>
                     </div>
-                </main>
-            </div>
+                </div>
+            </main>
+        </div>
 
-        <!-- features page -->
+        <!-- Features Page -->
         <div class="page" id="features">
             <main class="content-page">
                 <h1>Everything you need, <span class="gradient-text">all in one place.</span></h1>
@@ -129,28 +112,20 @@
                         <p>Upload any PDF document and watch it transform into a dynamic, engaging video presentation with smooth transitions.</p>
                     </div>
 
-                        <div class="feature-item">
-                            <h3>Web to Video</h3>
-                            <p>
-                                Paste any website URL and our AI extracts the
-                                content to create compelling video stories
-                                automatically.
-                            </p>
-                        </div>
-
-                        <div class="feature-item">
-                            <h3>AI Editing</h3>
-                            <p>
-                                Our AI automatically selects scenes, adds
-                                transitions, music, and creates
-                                professional-quality videos in minutes.
-                            </p>
-                        </div>
+                    <div class="feature-item">
+                        <h3>Web to Video</h3>
+                        <p>Paste any website URL and our AI extracts the content to create compelling video stories automatically.</p>
                     </div>
-                </main>
-            </div>
 
-        <!-- support page -->
+                    <div class="feature-item">
+                        <h3>AI Editing</h3>
+                        <p>Our AI automatically selects scenes, adds transitions, music, and creates professional-quality videos in minutes.</p>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- Support Page -->
         <div class="page" id="support">
             <main class="content-page">
                 <h1>We're here to <span class="gradient-text">help.</span></h1>
@@ -168,55 +143,35 @@
                         <button class="support-btn">Start Chat</button>
                     </div>
 
-                        <div class="support-card">
-                            <div class="support-icon">
-                                <svg
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                >
-                                    <path
-                                        d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
-                                    />
-                                    <polyline points="22,6 12,13 2,6" />
-                                </svg>
-                            </div>
-                            <h3>Email Support</h3>
-                            <p>
-                                Send us your questions and we'll get back to you
-                                within 24 hours.
-                            </p>
-                            <button class="support-btn">Send Email</button>
+                    <div class="support-card">
+                        <div class="support-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                                <polyline points="22,6 12,13 2,6"/>
+                            </svg>
                         </div>
-
-                        <div class="support-card">
-                            <div class="support-icon">
-                                <svg
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                >
-                                    <circle cx="12" cy="12" r="10" />
-                                    <path
-                                        d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"
-                                    />
-                                    <line x1="12" y1="17" x2="12.01" y2="17" />
-                                </svg>
-                            </div>
-                            <h3>Video Tutorials</h3>
-                            <p>
-                                Browse our comprehensive video guides and
-                                step-by-step tutorials.
-                            </p>
-                            <button class="support-btn">Watch Tutorials</button>
-                        </div>
+                        <h3>Email Support</h3>
+                        <p>Send us your questions and we'll get back to you within 24 hours.</p>
+                        <button class="support-btn">Send Email</button>
                     </div>
-                </main>
-            </div>
 
-        <!-- faq page -->
+                    <div class="support-card">
+                        <div class="support-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                                <line x1="12" y1="17" x2="12.01" y2="17"/>
+                            </svg>
+                        </div>
+                        <h3>Video Tutorials</h3>
+                        <p>Browse our comprehensive video guides and step-by-step tutorials.</p>
+                        <button class="support-btn">Watch Tutorials</button>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- FAQ Page -->
         <div class="page" id="faq">
             <main class="content-page">
                 <h1>Frequently Asked <span class="gradient-text">Questions.</span></h1>
@@ -241,13 +196,15 @@
                             <div class="faq-answer">You can export videos in MP4, MOV, WebM, and GIF formats. We support resolutions from 720p HD up to 4K Ultra HD on Professional and Enterprise plans.</div>
                         </div>
                     </div>
-                </main>
-            </div>
+                </div>
+            </main>
         </div>
 
-        <div class="gradient-blob blob-1"></div>
-        <div class="gradient-blob blob-2"></div>
+    </div>
 
-        <script src="script.js"></script>
-    </body>
+    <div class="gradient-blob blob-1"></div>
+    <div class="gradient-blob blob-2"></div>
+
+    <script src="script.js"></script>
+</body>
 </html>

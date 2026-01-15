@@ -198,6 +198,8 @@ h1, h2, h3, h4, h5, h6 {
     font-weight: 400;
     cursor: pointer;
     transition: all 0.3s;
+    text-decoration: none;
+    display: inline-block;
 }
 
 .signup:hover {
@@ -239,6 +241,7 @@ h1, h2, h3, h4, h5, h6 {
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
     transition: transform 0.6s ease;
     overflow: hidden;
+    z-index: 1;
 }
 
 .card-image {
@@ -278,6 +281,8 @@ h1 {
     margin-bottom: 16px;
     color: #1d1d1f;
     max-width: 900px;
+    position: relative;
+    z-index: 10;
 }
 
 .gradient-text {
@@ -290,12 +295,16 @@ h1 {
     margin-bottom: 32px;
     max-width: 900px;
     line-height: 1.5;
+    position: relative;
+    z-index: 10;
 }
 
 .app-buttons {
     display: flex;
     gap: 16px;
     max-width: 900px;
+    position: relative;
+    z-index: 10;
 }
 
 .cta-primary,
@@ -310,6 +319,8 @@ h1 {
     background: #1d1d1f;
     color: white;
     border: none;
+    text-decoration: none;
+    display: inline-block;
 }
 
 .cta-primary:hover,
