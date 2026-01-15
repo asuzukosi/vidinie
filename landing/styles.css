@@ -4,6 +4,10 @@
     box-sizing: border-box;
 }
 
+a {
+    text-decoration: none !important;
+}
+
 body {
     font-family: 'Source Sans 3', sans-serif;
     background: #F5F5F7 url('noisybackground.jpg') center center / cover no-repeat fixed;
