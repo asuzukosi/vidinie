@@ -19,12 +19,12 @@
 <body>
     <nav class="navbar">
         <div class="nav-left">
-            <div class="logo" data-page="home">vidinie.</div>
+            <div class="logo"><a href="#home" style="text-decoration: none; color: inherit;">vidinie.</a></div>
             <div class="nav-links">
-                <a href="#" data-page="pricing">Pricing</a>
-                <a href="#" data-page="features">Features</a>
-                <a href="#" data-page="support">Support</a>
-                <a href="#" data-page="faq">FAQ</a>
+                <a href="#pricing">Pricing</a>
+                <a href="#features">Features</a>
+                <a href="#support">Support</a>
+                <a href="#faq">FAQ</a>
             </div>
         </div>
             <div class="nav-actions">
@@ -34,12 +34,12 @@
         </nav>
 
 
-    <!-- Page Container -->
-    <div class="page-container">
+    <!-- Main Content - Single Scrollable Page -->
+    <main class="main-content">
         
-        <!-- Home Page -->
-        <div class="page active" id="home">
-            <main class="hero">
+        <!-- Home Section -->
+        <section class="section" id="home">
+            <div class="hero">
                 <div class="card-visual">
                     <div class="card card-left">
                         <img src="content.png" alt="Content" class="card-image">
@@ -55,15 +55,15 @@
                     <a href="https://app.vidinie.com/signup" target="_blank" class="cta-secondary" style="text-decoration: none;">Watch Demo</a>
                 </div>
                 <div style="position: absolute; bottom: 40px; right: 40px; display: flex; gap: 24px; flex-wrap: wrap; justify-content: flex-end;">
-                    <a href="https://vidinie.com/privacy_policy.html" target="_blank" style="color: rgba(29, 29, 31, 0.6); text-decoration: none; font-size: 14px; font-weight: 400; transition: color 0.3s;" onmouseover="this.style.color='rgba(29, 29, 31, 0.8)'" onmouseout="this.style.color='rgba(29, 29, 31, 0.6)'">Privacy Policy</a>
-                    <a href="https://vidinie.com/terms_of_use.html" target="_blank" style="color: rgba(29, 29, 31, 0.6); text-decoration: none; font-size: 14px; font-weight: 400; transition: color 0.3s;" onmouseover="this.style.color='rgba(29, 29, 31, 0.8)'" onmouseout="this.style.color='rgba(29, 29, 31, 0.6)'">Terms of Use</a>
+                    <a href="https://vidinie.com/privacy.html" target="_blank" style="color: rgba(29, 29, 31, 0.6); text-decoration: none; font-size: 18px; font-weight: 400; transition: color 0.3s;" onmouseover="this.style.color='rgba(29, 29, 31, 0.8)'" onmouseout="this.style.color='rgba(29, 29, 31, 0.6)'">Privacy Policy</a>
+                    <a href="https://vidinie.com/terms.html" target="_blank" style="color: rgba(29, 29, 31, 0.6); text-decoration: none; font-size: 18px; font-weight: 400; transition: color 0.3s;" onmouseover="this.style.color='rgba(29, 29, 31, 0.8)'" onmouseout="this.style.color='rgba(29, 29, 31, 0.6)'">Terms of Use</a>
                 </div>
-            </main>
-        </div>
+            </div>
+        </section>
 
-        <!-- Pricing Page -->
-        <div class="page" id="pricing">
-            <main class="content-page">
+        <!-- Pricing Section -->
+        <section class="section" id="pricing">
+            <div class="content-page">
                 <h1>Simple, transparent <span class="gradient-text">pricing.</span></h1>
                 <p class="subtitle">Choose the plan that works best for your content creation needs</p>
                 
@@ -105,12 +105,12 @@
                         <button class="plan-btn primary">Get Started</button>
                     </div>
                 </div>
-            </main>
-        </div>
+            </div>
+        </section>
 
-        <!-- Features Page -->
-        <div class="page" id="features">
-            <main class="content-page">
+        <!-- Features Section -->
+        <section class="section" id="features">
+            <div class="content-page">
                 <h1>Everything you need, <span class="gradient-text">all in one place.</span></h1>
                 <p class="subtitle">Powerful AI-driven features for professional video creation</p>
                 
@@ -130,12 +130,12 @@
                         <p>Our AI automatically selects scenes, adds transitions, music, and creates professional-quality videos in minutes.</p>
                     </div>
                 </div>
-            </main>
-        </div>
+            </div>
+        </section>
 
-        <!-- Support Page -->
-        <div class="page" id="support">
-            <main class="content-page">
+        <!-- Support Section -->
+        <section class="section" id="support">
+            <div class="content-page">
                 <h1>We're here to <span class="gradient-text">help.</span></h1>
                 <p class="subtitle">Get the support you need to create amazing videos</p>
                 
@@ -176,12 +176,12 @@
                         <button class="support-btn">Watch Tutorials</button>
                     </div>
                 </div>
-            </main>
-        </div>
+            </div>
+        </section>
 
-        <!-- FAQ Page -->
-        <div class="page" id="faq">
-            <main class="content-page">
+        <!-- FAQ Section -->
+        <section class="section" id="faq">
+            <div class="content-page">
                 <h1>Frequently Asked <span class="gradient-text">Questions.</span></h1>
                 <p class="subtitle">Find answers to common questions about our video creation platform</p>
                 
@@ -207,15 +207,15 @@
                     <div style="margin-top: 48px; padding-top: 32px; border-top: 1px solid rgba(0, 0, 0, 0.1); text-align: center;">
                         <p style="color: #6e6e73; margin-bottom: 16px; font-size: 14px;">Legal</p>
                         <div style="display: flex; justify-content: center; gap: 24px; flex-wrap: wrap;">
-                            <a href="https://vidinie.com/privacy_policy.html" target="_blank" style="color: #1d1d1f; text-decoration: none; font-weight: 500; transition: color 0.3s; font-size: 16px;" onmouseover="this.style.color='#6e6e73'" onmouseout="this.style.color='#1d1d1f'">Privacy Policy</a>
-                            <a href="https://vidinie.com/terms_of_use.html" target="_blank" style="color: #1d1d1f; text-decoration: none; font-weight: 500; transition: color 0.3s; font-size: 16px;" onmouseover="this.style.color='#6e6e73'" onmouseout="this.style.color='#1d1d1f'">Terms of Use</a>
+                            <a href="https://vidinie.com/privacy.html" target="_blank" style="color: #1d1d1f; text-decoration: none; font-weight: 500; transition: color 0.3s; font-size: 16px;" onmouseover="this.style.color='#6e6e73'" onmouseout="this.style.color='#1d1d1f'">Privacy Policy</a>
+                            <a href="https://vidinie.com/terms.html" target="_blank" style="color: #1d1d1f; text-decoration: none; font-weight: 500; transition: color 0.3s; font-size: 16px;" onmouseover="this.style.color='#6e6e73'" onmouseout="this.style.color='#1d1d1f'">Terms of Use</a>
                         </div>
                     </div>
                 </div>
-            </main>
-        </div>
+            </div>
+        </section>
 
-    </div>
+    </main>
 
     <div class="gradient-blob blob-1"></div>
     <div class="gradient-blob blob-2"></div>

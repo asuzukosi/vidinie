@@ -8,66 +8,15 @@ body {
     font-family: 'Source Sans 3', sans-serif;
     background: #F5F5F7 url('noisybackground.jpg') center center / cover no-repeat fixed;
     color: #1d1d1f;
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
     position: relative;
-    height: 100vh;
     font-weight: 400;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
 
 @media (max-width: 768px) {
-    body {
-        overflow-x: hidden;
-        overflow-y: auto !important;
-        height: auto !important;
-        padding-bottom: 80px; /* Space for footer */
-        /* background: #F5F5F7 url('noisybackground.jpg') center center / 100% auto no-repeat fixed; */
-    }
-    
-    .footer {
-        position: relative !important;
-        margin-top: 40px;
-    }
-    
-    .footer div {
-        flex-direction: column;
-        gap: 1rem !important;
-    }
-    
-    .page-container {
-        position: relative !important;
-        height: auto !important;
-        overflow: visible !important;
-        background: transparent !important;
-    }
-    
-    .page {
-        position: relative !important;
-        opacity: 1 !important;
-        visibility: visible !important;
-        height: auto !important;
-        min-height: 100vh;
-        overflow: visible !important;
-        background-color: #F5F5F7;
-        background-image: url('noisybackground.jpg');
-        background-position: center center;
-        background-repeat: no-repeat;
-        background-attachment: scroll;
-        background-size: 100% 100%;
-    }
-    
-    .page.active {
-        position: relative !important;
-    }
-    
-    .hero {
-        min-height: 100vh;
-        height: auto;
-        overflow: visible;
-        background: transparent !important;
-    }
-    
     .hero > div:last-child {
         position: relative !important;
         bottom: auto !important;
@@ -77,11 +26,7 @@ body {
     }
     
     .content-page {
-        height: auto !important;
-        min-height: 100vh;
-        overflow: visible !important;
         padding: 120px 20px 60px;
-        background: transparent !important;
     }
 }
 
@@ -89,51 +34,21 @@ h1, h2, h3, h4, h5, h6 {
     font-family: 'Newsreader', serif;
 }
 
-/* Page Container and Transitions */
-.page-container {
+/* Main Content - Single Scrollable Page */
+.main-content {
     position: relative;
     width: 100%;
-    height: 100vh;
-    overflow: hidden;
 }
 
-.page {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100vh;
-    overflow: hidden;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1), 
-                visibility 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.page.active {
-    opacity: 1;
-    visibility: visible;
+.section {
     position: relative;
+    width: 100%;
+    min-height: 100vh;
+    scroll-margin-top: 100px;
 }
 
-.page.transitioning-out {
-    opacity: 0;
-}
-
-.page.transitioning-in {
-    opacity: 0;
-    animation: fadeInFlush 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-
-@keyframes fadeInFlush {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+html {
+    scroll-behavior: smooth;
 }
 
 /* Navbar */
@@ -232,12 +147,11 @@ h1, h2, h3, h4, h5, h6 {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    height: 100vh;
+    min-height: 100vh;
     text-align: center;
     position: relative;
     z-index: 10;
     padding: 120px 40px 40px;
-    overflow: hidden;
 }
 
 .card-visual {
@@ -425,9 +339,7 @@ h1 {
     max-width: 1400px;
     margin: 0 auto;
     text-align: center;
-    height: 100vh;
-    overflow-y: auto;
-    overflow-x: hidden;
+    min-height: 100vh;
 }
 
 .content-page::-webkit-scrollbar {
