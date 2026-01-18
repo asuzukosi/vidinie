@@ -1,10 +1,12 @@
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from api.data.users import User, SafeUser, RegisterUserRequest, \
                         LoginUserRequest, UserLoginResponse, ChangePasswordRequest, \
-                        UpdateUserRequest, UpdateSubscriptionRequest, SubscriptionType, Subscription
+                        UpdateUserRequest, UpdateSubscriptionRequest, SubscriptionType, Subscription, \
+                        GoogleOAuthVerifiedRequest
 from api.helpers.user_helpers import (
     get_user_by_id,
     get_user_by_email,
+    get_user_by_google_id,
     update_user_in_db,
     create_user_in_db,
     check_email_exists
@@ -53,11 +55,76 @@ async def login(request: LoginUserRequest) -> UserLoginResponse:
     user = await get_user_by_email(request.email)
     if not user:
         raise HTTPException(status_code=400, detail="Invalid email or password")
+    if not user.password:
+        raise HTTPException(status_code=400, detail="Please use Google sign-in for this account")
     if not verify_password(request.password, user.password):
         raise HTTPException(status_code=400, detail="Invalid email or password")
     token = sign_jwt(user.id)
     user_dict = user.model_dump(mode="json", exclude={"password"})
     return UserLoginResponse(**user_dict, token=token)
+
+@router.post("/auth/google")
+@error_wrapper("google oauth")
+async def google_oauth(request: GoogleOAuthVerifiedRequest) -> UserLoginResponse:
+    """
+    handle google oauth authentication
+    """
+    try:
+        # extract user information from verified request
+        google_id = request.google_id
+        email = request.email
+        picture = request.picture
+        email_verified = request.email_verified
+        
+        if not email:
+            raise HTTPException(status_code=400, detail="email not provided")
+        
+        # check if user exists with this google id
+        existing_user = await get_user_by_google_id(google_id)
+        
+        # if not found by google id, check by email
+        if not existing_user:
+            existing_user = await get_user_by_email(email)
+        
+        if existing_user:
+            # user exists - log them in
+            # update google id if not set (linking account)
+            if not existing_user.google_id:
+                existing_user.google_id = google_id
+                if picture and not existing_user.profile_picture:
+                    existing_user.profile_picture = picture
+                existing_user.updated_at = datetime.now()
+                await update_user_in_db(existing_user.id, existing_user)
+            elif existing_user.google_id != google_id:
+                raise HTTPException(status_code=400, detail="email already registered with different google account")
+            
+            # update email verification status if verified by google
+            if email_verified and not existing_user.is_verified:
+                existing_user.is_verified = True
+                existing_user.updated_at = datetime.now()
+                await update_user_in_db(existing_user.id, existing_user)
+        else:
+            # user doesn't exist - create new account
+            user = User(
+                email=email,
+                password=None,  # no password for oauth users
+                google_id=google_id,
+                is_verified=email_verified,
+                profile_picture=picture
+            )
+            existing_user = await create_user_in_db(user)
+            logger.info(f"New user created via Google OAuth: {email}")
+        
+        # generate jwt token
+        token = sign_jwt(existing_user.id)
+        user_dict = existing_user.model_dump(mode="json", exclude={"password"})
+        return UserLoginResponse(**user_dict, token=token)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in Google OAuth: {e}")
+        raise HTTPException(status_code=500, detail=f"Authentication failed: {str(e)}")
 
 @router.get("/me", dependencies=[Depends(JWTBearer())])
 @error_wrapper("get user")

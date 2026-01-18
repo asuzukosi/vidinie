@@ -12,6 +12,7 @@ services:
       - .env
     depends_on:
       - mongodb
+      - redis
   vidinie-frontend:
     build:
       context: .
@@ -24,6 +25,19 @@ services:
       - .env
     depends_on:
       - vidinie-backend
+  vidinie-celery:
+    build:
+      context: .
+      dockerfile: Dockerfile.celery
+    networks:
+      - vidinie-network
+    environment:
+      - .env
+    depends_on:
+      - mongodb
+      - redis
+    volumes:
+      - celery-temp:/app/temp
   mongodb:
     image: mongo
     networks:
@@ -32,7 +46,18 @@ services:
       - "27017:27017"
     volumes:
       - mongodb-data:/data/db
+  redis:
+    image: redis:7-alpine
+    networks:
+      - vidinie-network
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
 networks:
   vidinie-network:
 volumes:
   mongodb-data:
+  redis-data:
+  celery-temp:

@@ -17,6 +17,13 @@ class LoginUserRequest(BaseModel):
     email: EmailStr
     password: str
 
+class GoogleOAuthVerifiedRequest(BaseModel):
+    google_id: str
+    email: EmailStr
+    name: Optional[str] = None
+    picture: Optional[str] = None
+    email_verified: bool = False
+
 class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str
@@ -31,13 +38,14 @@ class UpdateUserRequest(BaseModel):
 class User(BaseModel):
     id: str = None
     email: EmailStr
-    password: str
+    password: Optional[str] = None  # optional for OAuth users
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
     is_verified: bool = Field(default=False)
     current_subscription: Optional[SubscriptionType] = Field(default=SubscriptionType.FREE)
     profile_picture: Optional[str] = None  # path to profile picture file
     stripe_customer_id: Optional[str] = None  # stripe customer ID
+    google_id: Optional[str] = None  # Google user ID for OAuth users
 
 class SafeUser(BaseModel):
     id: str

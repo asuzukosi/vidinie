@@ -47,7 +47,6 @@ export default function TasksPage() {
     setIsLoading(true);
     const result: VideoPipelineSummary[] = await client.getAllVideoPipelines();
     setVideoPipelines(result as VideoPipelineSummary[]);
-    console.log("videoPipelines:", result);
     setIsLoading(false);
   };
 

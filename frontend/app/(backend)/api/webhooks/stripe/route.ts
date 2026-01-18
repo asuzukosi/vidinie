@@ -2,19 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import stripe from "@/lib/stripe";
 import { headers } from "next/headers";
 
-// map stripe price ids to subscription types
-const PRICE_TO_SUBSCRIPTION: Record<string, string> = {
-    "price_1SdQlk2M9n75azYSm0Q7ffjU": "starter", // starter plan
-    "price_professional": "professional", // professional plan
-};
-
-// map subscription types to backend enum values
-const SUBSCRIPTION_MAP: Record<string, string> = {
-    "starter": "starter",
-    "professional": "professional",
-    "free": "free",
-};
-
 export async function POST(req: NextRequest){
     const body = await req.text();
     const headersList = await headers();

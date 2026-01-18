@@ -3,15 +3,15 @@ Helper functions for pipeline API routes.
 Provides reusable functions for common operations like retrieving pipelines.
 """
 
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Union
 from bson.objectid import ObjectId
 from fastapi import HTTPException
 from core.data import VideoPipeline
 from api.core.db import video_pipelines_collection
 from api.data.pipelines import VideoPipelineSummary
+from api.data.users import User
 from core.utils.logger import get_logger
-from pprint import pprint
-import json
+
 
 logger = get_logger('pipeline_helpers')
 
@@ -98,3 +98,13 @@ async def delete_pipeline_from_db(video_pipeline_id: str) -> None:
             raise
         logger.error(f"error deleting pipeline with id: {video_pipeline_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"error deleting pipeline: {str(e)}")
+
+
+async def verify_pipeline_ownership(video_pipeline: VideoPipeline, user: Union[User, str]) -> None:
+    """
+    verify that a user owns a pipeline.
+    """
+    user_id = user.id if isinstance(user, User) else user
+    if video_pipeline.user_id != user_id:
+        logger.warning(f"user {user_id} attempted to access pipeline {video_pipeline.id} owned by {video_pipeline.user_id}")
+        raise HTTPException(status_code=403, detail="Unauthorized")

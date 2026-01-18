@@ -170,61 +170,6 @@ export default function CreateVideoPipelineModal({
               Upload PDF File
             </button>
           </div>
-          {/* fields */}
-          <div className="mb-6">
-            <FieldGroup>
-              <Field>
-                <FieldLabel htmlFor="name">
-                  Name
-                </FieldLabel>
-                <Input
-                  id="name"
-                  placeholder="Enter your name for the video"
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="description">
-                  Description
-                </FieldLabel>
-                <Input
-                  id="description"
-                  placeholder="Enter your description for the video"
-                  required
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                />
-              </Field>
-              <div className="grid grid-cols-2 gap-4">
-                <Field>
-                  <FieldLabel htmlFor="tags">
-                    Tags
-                  </FieldLabel>
-                  <MultiSelect
-                    id="tags"
-                    options={tagOptions}
-                    value={tags}
-                    onChange={setTags}
-                    placeholder="Select tags"
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="projects">
-                    Projects
-                  </FieldLabel>
-                  <MultiSelect
-                    id="projects"
-                    options={projectOptions}
-                    value={projects}
-                    onChange={setProjects}
-                    placeholder="Select projects"
-                  />
-                </Field>
-              </div>
-            </FieldGroup>
-            </div>
           {/* content input */}
           {activeTab === TaskType.URL ? (
             <div>
@@ -296,6 +241,61 @@ export default function CreateVideoPipelineModal({
               )}
             </div>
           )}
+          {/* fields */}
+          <div className="mb-6">
+            <FieldGroup>
+              <Field>
+                <FieldLabel htmlFor="name">
+                  Name
+                </FieldLabel>
+                <Input
+                  id="name"
+                  placeholder="Enter your name for the video"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="description">
+                  Description
+                </FieldLabel>
+                <Input
+                  id="description"
+                  placeholder="Enter your description for the video"
+                  required
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                />
+              </Field>
+              <div className="grid grid-cols-2 gap-4">
+                <Field>
+                  <FieldLabel htmlFor="tags">
+                    Tags
+                  </FieldLabel>
+                  <MultiSelect
+                    id="tags"
+                    options={tagOptions}
+                    value={tags}
+                    onChange={setTags}
+                    placeholder="Select tags"
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="projects">
+                    Projects
+                  </FieldLabel>
+                  <MultiSelect
+                    id="projects"
+                    options={projectOptions}
+                    value={projects}
+                    onChange={setProjects}
+                    placeholder="Select projects"
+                  />
+                </Field>
+              </div>
+            </FieldGroup>
+            </div>
   
           {/* actions */}
           <div className="mt-6 flex justify-end gap-3">
