@@ -128,9 +128,13 @@ function navigateToPage(pageId) {
 // Navigation click handlers
 navLinks.forEach(link => {
     link.addEventListener('click', (e) => {
-        e.preventDefault();
         const pageId = link.getAttribute('data-page');
-        navigateToPage(pageId);
+        // Only prevent default and navigate if it's an internal page link
+        if (pageId) {
+            e.preventDefault();
+            navigateToPage(pageId);
+        }
+        // If no data-page attribute, let the link work normally (e.g., external links)
     });
 });
 
