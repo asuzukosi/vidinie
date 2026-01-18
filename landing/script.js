@@ -406,6 +406,7 @@ document.addEventListener('keydown', (e) => {
     if (e.key === '5') navigateToPage('faq');
 });
 
+
 console.log('%caxora.', 'color: #FF6B4A; font-size: 24px; font-weight: 600;');
 console.log('%cYour funds, full control, anytime.', 'color: #A855F7; font-size: 14px;');
 console.log('%cKeyboard shortcuts: 1=Home, 2=Pricing, 3=Features, 4=Support, 5=FAQ, ESC=Home', 'color: #6e6e73; font-size: 12px;');
