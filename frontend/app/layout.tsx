@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Vidinie",
+  title: "vidinie.",
   description: "Create professional explainer videos from your content",
   icons: {
     icon: "/vidinie.png",
