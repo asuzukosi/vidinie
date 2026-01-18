@@ -60,3 +60,4 @@ httpx
 motor
 redis
 celery[redis]
+broadcaster
