@@ -23,8 +23,6 @@ from api.operations.content_operations import (
     add_segment_to_outline,
     delete_segment_from_outline,
 )
-from api.operations.script_operations import generate_scripts
-from api.operations.video_operations import generate_video
 from api.operations.image_operations import (
     add_image_to_pipeline,
     delete_image_from_pipeline,
