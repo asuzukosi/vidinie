@@ -11,7 +11,7 @@ export async function POST(req: NextRequest){
     try {
         event = stripe.webhooks.constructEvent(body, 
             sig, 
-            process.env.STRIPE_WEBHOOK_SECRET!
+            process.env.NEXT_PUBLIC_STRIPE_WEBHOOK_SECRET!
         );
     } catch (err: any) {
         return NextResponse.json({ error: `Webhook Error: ${err.message}` }, { status: 400 });
