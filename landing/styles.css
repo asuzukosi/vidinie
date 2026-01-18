@@ -68,6 +68,14 @@ body {
         background: transparent !important;
     }
     
+    .hero > div:last-child {
+        position: relative !important;
+        bottom: auto !important;
+        right: auto !important;
+        margin-top: 40px;
+        justify-content: center !important;
+    }
+    
     .content-page {
         height: auto !important;
         min-height: 100vh;
