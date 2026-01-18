@@ -15,21 +15,22 @@ import Markdown from 'react-markdown'
 import { capitalizeFirstChar } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { DocumentProcessingImage } from "./DocumentProcessingImage";
-import { Button } from "@/components/ui/button";
 import { IconTrash } from "@tabler/icons-react";
 import { toast } from "sonner";
 import client from "@/lib/sdk/client";
 import { AddImageDialog } from "@/components/pipeline/AddImageDialog";
 import { AddSectionDialog } from "@/components/pipeline/AddSectionDialog";
+import { Loader2 } from "lucide-react";
 
 interface DocumentProcessingProps {
     content?: VideoPipelineParsedContent;
     images?: VideoPipelineImageMetadata[];
     videoPipelineId: string;
     onRefresh: () => void;
+    isProcessingDocument?: boolean;
 }
 
-export function DocumentProcessing({ content, images, videoPipelineId, onRefresh }: DocumentProcessingProps) {
+export function DocumentProcessing({ content, images, videoPipelineId, onRefresh, isProcessingDocument = false }: DocumentProcessingProps) {
     const [isDeletingImage, setIsDeletingImage] = useState<number | null>(null);
     const [isDeletingSection, setIsDeletingSection] = useState<number | null>(null);
 
@@ -58,6 +59,24 @@ export function DocumentProcessing({ content, images, videoPipelineId, onRefresh
             setIsDeletingSection(null);
         }
     };
+
+    if (isProcessingDocument) {
+        return (
+            <div className="space-y-8 w-full text-sm">
+                <Card className="w-full text-sm">
+                    <CardHeader>
+                        <CardTitle>Document Processing</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex flex-col items-center justify-center py-8 gap-4">
+                            <Loader2 className="size-8 animate-spin text-primary" />
+                            <p className="text-sm text-muted-foreground">Processing document... Please wait.</p>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
 
     if (!content) {
         return (
@@ -99,20 +118,29 @@ export function DocumentProcessing({ content, images, videoPipelineId, onRefresh
                                     <AccordionTrigger className="text-sm flex flex-row justify-between gap-2">
                                         <div className="flex items-center gap-2 flex-1">
                                             <span className="italic font-light">{capitalizeFirstChar(section.title || `Section ${index + 1}`)}</span>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                                            <div
+                                                role="button"
+                                                tabIndex={0}
+                                                className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-6 w-6 p-0 text-destructive hover:text-destructive"
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     if (confirm(`Are you sure you want to delete section "${section.title}"?`)) {
                                                         handleDeleteSection(index);
                                                     }
                                                 }}
-                                                disabled={isDeletingSection === index}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter" || e.key === " ") {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        if (confirm(`Are you sure you want to delete section "${section.title}"?`)) {
+                                                            handleDeleteSection(index);
+                                                        }
+                                                    }
+                                                }}
+                                                aria-disabled={isDeletingSection === index}
                                             >
                                                 <IconTrash className="h-4 w-4" />
-                                            </Button>
+                                            </div>
                                         </div>
                                     </AccordionTrigger>
                                     <AccordionContent className="flex flex-col gap-4 text-balance italic">

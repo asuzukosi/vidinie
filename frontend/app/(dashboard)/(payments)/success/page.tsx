@@ -7,15 +7,8 @@ import { useAppSelector } from '@/lib/store/hooks';
 
 // Map Stripe price IDs to subscription types
 const PRICE_TO_SUBSCRIPTION: Record<string, string> = {
-    "price_1SdQlk2M9n75azYSm0Q7ffjU": "starter", // starter plan
-    "price_professional": "professional", // professional plan
-};
-
-// Map subscription types to backend enum values
-const SUBSCRIPTION_MAP: Record<string, string> = {
-    "starter": "starter",
-    "professional": "professional",
-    "free": "free",
+    "price_1SqesCRuS4nQ58s9miCyHa0c": "starter", // $19.99 starter plan
+    "price_1SqewLRuS4nQ58s9xnSRdWKc": "professional", // $49.99 professional plan
 };
 
 export default function SuccessPage() {
@@ -71,7 +64,7 @@ export default function SuccessPage() {
 
                 // Map to backend subscription enum value
                 const backendSubscription = subscriptionType 
-                    ? SUBSCRIPTION_MAP[subscriptionType] 
+                    ? subscriptionType
                     : null;
 
                 if (!backendSubscription) {

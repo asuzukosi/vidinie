@@ -85,9 +85,12 @@ export function ContentAnalyser({ videoOutline, onGenerateOutlineContent, isProc
                             className="w-full"
                         >
                             {videoOutline.segments.map((segment, index) => {
-                                const imageUrl = getLinkToImage(segment.image.path) || undefined;
-                                const imageType = segment.image.source === ImageSource.AI_GENERATED ? "AI Generated" : "Source";
-                                
+                                let imageUrl: string | undefined;
+                                let imageType: string | undefined;
+                                if (segment.image) {
+                                    imageUrl = getLinkToImage(segment.image.path) || undefined;
+                                    imageType = segment.image.source === ImageSource.AI_GENERATED ? "AI Generated" : "Source";
+                                }
                                 return (
                                     <AccordionItem key={index} value={`segment-${index}`}>
                                         <AccordionTrigger className="text-sm flex flex-row justify-between gap-2">
@@ -130,7 +133,7 @@ export function ContentAnalyser({ videoOutline, onGenerateOutlineContent, isProc
                                                         <Badge variant="outline">{segment.word_count}</Badge>
                                                     </div>
                                                 )}
-                                                {segment.image.source && (
+                                                {segment.image && segment.image.source && (
                                                     <div>
                                                         <span className="font-medium">Image Type: </span>
                                                         <Badge variant="outline">{imageType}</Badge>

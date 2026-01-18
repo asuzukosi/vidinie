@@ -94,22 +94,28 @@ export default function SettingsPage() {
     {
       id: "starter",
       name: "Starter",
-      price: "$9.99",
+      price: "$19.99",
       period: "per month",
-      priceId: "price_1SdQlk2M9n75azYSm0Q7ffjU", // replace with your actual price id
-      features: ["All basic features", "Increased usage", "Priority support"],
+      priceId: "price_1SqesCRuS4nQ58s9miCyHa0c",
+      features: ["PDF & website support", 
+        "Basic templates", 
+        "Email support", 
+        "5 Videos per month", 
+        "Download videos",
+      ],
     },
     {
       id: "professional",
       name: "Professional",
-      price: "$29.99",
+      price: "$49.99",
       period: "per month",
-      priceId: "price_professional", // replace with your actual price id
+      priceId: "price_1SqewLRuS4nQ58s9xnSRdWKc",
       features: [
-        "All starter features",
-        "Unlimited usage",
-        "Advanced features",
-        "24/7 support",
+        "Everything in Starter",
+        "Premium templates",
+        "Custom branding",
+        "20 Videos per month",
+        "Download videos",
       ],
     },
   ];

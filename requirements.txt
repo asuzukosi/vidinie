@@ -58,3 +58,5 @@ celery
 redis
 httpx
 motor
+redis
+celery[redis]

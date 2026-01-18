@@ -49,9 +49,9 @@ export default function VideoPipelineTable({ videoPipelines = [], onDelete }: Vi
 
     return (
       <TableRow key={videoPipeline.id} className="hover:bg-muted/50" onClick={() => handleVideoPipelineClick(videoPipeline)}>
-        <TableCell className="px-2 h-16 px-2 font-medium">{videoPipeline.name}</TableCell>
+        <TableCell className="px-2 h-16 px-2 font-medium">{videoPipeline.name.length > 20 ? videoPipeline.name.substring(0, 20) + "..." : videoPipeline.name}</TableCell>
         <TableCell className="h-16 px-2 text-sm text-muted-foreground">
-          {videoPipeline.description.length > 100 ? videoPipeline.description.substring(0, 100) + "..." : videoPipeline.description}
+          {videoPipeline.description.length > 20 ? videoPipeline.description.substring(0, 20) + "..." : videoPipeline.description}
         </TableCell>
         <TableCell className="h-16 px-2 text-sm text-muted-foreground w-[90px]">
           <VideoPipelineStageBadge stage={videoPipeline.current_stage} />

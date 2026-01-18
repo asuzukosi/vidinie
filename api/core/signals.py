@@ -1,11 +1,11 @@
 from broadcaster import Broadcast
 import json
+import os
 from typing import AsyncGenerator
 from core.utils.logger import get_logger
 
 logger = get_logger("signals")
-
-broadcast = Broadcast("memory://")
+broadcast = Broadcast(os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379"))
 
 async def connect_to_broadcast() -> bool:
     try:

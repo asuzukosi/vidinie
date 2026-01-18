@@ -16,27 +16,60 @@ import { VideoPipelineDetails } from "@/components/pipeline/VideoPipelineDetails
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useSelector } from "react-redux";
+import { RootState } from "@/lib/store/store";
 
 export default function TaskDetailPage() {
     const params = useParams();
     const router = useRouter();
     const taskId = params.id as string;
+    const user = useSelector((state: RootState) => state.auth.user);
     const [videoPipeline, setVideoPipeline] = useState<VideoPipeline | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedStage, setSelectedStage] = useState<VideoPipelineStage | null>(VideoPipelineStage.DOCUMENT_PROCESSING);
+    const [isProcessingDocument, setIsProcessingDocument] = useState(false);
     const [isProcessingContent, setIsProcessingContent] = useState(false);
     const [isGeneratingScripts, setIsGeneratingScripts] = useState(false);
     const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
     const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+
+    // helper function to find the last completed stage
+    const getLastCompletedStage = (stageStatuses?: VideoPipeline['stage_statuses']): VideoPipelineStage => {
+        if (!stageStatuses) {
+            return VideoPipelineStage.DOCUMENT_PROCESSING;
+        }
+
+        // define stages in order
+        const stagesInOrder = [
+            VideoPipelineStage.DOCUMENT_PROCESSING,
+            VideoPipelineStage.CONTENT_ANALYSIS,
+            VideoPipelineStage.SCRIPT_GENERATION,
+            VideoPipelineStage.VIDEO_GENERATION,
+        ];
+
+        // find the last completed stage
+        let lastCompletedStage = VideoPipelineStage.DOCUMENT_PROCESSING;
+        for (const stage of stagesInOrder) {
+            if (stageStatuses[stage] === VideoPipelineStatus.COMPLETED) {
+                lastCompletedStage = stage;
+            }
+        }
+
+        return lastCompletedStage;
+    };
 
     const fetchVideoPipeline = async () => {
         setIsLoading(true);
         try {
             const result: VideoPipeline = await client.getVideoPipelineDetails(taskId);
             setVideoPipeline(result);
+            setIsProcessingDocument(result.stage_statuses?.[VideoPipelineStage.DOCUMENT_PROCESSING] === VideoPipelineStatus.IN_PROGRESS);
             setIsProcessingContent(result.stage_statuses?.[VideoPipelineStage.CONTENT_ANALYSIS] === VideoPipelineStatus.IN_PROGRESS);
             setIsGeneratingScripts(result.stage_statuses?.[VideoPipelineStage.SCRIPT_GENERATION] === VideoPipelineStatus.IN_PROGRESS);
             setIsGeneratingVideo(result.stage_statuses?.[VideoPipelineStage.VIDEO_GENERATION] === VideoPipelineStatus.IN_PROGRESS);
+            // set the selected stage to the last completed stage
+            const lastCompletedStage = getLastCompletedStage(result.stage_statuses);
+            setSelectedStage(lastCompletedStage);
         } catch (error) {
             console.error("Error fetching video pipeline:", error);
             toast.error(`Failed to retrieve video pipeline with id: ${taskId}`);
@@ -49,6 +82,45 @@ export default function TaskDetailPage() {
     useEffect(() => {
         fetchVideoPipeline();
     }, [taskId]);
+
+    // websocket connection for real-time pipeline updates
+    useEffect(() => {
+        if (!taskId || !user?.id) {
+            return;
+        }
+        const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        const baseWsUrl = `${baseUrl.replace('http', 'ws').replace('https', 'wss')}`;
+        const wsUrl = `${baseWsUrl}/video-pipelines/${taskId}/ws?user_id=${user.id}`;
+        const socket = new WebSocket(wsUrl);
+
+        socket.onopen = () => {
+            console.log("onopen: connected to pipeline state socket");
+        };
+
+        socket.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                fetchVideoPipeline();
+            } catch (error) {
+                console.error("Error parsing WebSocket message:", error);
+            }
+        };
+
+        socket.onerror = (error) => {
+            console.log("onerror: websocket error:", error);
+        };
+
+        socket.onclose = () => {
+            console.log("onclose: websocket closed");
+        };
+
+        // cleanup function to close the websocket connection when the component unmounts
+        return () => {
+            if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+                socket.close();
+            }
+        };
+    }, [taskId, user?.id]);
 
     const generateOutlineContent = async (data: CreateVideoPipelineOutlineRequest) => {
         setIsProcessingContent(true);
@@ -178,6 +250,7 @@ export default function TaskDetailPage() {
                                     images={videoPipeline.images_metadata}
                                     videoPipelineId={taskId}
                                     onRefresh={fetchVideoPipeline}
+                                    isProcessingDocument={isProcessingDocument}
                                 />
                             </CardContent>
                         </Card>

@@ -78,6 +78,24 @@ async def create_user_in_db(user: User) -> User:
     return user
 
 
+async def get_user_by_google_id(google_id: str) -> Optional[User]:
+    """
+    get a user by their google id.
+    """
+    if users_collection is None:
+        raise HTTPException(status_code=500, detail="database is not initialized")
+    try:
+        user_dict: Optional[Dict[str, Any]] = await users_collection.find_one(
+            {"google_id": google_id}
+        )
+        if not user_dict:
+            return None
+        return User(**user_dict)
+    except Exception as e:
+        logger.error(f"error retrieving user with google_id: {google_id}: {str(e)}")
+        return None
+
+
 async def check_email_exists(email: str, exclude_user_id: Optional[str] = None) -> bool:
     """
     check if an email is already registered.

@@ -9,7 +9,6 @@ import {
 } from "@/components/ui/accordion";
 import Image from "next/image";
 import { getLinkToImage } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { IconTrash } from "@tabler/icons-react";
 
 interface DocumentProcessingImageProps {
@@ -25,18 +24,25 @@ export function DocumentProcessingImage({ image, index, onDelete, isDeleting = f
       <AccordionTrigger className="text-sm flex flex-row justify-between gap-2">
         <div className="flex items-center gap-2 flex-1">
           <span className="italic font-light">{image.label || image.filename}</span>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+          <div
+            role="button"
+            tabIndex={0}
+            className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-6 w-6 p-0 text-destructive hover:text-destructive"
             onClick={(e) => {
               e.stopPropagation();
               onDelete();
             }}
-            disabled={isDeleting}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                e.stopPropagation();
+                onDelete();
+              }
+            }}
+            aria-disabled={isDeleting}
           >
             <IconTrash className="h-4 w-4" />
-          </Button>
+          </div>
         </div>
       </AccordionTrigger>
       <AccordionContent className="flex flex-col gap-4">

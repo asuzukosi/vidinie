@@ -6,8 +6,22 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useDispatch, useSelector } from "react-redux";
 import { setUser } from "@/lib/store/slices/authSlice";
-import { useEffect } from "react";
+import { useEffect, useCallback } from "react";
 import type { RootState } from "@/lib/store/store";
+
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: any) => void;
+          prompt: () => void;
+          renderButton: (element: HTMLElement, config: any) => void;
+        };
+      };
+    };
+  }
+}
 
 export default function SignInPage() {
   const router = useRouter();
@@ -47,9 +61,84 @@ export default function SignInPage() {
     }
   };
 
-  const handleGoogleLogin = async () => {
-    toast.info("Google login coming soon");
-  };
+  const handleGoogleLogin = useCallback(async () => {
+    try {
+      const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID;
+      if (!googleClientId) {
+        toast.error("google authentication not configured");
+        return;
+      }
+
+      // load google identity services script if not already loaded
+      if (!window.google) {
+        const script = document.createElement("script");
+        script.src = "https://accounts.google.com/gsi/client";
+        script.async = true;
+        script.defer = true;
+        document.head.appendChild(script);
+
+        await new Promise((resolve, reject) => {
+          script.onload = resolve;
+          script.onerror = reject;
+          setTimeout(reject, 10000); // 10 second timeout
+        });
+      }
+
+      // initialize google identity services
+      window.google?.accounts.id.initialize({
+        client_id: googleClientId,
+        callback: async (response: any) => {
+          try {
+            if (!response.credential) {
+              toast.error("google authentication failed");
+              return;
+            }
+
+            // send id token to api route which verifies and handles authentication
+            const apiResponse = await fetch('/api/auth/google', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ id_token: response.credential }),
+            });
+
+            if (!apiResponse.ok) {
+              const errorData = await apiResponse.json().catch(() => ({}));
+              throw new Error(errorData.error || 'Authentication failed');
+            }
+
+            const loginResponse = await apiResponse.json();
+            
+            // store user data and token in redux
+            const userData = {
+              id: loginResponse.id,
+              email: loginResponse.email,
+              token: loginResponse.token,
+              created_at: loginResponse.created_at,
+              updated_at: loginResponse.updated_at,
+              is_verified: loginResponse.is_verified,
+            };
+            dispatch(setUser(userData));
+            client.setToken(loginResponse.token);
+            toast.success("Login successful!");
+            router.push("/video-pipelines");
+          } catch (error: any) {
+            toast.error("Google login failed", {
+              description: error.message || "Failed to authenticate with Google",
+            });
+          }
+        },
+      });
+
+      // trigger the google sign-in flow
+      window.google?.accounts.id.prompt();
+    } catch (error: any) {
+      toast.error("failed to initialize google sign-in", {
+        description: error.message || "Please try again",
+      });
+    }
+  }, [dispatch, router]);
 
   const handleForgotPassword = async () => {
     toast.info("Forgot password coming soon");

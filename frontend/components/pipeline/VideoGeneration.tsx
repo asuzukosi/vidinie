@@ -4,10 +4,12 @@ import { useState } from "react";
 import { VideoPlayer } from "@/components/utils/VideoPlayer";
 import { GenerateVideoPipelineRequest, VideoPipelineReviewRequest } from "@/lib/sdk/types";
 import { Button } from "@/components/ui/button";
-import { IconPlus } from "@tabler/icons-react";
+import { IconPlus, IconDownload } from "@tabler/icons-react";
 import { Loader2 } from "lucide-react";
 import { VideoGenerationModal } from "@/components/modals/VideoGenerationModal";
 import { ReviewAndFeedback } from "@/components/pipeline/ReviewAndFeedback";
+import client from "@/lib/sdk/client";
+import { toast } from "sonner";
 
 interface VideoGenerationProps {
     videoPipelineId: string;
@@ -37,12 +39,35 @@ export function VideoGeneration({
     defaultVideoSubtitle = ""
 }: VideoGenerationProps) {
     const [isVideoGenerationModalOpen, setIsVideoGenerationModalOpen] = useState(false);
+    const [isDownloading, setIsDownloading] = useState(false);
 
     const handleVideoGenerationSubmit = (data: GenerateVideoPipelineRequest) => {
         if (onVideoGeneration) {
             onVideoGeneration(data);
         }
         setIsVideoGenerationModalOpen(false);
+    };
+
+    const handleDownload = async () => {
+        setIsDownloading(true);
+        try {
+            const blob = await client.downloadVideoPipelineOutput(videoPipelineId);
+            // Create a blob URL and trigger download
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `video-${videoPipelineId}.mp4`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            toast.success("Video downloaded successfully");
+        } catch (error: any) {
+            console.error("Error downloading video:", error);
+            toast.error(error.message || "Failed to download video");
+        } finally {
+            setIsDownloading(false);
+        }
     };
 
     if (!videoPath) {
@@ -84,6 +109,22 @@ export function VideoGeneration({
                 <div className="space-y-4">
                     <h3 className="font-semibold text-sm">Generated Video</h3>
                     <VideoPlayer videoPipelineId={videoPipelineId} />
+                    <div className="flex justify-end">
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={handleDownload}
+                            disabled={isDownloading}
+                            className="flex items-center gap-2"
+                        >
+                            {isDownloading ? (
+                                <Loader2 className="size-4 animate-spin" />
+                            ) : (
+                                <IconDownload className="size-4" />
+                            )}
+                            {isDownloading ? "Downloading..." : "Download"}
+                        </Button>
+                    </div>
                 </div>
                 {videoPath && (
                     <div className="pt-6 border-t">

@@ -17,12 +17,7 @@ import asyncio
 from api.data.users import User
 from api.core.auth import JWTBearer
 from core.utils.logger import setup_logging, get_logger
-from api.operations.document_operations import (
-    process_pdf_document,
-    process_html_document,
-)
 from api.operations.content_operations import (
-    process_content,
     add_section_to_content as add_section_to_pipeline,
     delete_section_from_content as delete_section_from_pipeline,
     add_segment_to_outline,
@@ -40,9 +35,10 @@ from api.helpers.pipeline_helpers import (
     create_pipeline_in_db,
     get_pipelines_for_user,
     delete_pipeline_from_db,
+    verify_pipeline_ownership,
 )
 from api.helpers.user_helpers import get_user_by_id
-import os
+import os, asyncio
 from pathlib import Path
 from api.data.pipelines import CreateVideoPipelineRequest, VideoPipelineSummary, \
                                DeleteVideoPipelineResponse, DeleteVideoPipelineImageResponse, \
@@ -56,7 +52,7 @@ import shutil
 import requests
 from api.utils.error_wrapper import error_wrapper
 from api.core.signals import broadcast_message, listen_for_messages
-
+from api.core.celery import run_next_stages_task
 
 # setup logging
 setup_logging(log_dir='temp')
@@ -106,127 +102,8 @@ async def any_stage_is_processing(video_pipeline: VideoPipeline) -> bool:
     return video_pipeline.status == VideoPipelineStatus.IN_PROGRESS
 
 # pipeline stages to run in the order they are executed
-PIPELINE_STAGES = [
-    VideoPipelineStage.DOCUMENT_PROCESSING,
-    VideoPipelineStage.CONTENT_ANALYSIS,
-    VideoPipelineStage.SCRIPT_GENERATION,
-    VideoPipelineStage.VIDEO_GENERATION,
-]
-# special utility function to run all the stages sequentialy
-async def run_next_stages(video_pipeline: VideoPipeline, stage: Optional[VideoPipelineStage] = None, **kwargs) -> VideoPipeline:
-    # get all stages after the current stage
-    logger.info(f"running next stages after: {stage}")
-    # get all stages after the current stage
-    if stage:
-        # if a stage is specified, run all stages after it
-        tasks_to_run = PIPELINE_STAGES[PIPELINE_STAGES.index(stage):]
-    else:
-        # if no stage is specified, run all stages
-        tasks_to_run = PIPELINE_STAGES
-    logger.info(f"tasks to run: {tasks_to_run}")
-    
-    # run each task in the order they are specified
-    
-    # check and run document processing task
-    if VideoPipelineStage.DOCUMENT_PROCESSING in tasks_to_run:
-        if video_pipeline.source_type == SourceType.PDF:
-            logger.info(f"running document processing task for pipeline: {video_pipeline.id}")
-            broadcast_message(f"pipeline-tasks-{video_pipeline.id}", {"type": "document_processing", "pipeline_id": video_pipeline.id, "status": VideoPipelineStatus.IN_PROGRESS})
-            # extract all the arguments from kwargs
-            extract_images = kwargs.get('extract_images', True)
-            pdf_content = kwargs.get('pdf_content', None)
-            pdf_path = kwargs.get('pdf_path', None)
-            if not pdf_content and not pdf_path:
-                raise ValueError("either pdf_content or pdf_path must be provided")
-            if pdf_content:
-                video_pipeline = process_pdf_document(video_pipeline, 
-                                                    extract_images=extract_images, 
-                                                    pdf_content=pdf_content)
-            elif pdf_path:
-                video_pipeline = process_pdf_document(video_pipeline, 
-                                                    extract_images=extract_images, 
-                                                    pdf_path=pdf_path)
-            else:
-                raise ValueError("either pdf_content or pdf_path must be provided")
-            # update database
-            await update_pipeline_in_db(video_pipeline.id, video_pipeline)
-            # broadcast message
-            broadcast_message(f"pipeline-tasks-{video_pipeline.id}", {"type": "document_processed", "pipeline_id": video_pipeline.id, "status": VideoPipelineStatus.COMPLETED})
-            logger.info(f"document processing task completed for pipeline: {video_pipeline.id}")
-        elif video_pipeline.source_type == SourceType.HTML:
-            logger.info(f"running document processing task for pipeline: {video_pipeline.id}")
-            broadcast_message(f"pipeline-tasks-{video_pipeline.id}", {"type": "document_processing", "pipeline_id": video_pipeline.id, "status": VideoPipelineStatus.IN_PROGRESS})
-            # extract all the arguments from kwargs
-            extract_images = kwargs.get('extract_images', True)
-            html_content = kwargs.get('html_content', None)
-            html_path = kwargs.get('html_path', None)
-            if not html_content and not html_path:
-                raise ValueError("either html_content or html_path must be provided")
-            if html_content:
-                video_pipeline = process_html_document(video_pipeline, 
-                                                    extract_images=extract_images, 
-                                                    html_content=html_content)
-            elif html_path:
-                video_pipeline = process_html_document(video_pipeline, 
-                                                    extract_images=extract_images, 
-                                                    html_path=html_path)
-            else:
-                raise ValueError("either html_content or html_path must be provided")
-                
-            # update database
-            await update_pipeline_in_db(video_pipeline.id, video_pipeline)
-            # broadcast message
-            broadcast_message(f"pipeline-tasks-{video_pipeline.id}", {"type": "document_processed", "pipeline_id": video_pipeline.id, "status": VideoPipelineStatus.COMPLETED})
-            logger.info(f"document processing task completed for pipeline: {video_pipeline.id}")
-        else:
-            raise ValueError(f"unsupported source type: {video_pipeline.source_type}")
-    
-    # check and run content analysis task
-    if VideoPipelineStage.CONTENT_ANALYSIS in tasks_to_run:
-        logger.info(f"running content analysis task for pipeline: {video_pipeline.id}")
-        broadcast_message(f"pipeline-tasks-{video_pipeline.id}", {"type": "content_analysis", "pipeline_id": video_pipeline.id, "status": VideoPipelineStatus.IN_PROGRESS})
-        # process content
-        skip_stock = kwargs.get('skip_stock', False)
-        target_segments = kwargs.get('target_segments', 7)
-        segment_duration = kwargs.get('segment_duration', 45)
-        # process content
-        video_pipeline = process_content(video_pipeline, 
-                                         skip_stock=skip_stock, 
-                                         target_segments=target_segments, 
-                                         segment_duration=segment_duration)
-        # update database
-        await update_pipeline_in_db(video_pipeline.id, video_pipeline)
-        broadcast_message(f"pipeline-tasks-{video_pipeline.id}", {"type": "content_processed", "pipeline_id": video_pipeline.id, "status": VideoPipelineStatus.COMPLETED})
-        logger.info(f"content analysis task completed for pipeline: {video_pipeline.id}")
-    
-    # check and run script genratiion task
-    if VideoPipelineStage.SCRIPT_GENERATION in tasks_to_run:
-        logger.info(f"running script generation task for pipeline: {video_pipeline.id}")
-        broadcast_message(f"pipeline-tasks-{video_pipeline.id}", {"type": "script_generation", "pipeline_id": video_pipeline.id, "status": VideoPipelineStatus.IN_PROGRESS})
-        # extract all the arguments from kwargs
-        provider = kwargs.get('provider', 'elevenlabs')
-        voice_id = kwargs.get('voice_id', None)
-        video_pipeline = generate_scripts(video_pipeline, provider=provider, voice_id=voice_id)
-        # update database
-        await update_pipeline_in_db(video_pipeline.id, video_pipeline)
-        # broadcast message
-        broadcast_message(f"pipeline-tasks-{video_pipeline.id}", {"type": "scripts_generated", "pipeline_id": video_pipeline.id, "status": VideoPipelineStatus.COMPLETED})
-        logger.info(f"script generation task completed for pipeline: {video_pipeline.id}")
-    
-    # check and run video generation task
-    if VideoPipelineStage.VIDEO_GENERATION in tasks_to_run:
-        logger.info(f"running video generation task for pipeline: {video_pipeline.id}")
-        broadcast_message(f"pipeline-tasks-{video_pipeline.id}", {"type": "video_generation", "pipeline_id": video_pipeline.id, "status": VideoPipelineStatus.IN_PROGRESS})
-        video_pipeline = generate_video(video_pipeline)
-        await update_pipeline_in_db(video_pipeline.id, video_pipeline)
-        broadcast_message(f"pipeline-tasks-{video_pipeline.id}", {"type": "video_generated", "pipeline_id": video_pipeline.id, "status": VideoPipelineStatus.COMPLETED})
-        logger.info(f"video generation task completed for pipeline: {video_pipeline.id}")
 
-    # all tasks completed for pipeline
-    logger.info(f"all tasks completed for pipeline: {video_pipeline.id}")
-    broadcast_message(f"pipeline-tasks-{video_pipeline.id}", {"type": "pipeline_completed", "pipeline_id": video_pipeline.id, "status": VideoPipelineStatus.COMPLETED})
-    logger.info(f"pipeline completed for pipeline: {video_pipeline.id}")
-    return video_pipeline
+
 
 @router.post("/from-file", name="create video pipeline from file", dependencies=[Depends(JWTBearer())])
 @error_wrapper("create video pipeline from file")
@@ -261,11 +138,10 @@ async def create_video_pipeline_from_file(
     )
     logger.info("pipeline data object created")
     video_pipeline = await create_pipeline_in_db(video_pipeline)
-    broadcast_message(f"pipeline-tasks-{video_pipeline.id}", {"type": "pipeline_created", "pipeline_id": video_pipeline.id})
-    await write_content_to_file_for_pipeline(video_pipeline, file.filename, file_content)
+    await broadcast_message(f"pipeline-tasks-{video_pipeline.id}", {"type": "pipeline_created", "pipeline_id": video_pipeline.id})
+    background_tasks.add_task(write_content_to_file_for_pipeline, video_pipeline, file.filename, file_content)
 
-    # run all the stages sequentially in the background
-    background_tasks.add_task(run_next_stages, video_pipeline, stage=VideoPipelineStage.DOCUMENT_PROCESSING, pdf_content=file_content, pdf_path=file.filename)
+    run_next_stages_task.delay(video_pipeline.id, stage=VideoPipelineStage.DOCUMENT_PROCESSING, pdf_path=video_pipeline.source_path, pdf_content=file_content)
     # return pipeline summary
     return VideoPipelineSummary(**video_pipeline.model_dump(mode="json"))
 
@@ -302,10 +178,10 @@ async def create_video_pipeline_from_url(request: CreateVideoPipelineRequest,
     # save pipeline data to database first
     logger.info("saving pipeline data to database")
     video_pipeline = await create_pipeline_in_db(video_pipeline)
-    broadcast_message(f"pipeline-tasks-{video_pipeline.id}", {"type": "pipeline_created", "pipeline_id": video_pipeline.id})
-    await write_content_to_file_for_pipeline(video_pipeline, 'data.html', response.content)
+    await broadcast_message(f"pipeline-tasks-{video_pipeline.id}", {"type": "pipeline_created", "pipeline_id": video_pipeline.id})
+    background_tasks.add_task(write_content_to_file_for_pipeline, video_pipeline, 'data.html', response.content)
     # run all the stages sequentially in the background
-    background_tasks.add_task(run_next_stages, video_pipeline, stage=VideoPipelineStage.DOCUMENT_PROCESSING, html_content=response.text, html_path='data.html')
+    run_next_stages_task.delay(video_pipeline.id, stage=VideoPipelineStage.DOCUMENT_PROCESSING, html_content=response.text, html_path=video_pipeline.source_path)
     # return pipeline summary
     return VideoPipelineSummary(**video_pipeline.model_dump(mode="json"))
 
@@ -327,10 +203,7 @@ async def get_video_pipeline_details(video_pipeline_id: str, user_id: str = Depe
         raise HTTPException(status_code=401, detail="Unauthorized")
     logger.info("received request to get pipeline details")
     video_pipeline = await get_pipeline_by_id(video_pipeline_id)
-    if not video_pipeline:
-        raise HTTPException(status_code=404, detail="Pipeline not found")
-    if video_pipeline.user_id != user.id:
-        raise HTTPException(status_code=403, detail="Unauthorized")
+    await verify_pipeline_ownership(video_pipeline, user)
     return video_pipeline
 
 @router.delete("/{video_pipeline_id}", name="delete video pipeline", 
@@ -347,15 +220,14 @@ async def delete_video_pipeline(video_pipeline_id: str,
     # get pipeline using helper
     video_pipeline = await get_pipeline_by_id(video_pipeline_id)
     # verify ownership
-    if video_pipeline.user_id != user_id:
-        raise HTTPException(status_code=403, detail="Unauthorized")
+    await verify_pipeline_ownership(video_pipeline, user_id)
     logger.info(f"deleting pipeline with id: {video_pipeline_id}")
     # delete pipeline from database using helper
     await delete_pipeline_from_db(video_pipeline_id)
     # delete temp directory in background
     background_tasks.add_task(delete_pipeline_temp_directory, video_pipeline)
     # broadcast deletion message
-    broadcast_message(f"pipeline-tasks-{video_pipeline_id}", {"type": "pipeline_deleted", "pipeline_id": video_pipeline_id})
+    await broadcast_message(f"pipeline-tasks-{video_pipeline_id}", {"type": "pipeline_deleted", "pipeline_id": video_pipeline_id})
     return DeleteVideoPipelineResponse(video_pipeline_id=video_pipeline_id, message="Pipeline deleted successfully")
 
 @router.post("/{video_pipeline_id}/images", name="add video pipeline image", 
@@ -372,13 +244,12 @@ async def add_video_pipeline_image(video_pipeline_id: str, image: UploadFile,
     # get pipeline using helper
     video_pipeline = await get_pipeline_by_id(video_pipeline_id)
     # verify ownership
-    if video_pipeline.user_id != user.id:
-        raise HTTPException(status_code=403, detail="Unauthorized")
+    await verify_pipeline_ownership(video_pipeline, user)
     try:
         # use reusable function to add image
-        broadcast_message(f"pipeline-tasks-{video_pipeline_id}", {"type": "image_adding", "pipeline_id": video_pipeline_id, "image_filename": image.filename})
+        await broadcast_message(f"pipeline-tasks-{video_pipeline_id}", {"type": "image_adding", "pipeline_id": video_pipeline_id, "image_filename": image.filename})
         image_metadata = add_image_to_pipeline(video_pipeline, image, text_context=text_context, label=label or False)
-        broadcast_message(f"pipeline-tasks-{video_pipeline_id}", {"type": "image_added", "pipeline_id": video_pipeline_id, "image_metadata": image_metadata.model_dump(mode="json")})
+        await broadcast_message(f"pipeline-tasks-{video_pipeline_id}", {"type": "image_added", "pipeline_id": video_pipeline_id, "image_metadata": image_metadata.model_dump(mode="json")})
         return VideoPipelineImageMetadata(**image_metadata.model_dump(mode="json"))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -398,8 +269,7 @@ async def delete_video_pipeline_image(video_pipeline_id: str,
     # get pipeline using helper
     video_pipeline = await get_pipeline_by_id(video_pipeline_id)
     # verify ownership
-    if video_pipeline.user_id != user.id:
-        raise HTTPException(status_code=403, detail="Unauthorized")
+    await verify_pipeline_ownership(video_pipeline, user)
     try:
         # use reusable function to delete image
         image_metadata = delete_image_from_pipeline(video_pipeline, index)
@@ -445,8 +315,7 @@ async def delete_video_pipeline_section(video_pipeline_id: str,
     # get pipeline using helper
     video_pipeline = await get_pipeline_by_id(video_pipeline_id)
     # verify ownership
-    if video_pipeline.user_id != user.id:
-        raise HTTPException(status_code=403, detail="Unauthorized")
+    await verify_pipeline_ownership(video_pipeline, user)
     try:
         # use reusable function to delete section
         section_data = delete_section_from_pipeline(video_pipeline, index)
@@ -464,15 +333,13 @@ async def delete_video_pipeline_section(video_pipeline_id: str,
 @router.post("/{video_pipeline_id}/process", name="process video pipeline content", dependencies=[Depends(JWTBearer())])
 @error_wrapper("process video pipeline content")
 async def process_video_pipeline_content(video_pipeline_id: str, request: CreateVideoPipelineOutlineRequest,
-                                         user_id: str = Depends(JWTBearer()),
-                                         background_tasks: BackgroundTasks = BackgroundTasks()) -> VideoPipeline:
+                                         user_id: str = Depends(JWTBearer())) -> VideoPipeline:
     user = await get_user_by_id(user_id)
     if not user:
         raise HTTPException(status_code=401, detail="Unauthorized")
     video_pipeline = await get_pipeline_by_id(video_pipeline_id)
     # verify ownership
-    if video_pipeline.user_id != user.id:
-        raise HTTPException(status_code=403, detail="Unauthorized")
+    await verify_pipeline_ownership(video_pipeline, user)
     # ensure no other stage is in progress
     if await any_stage_is_processing(video_pipeline):
         raise HTTPException(status_code=409, detail="another pipeline stage is currently in progress, please wait until it completes.")
@@ -481,8 +348,8 @@ async def process_video_pipeline_content(video_pipeline_id: str, request: Create
     target_segments = request.target_segments
     segment_duration = request.segment_duration
     # run content analysis task in the background
-    background_tasks.add_task(run_next_stages, 
-                              video_pipeline, 
+    run_next_stages_task.delay(
+                              video_pipeline.id, 
                               stage=VideoPipelineStage.CONTENT_ANALYSIS, 
                               skip_stock=skip_stock, 
                               target_segments=target_segments, 
@@ -501,8 +368,7 @@ async def add_video_pipeline_outline_segment(video_pipeline_id: str,
     logger.info("received request to add pipeline video outline segment")
     video_pipeline = await get_pipeline_by_id(video_pipeline_id)
     # verify ownership
-    if video_pipeline.user_id != user.id:
-        raise HTTPException(status_code=403, detail="Unauthorized")
+    await verify_pipeline_ownership(video_pipeline, user)
     try:
         # use reusable function to add segment
         added_segment = add_segment_to_outline(video_pipeline, segment)
@@ -512,7 +378,7 @@ async def add_video_pipeline_outline_segment(video_pipeline_id: str,
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
-# @router.delete("/{video_pipeline_id}/outline/segments/{index}", name="delete video pipeline outline segment")
+@router.delete("/{video_pipeline_id}/outline/segments/{index}", name="delete video pipeline outline segment")
 @error_wrapper("delete video pipeline outline segment")
 async def delete_video_pipeline_outline_segment(video_pipeline_id: str, index: int,
                                                 user_id: str = Depends(JWTBearer())) -> VideoPipelineSegment:
@@ -522,8 +388,7 @@ async def delete_video_pipeline_outline_segment(video_pipeline_id: str, index: i
     logger.info("received request to delete pipeline video outline segment")
     video_pipeline = await get_pipeline_by_id(video_pipeline_id)
     # verify ownership
-    if video_pipeline.user_id != user.id:
-        raise HTTPException(status_code=403, detail="Unauthorized")
+    await verify_pipeline_ownership(video_pipeline, user)
     try:
         # use reusable function to delete segment
         deleted_segment = delete_segment_from_outline(video_pipeline, index)
@@ -537,8 +402,7 @@ async def delete_video_pipeline_outline_segment(video_pipeline_id: str, index: i
 @router.post("/{video_pipeline_id}/generate-scripts", name="generate video pipeline scripts")
 @error_wrapper("generate video pipeline scripts")
 async def generate_video_pipeline_scripts(video_pipeline_id: str, request: CreateVideoPipelineScriptRequest,
-                                          user_id: str = Depends(JWTBearer()),
-                                          background_tasks: BackgroundTasks = BackgroundTasks()) -> VideoPipeline:
+                                          user_id: str = Depends(JWTBearer())) -> VideoPipeline:
     user = await get_user_by_id(user_id)
     if not user:
         raise HTTPException(status_code=401, detail="Unauthorized")
@@ -546,17 +410,16 @@ async def generate_video_pipeline_scripts(video_pipeline_id: str, request: Creat
     # get pipeline using helper
     video_pipeline = await get_pipeline_by_id(video_pipeline_id)
     # verify ownership
-    if video_pipeline.user_id != user.id:
-        raise HTTPException(status_code=403, detail="Unauthorized")
+    await verify_pipeline_ownership(video_pipeline, user)
     # ensure no other stage is in progress
     if await any_stage_is_processing(video_pipeline):
         raise HTTPException(status_code=409, detail="another pipeline stage is currently in progress, please wait until it completes.")
     # use modular operation to generate scripts
     provider = request.provider
     voice_id = request.voice_id
-    # run script generation task in the background
-    background_tasks.add_task(run_next_stages, 
-                              video_pipeline, stage=VideoPipelineStage.SCRIPT_GENERATION, 
+    # run script generation task in the background using Celery
+    run_next_stages_task.delay(
+                              video_pipeline.id, stage=VideoPipelineStage.SCRIPT_GENERATION, 
                               provider=provider, voice_id=voice_id)
     # return pipeline summary
     return VideoPipelineSummary(**video_pipeline.model_dump(mode="json"))
@@ -564,16 +427,14 @@ async def generate_video_pipeline_scripts(video_pipeline_id: str, request: Creat
 @router.post("/{video_pipeline_id}/generate", name="generate video pipeline output", dependencies=[Depends(JWTBearer())])
 @error_wrapper("generate video pipeline output")
 async def generate_video_pipeline_output(video_pipeline_id: str, request: GenerateVideoPipelineRequest,
-                                         user_id: str = Depends(JWTBearer()),
-                                         background_tasks: BackgroundTasks = BackgroundTasks()) -> VideoPipeline:
+                                         user_id: str = Depends(JWTBearer())) -> VideoPipeline:
     user = await get_user_by_id(user_id)
     if not user:
         raise HTTPException(status_code=401, detail="Unauthorized")
     logger.info("received request to generate video")
     video_pipeline = await get_pipeline_by_id(video_pipeline_id)
     # verify ownership
-    if video_pipeline.user_id != user.id:
-        raise HTTPException(status_code=403, detail="Unauthorized")
+    await verify_pipeline_ownership(video_pipeline, user)
     # ensure no other stage is in progress
     if await any_stage_is_processing(video_pipeline):
         raise HTTPException(status_code=409, detail="another pipeline stage is currently in progress, please wait until it completes.")
@@ -587,8 +448,8 @@ async def generate_video_pipeline_output(video_pipeline_id: str, request: Genera
     transition_duration = request.transition_duration
     background_type = request.background_type
     # run video generation task in the background
-    background_tasks.add_task(run_next_stages, 
-                              video_pipeline, stage=VideoPipelineStage.VIDEO_GENERATION, 
+    run_next_stages_task.delay(
+                              video_pipeline.id, stage=VideoPipelineStage.VIDEO_GENERATION, 
                               title=title, subtitle=subtitle, resolution=resolution, 
                               fps=fps, title_duration=title_duration, end_duration=end_duration, 
                               transition_duration=transition_duration, background_type=background_type)
@@ -605,8 +466,7 @@ async def download_video_pipeline_output(video_pipeline_id: str,
     logger.info("received request to download video")
     video_pipeline = await get_pipeline_by_id(video_pipeline_id)
     # verify ownership
-    if video_pipeline.user_id != user.id:
-        raise HTTPException(status_code=403, detail="Unauthorized")
+    await verify_pipeline_ownership(video_pipeline, user)
     video_path = video_pipeline.video_path
     if not video_path:
         raise HTTPException(status_code=500, detail="Video path not found")
@@ -688,8 +548,7 @@ async def add_video_pipeline_review(video_pipeline_id: str, request: VideoPipeli
     logger.info("received request to add pipeline review")
     video_pipeline = await get_pipeline_by_id(video_pipeline_id)
     # verify ownership
-    if video_pipeline.user_id != user.id:
-        raise HTTPException(status_code=403, detail="Unauthorized")
+    await verify_pipeline_ownership(video_pipeline, user)
     if request.rating is not None:
         video_pipeline.rating = request.rating
     if request.feedback is not None:
@@ -703,45 +562,118 @@ async def add_video_pipeline_review(video_pipeline_id: str, request: VideoPipeli
 
 async def receive_pipeline_ws_messages(websocket: WebSocket, pipeline: VideoPipeline, user: User) -> None:
     logger.info(f"received request to receive pipeline ws messages for pipeline {pipeline.name} and user {user.email}")
-    while True:
-        try:
-        # wait for updates to the pipeline data
-            data = await websocket.receive_json()
-            logger.info(f"received message from pipeline {pipeline.name} and user {user.email}: {data}")
-        except Exception as e:
-            logger.error(f"error receiving pipeline ws messages for pipeline {pipeline.name} and user {user.email}: {e}")
-            break
-    logger.info(f"stopped receiving pipeline ws messages for pipeline {pipeline.name} and user {user.email}")
+    try:
+        while True:
+            try:
+                # wait for updates to the pipeline data
+                data = await websocket.receive_json()
+                logger.info(f"received message from pipeline {pipeline.name} and user {user.email}: {data}")
+            except WebSocketDisconnect:
+                logger.info(f"websocket disconnected for pipeline {pipeline.name} and user {user.email}")
+                break
+            except Exception as e:
+                logger.error(f"error receiving pipeline ws messages for pipeline {pipeline.name} and user {user.email}: {e}")
+                break
+    except Exception as e:
+        logger.error(f"error in receive_pipeline_ws_messages for pipeline {pipeline.name} and user {user.email}: {e}")
+    finally:
+        logger.info(f"stopped receiving pipeline ws messages for pipeline {pipeline.name} and user {user.email}")
 
 async def send_pipeline_ws_messages(websocket: WebSocket, pipeline: VideoPipeline, user: User) -> None:
     logger.info(f"received request to send pipeline ws messages for pipeline {pipeline.name} and user {user.email}")
     channel = f"pipeline-tasks-{pipeline.id}"
     listener_name = f"pipeline-ws-listener-{pipeline.id}-{user.email}"
-    async for message in listen_for_messages(channel, listener_name):
-        logger.info(f"received message from pipeline {pipeline.name} and user {user.email}: {message}")
-        await websocket.send_json(message)
-        logger.info(f"sent message to pipeline {pipeline.name} for user {user.email}")
-    logger.info(f"stopped sending pipeline ws messages for pipeline {pipeline.name} and user {user.email}")
-
-@router.websocket("/{video_pipeline_id}/ws", name="video pipeline state socket", dependencies=[Depends(JWTBearer())])
-async def video_pipeline_state_socket(video_pipeline_id: str,
-                                      websocket: WebSocket,
-                                      user_id: str = Depends(JWTBearer())):
-    logger.info("received request to connect to pipeline state socket")
-    user = await get_user_by_id(user_id)
-    video_pipeline = await get_pipeline_by_id(video_pipeline_id)
-    await websocket.accept()
     try:
-        await asyncio.gather(
-            receive_pipeline_ws_messages(websocket, video_pipeline, user),
-            send_pipeline_ws_messages(websocket, video_pipeline, user)
-        )
-    except WebSocketDisconnect:
-        logger.info(f"connection to pipeline state socket for pipeline {video_pipeline.name} and user {user.email} disconnected by user")
-        await websocket.close(code=1000, reason="Connection disconnected")
-    except asyncio.CancelledError:
-        logger.info(f"connection to pipeline state socket for pipeline {video_pipeline.name} and user {user.email} cancelled")
-        await websocket.close(code=1000, reason="Connection cancelled")
+        async for message in listen_for_messages(channel, listener_name):
+            try:
+                logger.info(f"received message from pipeline {pipeline.name} and user {user.email}: {message}")
+                await websocket.send_json(message)
+                logger.info(f"sent message to pipeline {pipeline.name} for user {user.email}")
+            except WebSocketDisconnect:
+                logger.info(f"websocket disconnected while sending for pipeline {pipeline.name} and user {user.email}")
+                break
+            except Exception as e:
+                logger.error(f"error sending message to pipeline {pipeline.name} for user {user.email}: {e}")
+                break
     except Exception as e:
-        logger.error(f"error connecting to pipeline state socket for pipeline {video_pipeline.name} and user {user.email}: {e}")
-        await websocket.close(code=1011, reason="Internal server error")
+        logger.error(f"error in send_pipeline_ws_messages for pipeline {pipeline.name} and user {user.email}: {e}")
+    finally:
+        logger.info(f"stopped sending pipeline ws messages for pipeline {pipeline.name} and user {user.email}")
+
+@router.websocket("/{video_pipeline_id}/ws", name="video pipeline state socket")
+async def video_pipeline_state_socket(
+    video_pipeline_id: str,
+    websocket: WebSocket,
+):
+    """
+    websocket endpoint for real-time pipeline updates.
+    query parameter: user_id (required)
+    """
+    logger.info(f"received request to connect to pipeline state socket for pipeline {video_pipeline_id}")
+    
+    # extract user_id from query parameters
+    query_params = dict(websocket.query_params)
+    logger.info(f"websocket query params: {query_params}")
+    user_id = query_params.get("user_id")
+    
+    if not user_id:
+        logger.error(f"user_id not provided in websocket connection. query params: {query_params}")
+        await websocket.close(code=1008, reason="user_id is required")
+        return
+    
+    try:
+        user = await get_user_by_id(user_id)
+        if not user:
+            logger.error(f"user not found for user_id: {user_id}")
+            await websocket.close(code=1008, reason="User not found")
+            return
+        
+        video_pipeline = await get_pipeline_by_id(video_pipeline_id)
+        if not video_pipeline:
+            logger.error(f"pipeline not found for id: {video_pipeline_id}")
+            await websocket.close(code=1008, reason="Pipeline not found")
+            return
+        
+        # verify ownership
+        try:
+            await verify_pipeline_ownership(video_pipeline, user)
+        except HTTPException:
+            logger.error(f"user {user.id} attempted to access pipeline {video_pipeline_id} owned by {video_pipeline.user_id}")
+            await websocket.close(code=1008, reason="Unauthorized")
+            return
+        
+        await websocket.accept()
+        logger.info(f"websocket accepted for pipeline {video_pipeline.name} and user {user.email}")
+        
+        # send initial status message
+        try:
+            await websocket.send_json({
+                "type": "pipeline_status", 
+                "status": video_pipeline.status,
+                "pipeline_id": video_pipeline.id
+            })
+            logger.info(f"sent initial status message to pipeline {video_pipeline.name}: {video_pipeline.status}")
+        except Exception as e:
+            logger.error(f"error sending initial status message: {e}")
+        
+        # run both receive and send tasks concurrently
+        try:
+            await asyncio.gather(
+                receive_pipeline_ws_messages(websocket, video_pipeline, user),
+                send_pipeline_ws_messages(websocket, video_pipeline, user),
+                return_exceptions=True
+            )
+        except Exception as e:
+            logger.error(f"error in asyncio.gather for pipeline {video_pipeline.name} and user {user.email}: {e}")
+            
+    except WebSocketDisconnect:
+        logger.info(f"connection to pipeline state socket for pipeline {video_pipeline_id} disconnected by client")
+    except asyncio.CancelledError:
+        logger.info(f"connection to pipeline state socket for pipeline {video_pipeline_id} cancelled")
+    except Exception as e:
+        logger.error(f"error connecting to pipeline state socket for pipeline {video_pipeline_id}: {e}")
+        try:
+            await websocket.close(code=1011, reason="Internal server error")
+        except:
+            pass
+            
