@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
                 { status: 400 }
             );
         }
-        const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+        const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID;
         if (!googleClientId) {
             return NextResponse.json(
                 { error: "google oauth not configured" },

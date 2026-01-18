@@ -10,6 +10,8 @@ services:
       - "8000:8000"
     environment:
       - .env
+      - CELERY_BROKER_URL=redis://redis:6379
+      - CELERY_RESULT_BACKEND=redis://redis:6379
     depends_on:
       - mongodb
       - redis
@@ -33,6 +35,8 @@ services:
       - vidinie-network
     environment:
       - .env
+      - CELERY_BROKER_URL=redis://redis:6379
+      - CELERY_RESULT_BACKEND=redis://redis:6379
     depends_on:
       - mongodb
       - redis
