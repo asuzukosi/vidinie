@@ -1,271 +1,42 @@
-// Page Navigation System
-const pages = document.querySelectorAll('.page');
+// Simple smooth scroll navigation
 const navLinks = document.querySelectorAll('.nav-links a');
-const logo = document.querySelector('.logo');
+const logo = document.querySelector('.logo a');
 
-let currentPage = 'home';
-let isTransitioning = false;
-
-// Check if mobile
-let isMobile = window.innerWidth <= 768;
-
-// Initialize mobile layout
-function initMobileLayout() {
-    if (isMobile) {
-        // Make all pages visible and stacked
-        pages.forEach(page => {
-            page.classList.add('active');
-            page.style.position = 'relative';
-            page.style.opacity = '1';
-            page.style.visibility = 'visible';
-        });
-        
-        // Disable body overflow hidden
-        document.body.style.overflowY = 'auto';
-        document.body.style.height = 'auto';
-        
-        // Make page container scrollable
-        const pageContainer = document.querySelector('.page-container');
-        if (pageContainer) {
-            pageContainer.style.height = 'auto';
-            pageContainer.style.overflow = 'visible';
-            pageContainer.style.position = 'relative';
-        }
-    }
-}
-
-// Initialize when DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initMobileLayout);
-} else {
-    initMobileLayout();
-}
-
-// Also handle window resize
-window.addEventListener('resize', () => {
-    const wasMobile = isMobile;
-    isMobile = window.innerWidth <= 768;
-    if (wasMobile !== isMobile) {
-        if (isMobile) {
-            initMobileLayout();
-        } else {
-            // Reset to desktop layout
-            pages.forEach((page, index) => {
-                if (index === 0) {
-                    page.classList.add('active');
-                } else {
-                    page.classList.remove('active');
-                }
-                page.style.position = '';
-                page.style.opacity = '';
-                page.style.visibility = '';
-            });
-            document.body.style.overflowY = '';
-            document.body.style.height = '';
-            const pageContainer = document.querySelector('.page-container');
-            if (pageContainer) {
-                pageContainer.style.height = '';
-                pageContainer.style.overflow = '';
-                pageContainer.style.position = '';
-            }
-        }
-    }
-});
-
-// Page order for scroll navigation
-const pageOrder = ['home', 'pricing', 'features', 'support', 'faq'];
-let scrollTimeout = null;
-let isScrolling = false;
-
-// Navigate to a page
-function navigateToPage(pageId) {
-    // On mobile, scroll to page instead of transitioning
-    if (isMobile) {
-        const targetPage = document.getElementById(pageId);
-        if (targetPage) {
-            const navbar = document.querySelector('.navbar');
-            const navbarHeight = navbar ? navbar.offsetHeight : 0;
-            const targetPosition = targetPage.offsetTop - navbarHeight;
-            
-            window.scrollTo({
-                top: targetPosition,
-                behavior: 'smooth'
-            });
-            currentPage = pageId;
-        }
-        return;
-    }
-    
-    if (isTransitioning || pageId === currentPage) return;
-    
-    isTransitioning = true;
-    
-    const currentPageEl = document.getElementById(currentPage);
-    const nextPageEl = document.getElementById(pageId);
-    
-    // Start transition
-    currentPageEl.classList.add('transitioning-out');
-    
-    setTimeout(() => {
-        currentPageEl.classList.remove('active', 'transitioning-out');
-        nextPageEl.classList.add('transitioning-in');
-        
-        // Reset scroll position of content pages
-        const contentPage = nextPageEl.querySelector('.content-page');
-        if (contentPage) {
-            contentPage.scrollTop = 0;
-        }
-        
-        setTimeout(() => {
-            nextPageEl.classList.add('active');
-            nextPageEl.classList.remove('transitioning-in');
-            currentPage = pageId;
-            isTransitioning = false;
-        }, 50);
-    }, 300);
-}
-
-// Navigation click handlers
+// Navigation click handlers - smooth scroll to sections
 navLinks.forEach(link => {
     link.addEventListener('click', (e) => {
-        e.preventDefault();
-        const pageId = link.getAttribute('data-page');
-        navigateToPage(pageId);
+        const href = link.getAttribute('href');
+        if (href && href.startsWith('#')) {
+            e.preventDefault();
+            const targetId = href.substring(1);
+            const targetSection = document.getElementById(targetId);
+            if (targetSection) {
+                const navbar = document.querySelector('.navbar');
+                const navbarHeight = navbar ? navbar.offsetHeight : 0;
+                const targetPosition = targetSection.offsetTop - navbarHeight;
+                
+                window.scrollTo({
+                    top: targetPosition,
+                    behavior: 'smooth'
+                });
+            }
+        }
     });
 });
 
-// Logo click - go home
-logo.addEventListener('click', () => {
-    navigateToPage('home');
-});
-
-// Scroll-based page navigation
-function getCurrentPageIndex() {
-    return pageOrder.indexOf(currentPage);
-}
-
-function navigateToNextPage() {
-    const currentIndex = getCurrentPageIndex();
-    if (currentIndex < pageOrder.length - 1) {
-        navigateToPage(pageOrder[currentIndex + 1]);
-    }
-}
-
-function navigateToPreviousPage() {
-    const currentIndex = getCurrentPageIndex();
-    if (currentIndex > 0) {
-        navigateToPage(pageOrder[currentIndex - 1]);
-    }
-}
-
-// Handle scroll events
-function handleScroll(e) {
-    // Disable scroll navigation on mobile
-    if (isMobile) return;
-    
-    if (isTransitioning || isScrolling) return;
-    
-    // Check if we're on a content page with scrollable content
-    const currentPageEl = document.getElementById(currentPage);
-    const contentPage = currentPageEl.querySelector('.content-page');
-    
-    if (contentPage) {
-        // For content pages, only navigate if at top (scrolling up) or bottom (scrolling down)
-        const isAtTop = contentPage.scrollTop <= 0;
-        const isAtBottom = contentPage.scrollTop + contentPage.clientHeight >= contentPage.scrollHeight - 10;
-        
-        if (e.deltaY > 0 && isAtBottom) {
-            // Scrolling down and at bottom - go to next page
-            e.preventDefault();
-            isScrolling = true;
-            navigateToNextPage();
-            setTimeout(() => { isScrolling = false; }, 1000);
-        } else if (e.deltaY < 0 && isAtTop) {
-            // Scrolling up and at top - go to previous page
-            e.preventDefault();
-            isScrolling = true;
-            navigateToPreviousPage();
-            setTimeout(() => { isScrolling = false; }, 1000);
-        }
-        // Otherwise, allow normal scrolling within the content page
-    } else {
-        // For home page (no scrollable content), navigate directly
+// Logo click - scroll to home
+if (logo) {
+    logo.addEventListener('click', (e) => {
         e.preventDefault();
-        
-        if (scrollTimeout) {
-            clearTimeout(scrollTimeout);
+        const homeSection = document.getElementById('home');
+        if (homeSection) {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
         }
-        
-        scrollTimeout = setTimeout(() => {
-            if (e.deltaY > 0) {
-                // Scrolling down
-                navigateToNextPage();
-            } else if (e.deltaY < 0) {
-                // Scrolling up
-                navigateToPreviousPage();
-            }
-        }, 50);
-    }
+    });
 }
-
-// Add wheel event listener
-window.addEventListener('wheel', handleScroll, { passive: false });
-
-// Also handle touch events for mobile (only on desktop for page navigation)
-let touchStartY = 0;
-let touchEndY = 0;
-
-if (!isMobile) {
-    window.addEventListener('touchstart', (e) => {
-        touchStartY = e.touches[0].clientY;
-    }, { passive: true });
-
-    window.addEventListener('touchend', (e) => {
-        if (isTransitioning || isScrolling) return;
-    
-    touchEndY = e.changedTouches[0].clientY;
-    const swipeDistance = touchStartY - touchEndY;
-    const minSwipeDistance = 50;
-    
-    const currentPageEl = document.getElementById(currentPage);
-    const contentPage = currentPageEl.querySelector('.content-page');
-    
-    if (contentPage) {
-        const isAtTop = contentPage.scrollTop <= 0;
-        const isAtBottom = contentPage.scrollTop + contentPage.clientHeight >= contentPage.scrollHeight - 10;
-        
-        if (swipeDistance < -minSwipeDistance && isAtBottom) {
-            // Swipe down - go to next page
-            isScrolling = true;
-            navigateToNextPage();
-            setTimeout(() => { isScrolling = false; }, 1000);
-        } else if (swipeDistance > minSwipeDistance && isAtTop) {
-            // Swipe up - go to previous page
-            isScrolling = true;
-            navigateToPreviousPage();
-            setTimeout(() => { isScrolling = false; }, 1000);
-        }
-    } else {
-        if (swipeDistance < -minSwipeDistance) {
-            // Swipe down - go to next page
-            navigateToNextPage();
-        } else if (swipeDistance > minSwipeDistance) {
-            // Swipe up - go to previous page
-            navigateToPreviousPage();
-        }
-    }
-}, { passive: true });
-}
-
-// Smooth fade-in on load
-window.addEventListener('load', () => {
-    document.body.style.opacity = '0';
-    document.body.style.transition = 'opacity 0.6s ease';
-    
-    setTimeout(() => {
-        document.body.style.opacity = '1';
-    }, 100);
-});
 
 // Card hover effects (only on home page)
 const cards = document.querySelectorAll('.card');
@@ -309,42 +80,6 @@ if (cardVisual) {
         });
     });
 }
-
-// Animate elements on scroll (for content pages)
-const observerOptions = {
-    threshold: 0.1,
-    rootMargin: '0px 0px -50px 0px'
-};
-
-const observer = new IntersectionObserver((entries) => {
-    entries.forEach((entry, index) => {
-        if (entry.isIntersecting) {
-            entry.target.style.opacity = '0';
-            entry.target.style.transform = 'translateY(30px)';
-            
-            setTimeout(() => {
-                entry.target.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
-                entry.target.style.opacity = '1';
-                entry.target.style.transform = 'translateY(0)';
-            }, index * 100);
-        }
-    });
-}, observerOptions);
-
-// Observe pricing cards
-setTimeout(() => {
-    const pricingCards = document.querySelectorAll('.pricing-card');
-    pricingCards.forEach(card => observer.observe(card));
-    
-    const featureItems = document.querySelectorAll('.feature-item');
-    featureItems.forEach(item => observer.observe(item));
-    
-    const supportCards = document.querySelectorAll('.support-card');
-    supportCards.forEach(card => observer.observe(card));
-    
-    const faqItems = document.querySelectorAll('.faq-item');
-    faqItems.forEach(item => observer.observe(item));
-}, 100);
 
 // Button interactions
 const allButtons = document.querySelectorAll('button, .app-store, .google-play');
@@ -391,21 +126,5 @@ faqItems.forEach(item => {
     });
 });
 
-// Keyboard navigation
-document.addEventListener('keydown', (e) => {
-    // Escape key to go home
-    if (e.key === 'Escape') {
-        navigateToPage('home');
-    }
-    
-    // Number keys for quick navigation
-    if (e.key === '1') navigateToPage('home');
-    if (e.key === '2') navigateToPage('pricing');
-    if (e.key === '3') navigateToPage('features');
-    if (e.key === '4') navigateToPage('support');
-    if (e.key === '5') navigateToPage('faq');
-});
-
-console.log('%caxora.', 'color: #FF6B4A; font-size: 24px; font-weight: 600;');
-console.log('%cYour funds, full control, anytime.', 'color: #A855F7; font-size: 14px;');
-console.log('%cKeyboard shortcuts: 1=Home, 2=Pricing, 3=Features, 4=Support, 5=FAQ, ESC=Home', 'color: #6e6e73; font-size: 12px;');
+console.log('%cvidinie.', 'color: #FF6B4A; font-size: 24px; font-weight: 600;');
+console.log('%cTransform articles into engaging videos.', 'color: #A855F7; font-size: 14px;');

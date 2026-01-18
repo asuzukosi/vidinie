@@ -1,6 +1,6 @@
 """
-Document processing operations.
-Processes documents (PDF or HTML) and extracts structured content and images.
+document processing operations for the API.
+processes documents (PDF or HTML) and extracts structured content and images.
 """
 
 import os
@@ -18,7 +18,7 @@ from core.data import (
 from core.processors.pdf_processor import PDFProcessor
 from core.processors.html_processor import HTMLProcessor
 
-logger = get_logger('document_processor')
+logger = get_logger('document_operations')
 
 
 def process_pdf_document(
@@ -45,14 +45,14 @@ def process_pdf_document(
     
     # validate input
     if not pdf_content and not pdf_path:
-        logger.error("Either pdf_content or pdf_path must be provided")
+        logger.error("either pdf_content or pdf_path must be provided")
         pipeline.update_stage(VideoPipelineStage.DOCUMENT_PROCESSING, VideoPipelineStatus.FAILED)
         return pipeline
     
     # read file if pdf_path is provided
     if pdf_path:
         if not os.path.exists(pdf_path):
-            logger.error(f"Source file not found: {pdf_path}")
+            logger.error(f"source file not found: {pdf_path}")
             pipeline.update_stage(VideoPipelineStage.DOCUMENT_PROCESSING, VideoPipelineStatus.FAILED)
             return pipeline
         with open(pdf_path, 'rb') as f:
@@ -113,7 +113,7 @@ def process_html_document(
     
     # validate input
     if not html_content and not html_path:
-        logger.error("Either html_content or html_path must be provided")
+        logger.error("either html_content or html_path must be provided")
         pipeline.update_stage(VideoPipelineStage.DOCUMENT_PROCESSING, VideoPipelineStatus.FAILED)
         return pipeline
     
@@ -127,7 +127,7 @@ def process_html_document(
                 html_content = response.text
                 logger.info(f"fetched html content from URL: {html_path} ({len(html_content)} characters)")
             except requests.exceptions.RequestException as e:
-                logger.error(f"Failed to fetch HTML from URL {html_path}: {str(e)}")
+                logger.error(f"failed to fetch HTML from URL {html_path}: {str(e)}")
                 pipeline.update_stage(VideoPipelineStage.DOCUMENT_PROCESSING, VideoPipelineStatus.FAILED)
                 return pipeline
         else:
@@ -188,7 +188,6 @@ def process_document(
     elif pipeline.source_type == SourceType.HTML:
         return process_html_document(pipeline, html_path=pipeline.source_path, extract_images=extract_images)
     else:
-        logger.error(f"Unsupported source type: {pipeline.source_type}")
+        logger.error(f"unsupported source type: {pipeline.source_type}")
         pipeline.update_stage(VideoPipelineStage.DOCUMENT_PROCESSING, VideoPipelineStatus.FAILED)
         return pipeline
-

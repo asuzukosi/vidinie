@@ -18,7 +18,6 @@ from core.data.enums import SourceType, VideoPipelineStatus, VideoPipelineStage
 from core.data.content_models import (
     VideoPipelineParsedContent,
     VideoPipelineContextChunk,
-    VideoPipelineContextProcessor
 )
 from core.data.image_models import VideoPipelineImageMetadata
 from core.data.segment_models import VideoPipelineOutline

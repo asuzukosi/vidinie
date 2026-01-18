@@ -24,11 +24,68 @@ from utils.logger import setup_logging, get_logger
 from core.utils.config_loader import config
 from core.data import (
     VideoPipeline,
+    VideoPipelineStage,
+    VideoPipelineStatus,
+    VideoPipelineParsedContent,
     SourceType,
 )
-from core.operations.document_processor import process_document
+from core.processors.pdf_processor import PDFProcessor
+
 setup_logging(log_dir='temp')
 logger = get_logger('document_processing')
+
+
+def process_pdf_document_impl(
+    pipeline: VideoPipeline,
+    extract_images: bool = True,
+    pdf_path: str = None
+) -> VideoPipeline:
+    """
+    process pdf document and extract structured content and images.
+    explicit implementation using PDFProcessor class directly.
+    """
+    temp_dir = config.get('output.temp_directory', 'temp')
+    images_dir = os.path.join(temp_dir, pipeline.id, 'images')
+    os.makedirs(images_dir, exist_ok=True)
+    
+    pipeline.update_stage(VideoPipelineStage.DOCUMENT_PROCESSING, VideoPipelineStatus.IN_PROGRESS)
+    
+    if not pdf_path or not os.path.exists(pdf_path):
+        logger.error(f"Source file not found: {pdf_path}")
+        pipeline.update_stage(VideoPipelineStage.DOCUMENT_PROCESSING, VideoPipelineStatus.FAILED)
+        return pipeline
+    
+    with open(pdf_path, 'rb') as f:
+        pdf_content = f.read()
+    logger.info(f"read pdf file from path: {pdf_path} ({len(pdf_content)} bytes)")
+    
+    try:
+        processor = PDFProcessor(pdf_content=pdf_content, images_output_dir=images_dir)
+        
+        with processor:
+            content: VideoPipelineParsedContent = processor.extract_structured_content()
+            pipeline.parsed_content = content
+            
+            logger.info(f"Title: {content.title}")
+            logger.info(f"Total pages: {content.total_pages}")
+            logger.info(f"Sections: {len(content.sections)}")
+            
+            if extract_images:
+                logger.info("Labeling images")
+                processor.label_images()
+                pipeline.images_metadata = processor.images_metadata
+                logger.info(f"Labeled {len(processor.images_metadata)} images")
+            else:
+                pipeline.images_metadata = []
+        
+        pipeline.update_stage(VideoPipelineStage.DOCUMENT_PROCESSING, VideoPipelineStatus.COMPLETED)
+        logger.info(f"PDF document processing complete. Pipeline ID: {pipeline.id}")
+        return pipeline
+        
+    except Exception as e:
+        logger.error(f"Error during PDF document processing: {str(e)}", exc_info=True)
+        pipeline.update_stage(VideoPipelineStage.DOCUMENT_PROCESSING, VideoPipelineStatus.FAILED)
+        return pipeline
 
 
 def parse_document(pdf_path: str, extract_images: bool = True) -> VideoPipeline:
@@ -51,10 +108,11 @@ def parse_document(pdf_path: str, extract_images: bool = True) -> VideoPipeline:
     video_pipeline.source_type = SourceType.PDF
     logger.info(f"created new pipeline with id: {video_pipeline.id}")
     
-    # use modular operation to process document
-    video_pipeline = process_document(
+    # use explicit implementation to process document
+    video_pipeline = process_pdf_document_impl(
         video_pipeline,
-        extract_images=extract_images
+        extract_images=extract_images,
+        pdf_path=pdf_path
     )
     
     # save video pipeline

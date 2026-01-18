@@ -19,12 +19,11 @@ import { Input } from "@/components/ui/input";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 
 interface SignupFormProps extends React.ComponentProps<typeof Card> {
-  onSignup?: (username: string, email: string, password: string) => Promise<void>;
+  onSignup?: (email: string, password: string) => Promise<void>;
   onGoogleSignup?: () => Promise<void>;
 }
 
 export function SignupForm({ onSignup, onGoogleSignup, ...props }: SignupFormProps) {
-  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -47,7 +46,7 @@ export function SignupForm({ onSignup, onGoogleSignup, ...props }: SignupFormPro
 
     setIsLoading(true);
     try {
-      await onSignup(username, email, password);
+      await onSignup(email, password);
     } catch (error) {
       console.error("Signup failed:", error);
     } finally {
@@ -70,25 +69,11 @@ export function SignupForm({ onSignup, onGoogleSignup, ...props }: SignupFormPro
         <form onSubmit={handleSubmit}>
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="username">Username</FieldLabel>
-              <Input
-                id="username"
-                type="text"
-                placeholder="steve.rogers"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-              />
-              <FieldDescription>
-                Pick a unique username. This will be visible to others.
-              </FieldDescription>
-            </Field>
-            <Field>
               <FieldLabel htmlFor="email">Email</FieldLabel>
               <Input
                 id="email"
                 type="email"
-                placeholder="s.rogers@avngrs.com"
+                placeholder="walter.pitts@alogician.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required

@@ -81,6 +81,10 @@ class CreateVideoPipelineOutlineRequest(BaseModel):
     target_segments: int = 7
     segment_duration: int = 45
 
+class CreateVideoPipelineScriptRequest(BaseModel):
+    provider: str = "elevenlabs"
+    voice_id: Optional[str] = None
+
 class GenerateVideoPipelineRequest(BaseModel):
     title: Optional[str] = None
     subtitle: Optional[str] = None

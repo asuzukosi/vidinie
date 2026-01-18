@@ -134,6 +134,25 @@ export function VideoPipelineStagesManager({
     }
   }
 
+  const getStageInProgress = (): VideoPipelineStage | null => {
+    // check all stages to see if any are in progress
+    for (const step of currentSteps) {
+      if (isStageProcessing(step.id)) {
+        return step.id as VideoPipelineStage;
+      }
+    }
+    return null;
+  }
+
+  const getStageInProgressTitle = (): string | null => {
+    const stageInProgress = getStageInProgress();
+    if (stageInProgress) {
+      const step = currentSteps.find(s => s.id === stageInProgress);
+      return step?.title || null;
+    }
+    return null;
+  }
+
 
   const isPreviousStepCompleted = (stepIndex: number): boolean => {
     // first step (document_processing) is always available
@@ -143,6 +162,20 @@ export function VideoPipelineStagesManager({
     // check if previous step is completed
     const prevStep = currentSteps[stepIndex - 1];
     return prevStep ? prevStep.completed : false;
+  }
+
+  const isStepLocked = (stepId: VideoPipelineStage | string, stepIndex: number): boolean => {
+    // if this step is processing, it's not locked
+    if (isStageProcessing(stepId)) {
+      return false;
+    }
+    // if any other stage is processing, this step is locked
+    const stageInProgress = getStageInProgress();
+    if (stageInProgress && stageInProgress !== stepId) {
+      return true;
+    }
+    // otherwise, check if previous step is completed
+    return !isPreviousStepCompleted(stepIndex);
   }
 
   const handleLockedStepClick = (step: VideoPipelineProcessingStage, stepIndex: number) => {
@@ -257,7 +290,20 @@ export function VideoPipelineStagesManager({
                                   <div className="flex items-end gap-1">
                                     <Tooltip>
                                       <TooltipTrigger asChild>
-                                        {isPreviousStepCompleted(index) ? (
+                                        {isStepLocked(step.id, index) ? (
+                                          <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-8 w-8"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleLockedStepClick(step, index);
+                                            }}
+                                            disabled
+                                          >
+                                            <Lock className="size-4" />
+                                          </Button>
+                                        ) : (
                                           <Button
                                             variant="outline"
                                             size="icon"
@@ -274,27 +320,22 @@ export function VideoPipelineStagesManager({
                                               <PlayIcon className="size-4" />
                                             )}
                                           </Button>
-                                        ) : (
-                                          <Button
-                                            variant="outline"
-                                            size="icon"
-                                            className="h-8 w-8"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              handleLockedStepClick(step, index);
-                                            }}
-                                            disabled
-                                          >
-                                            <Lock className="size-4" />
-                                          </Button>
                                         )}
                                       </TooltipTrigger>
                                       <TooltipContent side="bottom" align="end">
                                         {isStageProcessing(step.id) 
                                           ? "Processing..." 
-                                          : isPreviousStepCompleted(index)
-                                          ? step.actionLabel
-                                          : `Complete the previous step to unlock "${step.title}"`}
+                                          : (() => {
+                                              const stageInProgress = getStageInProgress();
+                                              const stageInProgressTitle = getStageInProgressTitle();
+                                              if (stageInProgress && stageInProgress !== step.id) {
+                                                return `${stageInProgressTitle} is in progress`;
+                                              }
+                                              if (isPreviousStepCompleted(index)) {
+                                                return step.actionLabel;
+                                              }
+                                              return `Complete the previous step to unlock "${step.title}"`;
+                                            })()}
                                       </TooltipContent>
                                     </Tooltip>
                                   </div>
@@ -307,27 +348,52 @@ export function VideoPipelineStagesManager({
                                   <div className="flex items-end gap-1">
                                     <Tooltip>
                                       <TooltipTrigger asChild>
-                                        <Button
-                                          variant="outline"
-                                          size="icon"
-                                          className="h-6 w-6"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleStepAction(step);
-                                          }}
-                                          disabled={isStageProcessing(step.id)}
-                                        >
-                                          {isStageProcessing(step.id) ? (
-                                            <Loader2 className="size-4 animate-spin" />
+                                        {(() => {
+                                          const stageInProgress = getStageInProgress();
+                                          const isLocked = stageInProgress !== null && stageInProgress !== step.id;
+                                          return isLocked ? (
+                                            <Button
+                                              variant="outline"
+                                              size="icon"
+                                              className="h-6 w-6"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                              }}
+                                              disabled
+                                            >
+                                              <Lock className="size-4" />
+                                            </Button>
                                           ) : (
-                                            <RefreshCw className="size-4" />
-                                          )}
-                                        </Button>
+                                            <Button
+                                              variant="outline"
+                                              size="icon"
+                                              className="h-6 w-6"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleStepAction(step);
+                                              }}
+                                              disabled={isStageProcessing(step.id)}
+                                            >
+                                              {isStageProcessing(step.id) ? (
+                                                <Loader2 className="size-4 animate-spin" />
+                                              ) : (
+                                                <RefreshCw className="size-4" />
+                                              )}
+                                            </Button>
+                                          );
+                                        })()}
                                       </TooltipTrigger>
                                       <TooltipContent side="bottom" align="end">
                                         {isStageProcessing(step.id) 
                                           ? "Regenerating..." 
-                                          : `Regenerate ${step.title}`}
+                                          : (() => {
+                                              const stageInProgress = getStageInProgress();
+                                              const stageInProgressTitle = getStageInProgressTitle();
+                                              if (stageInProgress && stageInProgress !== step.id) {
+                                                return `${stageInProgressTitle} is in progress`;
+                                              }
+                                              return `Regenerate ${step.title}`;
+                                            })()}
                                       </TooltipContent>
                                     </Tooltip>
                                   </div>

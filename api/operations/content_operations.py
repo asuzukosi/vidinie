@@ -1,22 +1,11 @@
 """
-content analysis operation
-analyze content and create video outline with visual asset planning.
-requires pipeline_id to load cached video pipeline.
-workflow sequence:
-    this is the second operation in the standard workflow:
-    1. document_processing  - parse pdf and extract content (stage1)
-    2. content_analysis     - analyze content and create video outline (THIS MODULE - stage2)
-    3. script_generation    - generate narration scripts and voiceovers (stage3)
-    4. video_generation     - compose final video from all assets (stage4)
-    
-    note: the workflow can be customized based on document type and requirements.
+content analysis operations for the api.
+analyzes content and creates video outlines with visual asset planning.
 """
 
-import sys
 import os
-import argparse
 from typing import List
-from utils.logger import setup_logging, get_logger
+from core.utils.logger import get_logger
 from core.utils.config_loader import config
 from core.data import (
     VideoPipeline,
@@ -24,17 +13,18 @@ from core.data import (
     VideoPipelineStage,
     VideoPipelineStatus,
     VideoPipelineContextChunk,
+    VideoPipelineContentSection,
+    VideoPipelineSegment,
 )
 from core.operations.content_analyzer import ContentAnalyzer
 from core.operations.context_processor import ContextProcessor
 from core.operations.stock_image_fetcher import StockImageFetcher
 from core.operations.image_generator import ImageGenerator
 
-setup_logging(log_dir='temp')
-logger = get_logger('stage2_content')
+logger = get_logger("content_operations")
 
 
-def process_content_impl(
+def process_content(
     pipeline: VideoPipeline,
     skip_stock: bool = False,
     target_segments: int = 7,
@@ -42,7 +32,13 @@ def process_content_impl(
 ) -> VideoPipeline:
     """
     analyze content and create video outline with visual asset planning.
-    Explicit implementation using ContentAnalyzer, ContextProcessor, and other classes directly.
+    args:
+        pipeline: video pipeline object with parsed content
+        skip_stock: skip stock image fetching
+        target_segments: target number of video segments
+        segment_duration: target duration per segment in seconds
+    returns:
+        updated video pipeline with video outline
     """
     openai_api_key = config.openai_api_key
     temp_dir = config.get('output.temp_directory', 'temp')
@@ -65,7 +61,7 @@ def process_content_impl(
         
         logger.info(f"loaded {len(pdf_content.sections)} sections and {len(images_metadata)} images")
         
-        # Process context into chunks using ContextProcessor class
+        # Process context into chunks
         logger.info("processing context into chunks")
         all_content = ""
         for section in pdf_content.sections:
@@ -83,7 +79,7 @@ def process_content_impl(
         
         logger.info(f"generated {len(chunks)} chunks")
         
-        # create video outline using ContentAnalyzer class
+        # create video outline
         logger.info("creating video outline")
         analyzer = ContentAnalyzer(
             target_segments=target_segments,
@@ -95,7 +91,7 @@ def process_content_impl(
             document_title=pdf_content.title
         )
         
-        # fetch stock images using StockImageFetcher class
+        # fetch stock images
         if not skip_stock and config.get('images.use_stock_images', True):
             logger.info("fetching stock images")
             stock_images_dir = os.path.join(temp_dir, pipeline.id, 'images', 'stock_images')
@@ -109,7 +105,7 @@ def process_content_impl(
         else:
             logger.info("skipping stock images")
         
-        # generate ai images if enabled using ImageGenerator class
+        # generate ai images if enabled
         if config.get('images.use_ai_generated', False):
             logger.info("generating ai images")
             ai_images_dir = os.path.join(temp_dir, pipeline.id, 'images', 'ai_images')
@@ -142,73 +138,64 @@ def process_content_impl(
         return pipeline
 
 
-def create_video_outline(pipeline_id: str,
-                         skip_stock: bool = False,
-                         target_segments: int = 7,
-                         segment_duration: int = 45) -> VideoPipeline:
+def _validate_parsed_content(video_pipeline: VideoPipeline) -> None:
+    """validate that parsed content exists in video pipeline."""
+    if not video_pipeline.parsed_content:
+        raise ValueError("parsed content not found in video pipeline")
+
+
+def add_section_to_content(
+    video_pipeline: VideoPipeline,
+    section: VideoPipelineContentSection
+) -> VideoPipelineContentSection:
     """
-    analyze content and create video outline.
-    requires pipeline_id to load cached video pipeline (cache is required).
+    add a section to a video pipeline's parsed content.
     args:
-        pipeline_id: uuid of existing video pipeline
-        skip_stock: skip stock image fetching
-        target_segments: target number of video segments
-        segment_duration: target duration per segment in seconds
+        video_pipeline: video pipeline object
+        section: section to add
     returns:
-        video pipeline instance with video outline
+        added section
     """
-    logger.info("stage 2: content analysis started")
-    temp_dir = config.get('output.temp_directory', 'temp')
-    
-    # load video pipeline by id (cache is required)
-    try:
-        video_pipeline = VideoPipeline.load_by_id(pipeline_id, temp_dir)
-        logger.info(f"loaded video pipeline: {video_pipeline.id}")
-    except FileNotFoundError:
-        logger.error(f"video pipeline not found for id: {pipeline_id}")
-        logger.error("run stage1_parsing.py first")
-        sys.exit(1)
-    
-    # use explicit implementation to process content
-    video_pipeline = process_content_impl(
-        video_pipeline,
-        skip_stock=skip_stock,
-        target_segments=target_segments,
-        segment_duration=segment_duration
-    )
-    
-    # save video pipeline
-    if video_pipeline.status.value == "completed":
-        temp_dir = config.get('output.temp_directory', 'temp')
-        video_pipeline.save_to_folder(temp_dir)
-        video_pipeline.save_to_pickle(os.path.join(temp_dir, f"pipeline_{video_pipeline.id}.pkl"))
-    
-    return video_pipeline
+    _validate_parsed_content(video_pipeline)
+    video_pipeline.parsed_content.sections.append(section)
+    return section
 
 
-def main():
-    parser = argparse.ArgumentParser(description='stage 2: analyze content and create video outline')
-    parser.add_argument('--pipeline-id', type=str, required=True,
-                        help='uuid of pipeline data (from stage 1)')
-    parser.add_argument('--skip-stock', action='store_true', help='skip stock image fetching')
-    parser.add_argument('--target-segments', type=int, default=7, help='target number of video segments')
-    parser.add_argument('--segment-duration', type=int, default=45, help='target duration per segment in seconds')
-    args = parser.parse_args()
-    
-    video_pipeline = create_video_outline(
-        args.pipeline_id,
-        skip_stock=args.skip_stock,
-        target_segments=args.target_segments,
-        segment_duration=args.segment_duration
-    )
-    
-    if video_pipeline.status == "completed":
-        logger.info(f"video outline created successfully. pipeline id: {video_pipeline.id}")
-        sys.exit(0)
-    else:
-        logger.error(f"video outline creation failed. pipeline id: {video_pipeline.id}")
-        sys.exit(1)
+def delete_section_from_content(
+    video_pipeline: VideoPipeline,
+    index: int
+) -> VideoPipelineContentSection:
+    """delete a section from a video pipeline's parsed content."""
+    _validate_parsed_content(video_pipeline)
+    if index < 0 or index >= len(video_pipeline.parsed_content.sections):
+        raise IndexError(f"Section index {index} out of range")
+    section = video_pipeline.parsed_content.sections.pop(index)
+    return section
 
 
-if __name__ == "__main__":
-    main()
+def _validate_video_outline(video_pipeline: VideoPipeline) -> None:
+    """validate that video outline exists in video pipeline."""
+    if not video_pipeline.video_outline:
+        raise ValueError("video outline not found in video pipeline")
+
+
+def add_segment_to_outline(
+    video_pipeline: VideoPipeline,
+    segment: VideoPipelineSegment
+) -> VideoPipelineSegment:
+    """add a segment to a video pipeline's outline."""
+    _validate_video_outline(video_pipeline)
+    video_pipeline.video_outline.segments.append(segment)
+    return segment
+
+
+def delete_segment_from_outline(
+    video_pipeline: VideoPipeline,
+    index: int
+) -> VideoPipelineSegment:
+    """delete a segment from a video pipeline's outline."""
+    _validate_video_outline(video_pipeline)
+    if index < 0 or index >= len(video_pipeline.video_outline.segments):
+        raise IndexError(f"Segment index {index} out of range")
+    segment = video_pipeline.video_outline.segments.pop(index)
+    return segment

@@ -30,7 +30,7 @@ export async function POST(req: NextRequest){
                         // create a new stripe customer
                         const customer = await stripe.customers.create({
                             email: user.email,
-                            name: user.username,
+                            name: user.email,
                             metadata: {
                                 user_id: user.id
                             }

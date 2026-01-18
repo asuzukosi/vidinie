@@ -13,92 +13,45 @@ import Checkout from "@/components/utils/Checkout";
 import frontendClient from "@/lib/api/client";
 import type { RootState } from "@/lib/store/store";
 import client from "@/lib/sdk/client";
-import type { PaymentMethod } from "@/lib/sdk/types";
-import { setUser } from "@/lib/store/slices/authSlice";
+import type { Subscription } from "@/lib/sdk/types";
 
 export default function SettingsPage() {
   const user = useSelector((state: RootState) => state.auth.user);
-  const dispatch = useDispatch();
   const [isLoadingPortal, setIsLoadingPortal] = useState(false);
-  const [isLoadingPaymentMethods, setIsLoadingPaymentMethods] = useState(true);
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
-  const [customerId, setCustomerId] = useState<string | null>(null);
-  const [isLoadingCustomerId, setIsLoadingCustomerId] = useState(true);
+  const [isLoadingSubscriptions, setIsLoadingSubscriptions] = useState(true);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [activeSubscription, setActiveSubscription] = useState<Subscription | null>(null);
   
   const subscriptionStatus = user?.current_subscription || "free";
 
   useEffect(() => {
-    loadPaymentMethods();
-    loadCustomerId();
+    loadSubscriptions();
   }, []);
 
-  const loadCustomerId = async () => {
+  const loadSubscriptions = async () => {
     try {
-      setIsLoadingCustomerId(true);
-      // first check if customer ID is in Redux state
-      if (user?.stripe_customer_id) {
-        setCustomerId(user.stripe_customer_id);
-        setIsLoadingCustomerId(false);
-        return;
-      }
-      
-      // if not in Redux, fetch from backend
-      const response = await client.getCustomerId();
-      setCustomerId(response.stripe_customer_id);
-      
-      // update Redux if customer ID was found
-      if (response.stripe_customer_id && user) {
-        dispatch(setUser({
-          ...user,
-          stripe_customer_id: response.stripe_customer_id,
-        }));
-      }
+      setIsLoadingSubscriptions(true);
+      const [allSubscriptions, active] = await Promise.all([
+        client.getSubscriptions(),
+        client.getActiveSubscription()
+      ]);
+      setSubscriptions(allSubscriptions);
+      setActiveSubscription(active);
     } catch (error: any) {
-      console.error("Failed to load customer ID:", error);
-    } finally {
-      setIsLoadingCustomerId(false);
-    }
-  };
-
-  const loadPaymentMethods = async () => {
-    try {
-      setIsLoadingPaymentMethods(true);
-      const methods = await client.getPaymentMethods();
-      setPaymentMethods(methods);
-    } catch (error: any) {
-      console.error("Failed to load payment methods:", error);
-      toast.error("Failed to load payment methods", {
+      console.error("Failed to load subscriptions:", error);
+      toast.error("Failed to load subscriptions", {
         description: error.message,
       });
     } finally {
-      setIsLoadingPaymentMethods(false);
+      setIsLoadingSubscriptions(false);
     }
   };
 
   const handleManageBilling = async () => {
     setIsLoadingPortal(true);
     try {
-      // get customer id from state or fetch from backend
-      let currentCustomerId = customerId;
-      
-      if (!currentCustomerId) {
-        // try to get from backend
-        try {
-          const response = await client.getCustomerId();
-          currentCustomerId = response.stripe_customer_id;
-          setCustomerId(currentCustomerId);
-          
-          // update redux if customer id was found
-          if (currentCustomerId && user) {
-            dispatch(setUser({
-              ...user,
-              stripe_customer_id: currentCustomerId,
-            }));
-          }
-        } catch (error) {
-          // customer id doesn't exist yet
-        }
-      }
+      // get customer id from user state
+      const currentCustomerId = user?.stripe_customer_id;
       
       if (!currentCustomerId) {
         toast.error("No customer account found", {
@@ -171,137 +124,6 @@ export default function SettingsPage() {
       </div>
 
       <div className="grid gap-6">
-        {/* payment information */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Payment Information</CardTitle>
-            <CardDescription>
-              Manage your payment methods and billing details
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <FieldGroup>
-              {isLoadingPaymentMethods ? (
-                <Field>
-                  <FieldLabel>Payment Methods</FieldLabel>
-                  <div className="text-sm text-muted-foreground">Loading payment methods...</div>
-                </Field>
-              ) : paymentMethods.length > 0 ? (
-                <>
-                  <Field>
-                    <FieldLabel>Payment Methods</FieldLabel>
-                    <div className="space-y-3">
-                      {paymentMethods.map((method) => (
-                        <div
-                          key={method.id}
-                          className="flex items-center justify-between p-4 border rounded-lg"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="text-2xl">
-                              💳
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium capitalize">
-                                  {method.card?.brand || method.type} ••••{" "}
-                                  {method.card?.last4}
-                                </span>
-                                {method.is_default && (
-                                  <Badge variant="secondary" className="text-xs">
-                                    Default
-                                  </Badge>
-                                )}
-                              </div>
-                              {method.card && (
-                                <div className="text-sm text-muted-foreground">
-                                  Expires {String(method.card.exp_month).padStart(2, '0')}/
-                                  {method.card.exp_year}
-                                </div>
-                              )}
-                              <div className="text-xs text-muted-foreground mt-1">
-                                Added {new Date(method.created_at).toLocaleDateString()}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {!method.is_default && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={async () => {
-                                  try {
-                                    await client.updatePaymentMethod(method.id, { is_default: true });
-                                    toast.success("Payment method set as default");
-                                    loadPaymentMethods();
-                                  } catch (error: any) {
-                                    toast.error("Failed to update payment method", {
-                                      description: error.message,
-                                    });
-                                  }
-                                }}
-                              >
-                                Set Default
-                              </Button>
-                            )}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={async () => {
-                                if (confirm("Are you sure you want to delete this payment method?")) {
-                                  try {
-                                    await client.deletePaymentMethod(method.id);
-                                    toast.success("Payment method deleted");
-                                    loadPaymentMethods();
-                                  } catch (error: any) {
-                                    toast.error("Failed to delete payment method", {
-                                      description: error.message,
-                                    });
-                                  }
-                                }
-                              }}
-                            >
-                              Delete
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </Field>
-                  <Field>
-                    <Button
-                      variant="outline"
-                      onClick={handleManageBilling}
-                      disabled={isLoadingPortal}
-                    >
-                      {isLoadingPortal
-                        ? "Loading..."
-                        : "Manage Payment Methods"}
-                    </Button>
-                    <FieldDescription>
-                      Add, update, or remove payment methods through Stripe
-                    </FieldDescription>
-                  </Field>
-                </>
-              ) : (
-                <Field>
-                  <FieldLabel>No Payment Methods</FieldLabel>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    You don't have any payment methods on file. Add one to
-                    subscribe to a plan.
-                  </p>
-                  <Button
-                    variant="outline"
-                    onClick={handleManageBilling}
-                    disabled={isLoadingPortal}
-                  >
-                    {isLoadingPortal ? "Loading..." : "Add Payment Method"}
-                  </Button>
-                </Field>
-              )}
-            </FieldGroup>
-          </CardContent>
-        </Card>
-
         {/* Subscription Information */}
         <Card>
           <CardHeader>
@@ -426,6 +248,55 @@ export default function SettingsPage() {
                   Access your billing portal to view invoices, update payment
                   methods, and manage your subscription
                 </FieldDescription>
+              </Field>
+
+              <Separator />
+
+              <Field>
+                <FieldLabel>Subscription History</FieldLabel>
+                {isLoadingSubscriptions ? (
+                  <div className="text-sm text-muted-foreground">Loading subscriptions...</div>
+                ) : subscriptions.length > 0 ? (
+                  <div className="space-y-3">
+                    {subscriptions.map((subscription) => (
+                      <div
+                        key={subscription.id}
+                        className="flex items-center justify-between p-4 border rounded-lg"
+                      >
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium capitalize">
+                              {subscription.subscription_type}
+                            </span>
+                            <Badge variant={
+                              subscription.status === "active" ? "default" :
+                              subscription.status === "canceled" ? "secondary" : "outline"
+                            }>
+                              {subscription.status}
+                            </Badge>
+                            {subscription.id === activeSubscription?.id && (
+                              <Badge variant="secondary" className="text-xs">
+                                Active
+                              </Badge>
+                            )}
+                          </div>
+                          {subscription.current_period_start && subscription.current_period_end && (
+                            <div className="text-sm text-muted-foreground mt-1">
+                              {new Date(subscription.current_period_start).toLocaleDateString()} - {new Date(subscription.current_period_end).toLocaleDateString()}
+                            </div>
+                          )}
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Created {new Date(subscription.created_at).toLocaleDateString()}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No subscription history found.
+                  </p>
+                )}
               </Field>
             </FieldGroup>
           </CardContent>

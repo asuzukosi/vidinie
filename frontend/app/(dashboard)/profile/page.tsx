@@ -19,7 +19,6 @@ export default function ProfilePage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [formData, setFormData] = useState({
-    username: "",
     email: "",
   });
   const [passwordData, setPasswordData] = useState({
@@ -31,7 +30,6 @@ export default function ProfilePage() {
   useEffect(() => {
     if (user) {
       setFormData({
-        username: user.username || "",
         email: user.email || "",
       });
     }
@@ -41,7 +39,7 @@ export default function ProfilePage() {
     e.preventDefault();
     
     // check if there are any changes
-    if (formData.username === user?.username && formData.email === user?.email) {
+    if (formData.email === user?.email) {
       toast.info("No changes to save");
       return;
     }
@@ -49,14 +47,12 @@ export default function ProfilePage() {
     setIsSaving(true);
     try {
       const updatedUser = await client.updateUser({
-        username: formData.username !== user?.username ? formData.username : undefined,
         email: formData.email !== user?.email ? formData.email : undefined,
       });
 
       // update Redux state with the updated user data
       dispatch(setUser({
         id: updatedUser.id,
-        username: updatedUser.username,
         email: updatedUser.email,
         token: user?.token || "",
         created_at: updatedUser.created_at,
@@ -144,7 +140,7 @@ export default function ProfilePage() {
                 <FieldLabel>Profile Picture</FieldLabel>
                 <div className="flex items-center gap-4">
                   <Avatar className="h-20 w-20">
-                    <AvatarImage src={profilePictureUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username || "User")}&background=random`} />
+                    <AvatarImage src={profilePictureUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.email || "User")}&background=random`} />
                   </Avatar>
                   <div>
                     <Button type="button" variant="outline" size="sm">
@@ -155,22 +151,6 @@ export default function ProfilePage() {
                     </FieldDescription>
                   </div>
                 </div>
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="username">Username</FieldLabel>
-                <Input
-                  id="username"
-                  type="text"
-                  value={formData.username}
-                  onChange={(e) =>
-                    setFormData({ ...formData, username: e.target.value })
-                  }
-                  placeholder="Enter your username"
-                />
-                <FieldDescription>
-                  This is your public display name
-                </FieldDescription>
               </Field>
 
               <Field>

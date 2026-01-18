@@ -81,31 +81,6 @@ export default function SuccessPage() {
                 // Update subscription on backend
                 await client.updateSubscription(backendSubscription);
 
-                // Extract payment method information if available
-                const paymentIntent = session.payment_intent;
-                const customerId = session.customer;
-
-                // If we have payment intent, try to get payment method details
-                if (paymentIntent && typeof paymentIntent === 'string') {
-                    try {
-                        // Note: We would need to retrieve payment intent details from Stripe
-                        // For now, we'll just update the subscription
-                        // Payment method can be handled separately or via webhook
-                    } catch (error) {
-                        console.error('Error processing payment method:', error);
-                        // Non-critical error, continue
-                    }
-                }
-
-                // Update customer ID if we have one and user doesn't have it yet
-                if (customerId && !user.stripe_customer_id) {
-                    try {
-                        await client.updateCustomerId(customerId);
-                    } catch (error) {
-                        console.error('Error updating customer ID:', error);
-                        // Non-critical error, continue
-                    }
-                }
 
                 setStatus('success');
                 setMessage('Your subscription has been successfully activated!');
