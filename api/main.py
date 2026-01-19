@@ -9,7 +9,9 @@ from dotenv import load_dotenv
 from api.core.signals import connect_to_broadcast, disconnect_from_broadcast
 from api.core.config import initialize_config, destroy_config
 from api.core.db import initialize_db, disconnect_from_db
+from core.utils.logger import get_logger
 
+logger = get_logger(__name__)
 load_dotenv()
 
 # define application lifespan
@@ -21,6 +23,7 @@ async def lifespan(app: FastAPI):
     await initialize_db()
     # connect to the broadcast server
     await connect_to_broadcast()
+
     yield
     # disconnect from the broadcast server
     await disconnect_from_broadcast()
@@ -62,7 +65,11 @@ class CORSStaticFiles(StaticFiles):
         await super().__call__(scope, receive, send_wrapper)
 
 # mount the media directory
-app.mount("/media", CORSStaticFiles(directory="temp"), name="media")
+if not os.path.exists("temp"):
+    os.makedirs("temp", exist_ok=True)
+    app.mount("/media", CORSStaticFiles(directory="temp"), name="media")
+else:
+    app.mount("/media", CORSStaticFiles(directory="temp"), name="media")
 
 # include the routes
 app.include_router(users.router, prefix="/users")
