@@ -1,6 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import stripe from "@/lib/stripe";
 
+export async function GET(req: NextRequest) {
+    try {
+        const { searchParams } = new URL(req.url);
+        const sessionId = searchParams.get("session_id");
+
+        if (!sessionId) {
+            return NextResponse.json(
+                { error: "session_id is required" },
+                { status: 400 }
+            );
+        }
+
+        // retrieve the checkout session from Stripe with expanded line items
+        const session = await stripe.checkout.sessions.retrieve(sessionId, {
+            expand: ["line_items", "line_items.data.price"],
+        });
+
+        return NextResponse.json({ session }, { status: 200 });
+    } catch (error: any) {
+        return NextResponse.json(
+            { error: error.message },
+            { status: 500 }
+        );
+    }
+}
+
 export async function POST(req: NextRequest){
     try {
         const { priceId, quantity } = await req.json();

@@ -79,8 +79,13 @@ const authSlice = createSlice({
                 console.error('window is not defined');
             }
         },
+        updateSubscription: (state, action: PayloadAction<string>) => {
+            if (state.user) {
+                state.user.current_subscription = action.payload;
+            }
+        },
     },
 })
 
-export const { setUser, clearUser } = authSlice.actions;
+export const { setUser, clearUser, updateSubscription } = authSlice.actions;
 export default authSlice.reducer;

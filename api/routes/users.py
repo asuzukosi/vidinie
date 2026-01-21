@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from api.data.users import User, SafeUser, RegisterUserRequest, \
                         LoginUserRequest, UserLoginResponse, ChangePasswordRequest, \
                         UpdateUserRequest, UpdateSubscriptionRequest, SubscriptionType, Subscription, \
-                        GoogleOAuthVerifiedRequest
+                        GoogleOAuthVerifiedRequest, UpdateCustomerIdRequest
 from api.helpers.user_helpers import (
     get_user_by_id,
     get_user_by_email,
@@ -283,6 +283,7 @@ async def upload_profile_picture(
         "profile_picture": profile_picture_relative_path
     }
 
+
 @router.put("/subscription", dependencies=[Depends(JWTBearer())])
 @error_wrapper("update subscription")
 async def update_subscription(
@@ -293,18 +294,43 @@ async def update_subscription(
     user = await get_user_by_id(user_id)
     
     # validate subscription value
-    if request.subscription not in [SubscriptionType.FREE, SubscriptionType.PRO, SubscriptionType.ENTERPRISE]:
+    if request.subscription not in [SubscriptionType.STARTER, SubscriptionType.PROFESSIONAL]:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid subscription. Must be one of: {SubscriptionType.FREE}, {SubscriptionType.PRO}, {SubscriptionType.ENTERPRISE}"
+            detail=f"Invalid subscription. Must be one of: {SubscriptionType.STARTER}, {SubscriptionType.PROFESSIONAL}"
         )
     
     # update user subscription
+    logger.info(f"updating subscription for user {user_id}: {request.subscription}")
     user.current_subscription = request.subscription
+    # increment number of videos left
+    if request.subscription == SubscriptionType.STARTER:
+        user.num_videos_left = 5
+    elif request.subscription == SubscriptionType.PROFESSIONAL:
+        user.num_videos_left = 20
     user.updated_at = datetime.now()
     await update_user_in_db(user_id, user)
     
     logger.info(f"Subscription updated for user {user_id}: {request.subscription}")
+    
+    # fetch and return updated user
+    return await get_user_by_id(user_id)
+
+@router.put("/customer-id", dependencies=[Depends(JWTBearer())])
+@error_wrapper("update customer id")
+async def update_customer_id(
+    request: UpdateCustomerIdRequest,
+    user_id: str = Depends(JWTBearer())
+) -> User:
+    """update user's customer id"""
+    user = await get_user_by_id(user_id)
+    
+    # update customer id
+    user.stripe_customer_id = request.stripe_customer_id
+    user.updated_at = datetime.now()
+    await update_user_in_db(user_id, user)
+    
+    logger.info(f"customer id updated for user {user_id}: {request.stripe_customer_id}")
     
     # fetch and return updated user
     return await get_user_by_id(user_id)
