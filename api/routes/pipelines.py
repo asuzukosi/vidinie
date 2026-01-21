@@ -35,7 +35,7 @@ from api.helpers.pipeline_helpers import (
     delete_pipeline_from_db,
     verify_pipeline_ownership,
 )
-from api.helpers.user_helpers import get_user_by_id
+from api.helpers.user_helpers import get_user_by_id, update_user_in_db
 import os, asyncio
 from pathlib import Path
 from api.data.pipelines import CreateVideoPipelineRequest, VideoPipelineSummary, \
@@ -117,6 +117,9 @@ async def create_video_pipeline_from_file(
     user = await get_user_by_id(user_id)
     if not user:
         raise HTTPException(status_code=401, detail="Unauthorized")
+    # check if user has enough videos left
+    if user.num_videos_left <= 0:
+        raise HTTPException(status_code=400, detail="You have reached the maximum number of videos allowed. Please upgrade your subscription to create more videos.")
     logger.info("received request to start pipeline with file")
     if file.filename == "" or not file.filename.endswith(".pdf"):
         raise HTTPException(status_code=400, detail=f"invalid file type, only pdf files currently supported: {file.filename}")
@@ -138,8 +141,10 @@ async def create_video_pipeline_from_file(
     video_pipeline = await create_pipeline_in_db(video_pipeline)
     await broadcast_message(f"pipeline-tasks-{video_pipeline.id}", {"type": "pipeline_created", "pipeline_id": video_pipeline.id})
     background_tasks.add_task(write_content_to_file_for_pipeline, video_pipeline, file.filename, file_content)
-
     run_next_stages_task.delay(video_pipeline.id, stage=VideoPipelineStage.DOCUMENT_PROCESSING, pdf_path=video_pipeline.source_path, pdf_content=file_content)
+    # decrement number of videos left
+    user.num_videos_left -= 1
+    await update_user_in_db(user.id, user)
     # return pipeline summary
     return VideoPipelineSummary(**video_pipeline.model_dump(mode="json"))
 
@@ -151,6 +156,9 @@ async def create_video_pipeline_from_url(request: CreateVideoPipelineRequest,
     user = await get_user_by_id(user_id)
     if not user:
         raise HTTPException(status_code=401, detail="Unauthorized")
+    # check if user has enough videos left
+    if user.num_videos_left <= 0:
+        raise HTTPException(status_code=400, detail="You have reached the maximum number of videos allowed. Please upgrade your subscription to create more videos.")
     # validate if url is valid
     logger.info("received request to start pipeline with url")
     if not request.url.startswith("http"):
@@ -180,6 +188,9 @@ async def create_video_pipeline_from_url(request: CreateVideoPipelineRequest,
     background_tasks.add_task(write_content_to_file_for_pipeline, video_pipeline, 'data.html', response.content)
     # run all the stages sequentially in the background
     run_next_stages_task.delay(video_pipeline.id, stage=VideoPipelineStage.DOCUMENT_PROCESSING, html_content=response.text, html_path=video_pipeline.source_path)
+    # decrement number of videos left
+    user.num_videos_left -= 1
+    await update_user_in_db(user.id, user)
     # return pipeline summary
     return VideoPipelineSummary(**video_pipeline.model_dump(mode="json"))
 

@@ -3,17 +3,20 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import client from '@/lib/sdk/client';
-import { useAppSelector } from '@/lib/store/hooks';
+import { useAppDispatch, useAppSelector } from '@/lib/store/hooks';
+import { SubscriptionType } from '@/lib/sdk/types';
+import { updateSubscription } from '@/lib/store/slices/authSlice';
 
 // Map Stripe price IDs to subscription types
 const PRICE_TO_SUBSCRIPTION: Record<string, string> = {
-    "price_1SqesCRuS4nQ58s9miCyHa0c": "starter", // $19.99 starter plan
-    "price_1SqewLRuS4nQ58s9xnSRdWKc": "professional", // $49.99 professional plan
+    [process.env.NEXT_PUBLIC_STARTER_PLAN_PRICE_ID!]: "starter", // $19.99 starter plan
+    [process.env.NEXT_PUBLIC_PROFESSIONAL_PLAN_PRICE_ID!]: "professional", // $49.99 professional plan
 };
 
 export default function SuccessPage() {
     const searchParams = useSearchParams();
     const router = useRouter();
+    const dispatch = useAppDispatch();
     const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
     const [message, setMessage] = useState<string>('Processing your payment...');
     const user = useAppSelector((state) => state.auth.user);
@@ -38,10 +41,10 @@ export default function SuccessPage() {
             }
 
             try {
-                // Set token on client if not already set
+                // set token on client if not already set
                 client.setToken(user.token);
 
-                // Retrieve checkout session from checkout API route
+                // retrieve checkout session from checkout API route
                 const sessionResponse = await fetch(`/api/checkout?session_id=${sessionId}`);
                 
                 if (!sessionResponse.ok) {
@@ -50,7 +53,7 @@ export default function SuccessPage() {
 
                 const { session } = await sessionResponse.json();
 
-                // Extract subscription type from price ID
+                // extract subscription type from price ID
                 // line_items can be either a Stripe list object or an array
                 const lineItemsData = session.line_items?.data || 
                                      (Array.isArray(session.line_items) ? session.line_items : []);
@@ -62,7 +65,7 @@ export default function SuccessPage() {
                     subscriptionType = priceId ? (PRICE_TO_SUBSCRIPTION[priceId] || null) : null;
                 }
 
-                // Map to backend subscription enum value
+                // map to backend subscription enum value
                 const backendSubscription = subscriptionType 
                     ? subscriptionType
                     : null;
@@ -71,14 +74,14 @@ export default function SuccessPage() {
                     throw new Error('Could not determine subscription type from checkout session');
                 }
 
-                // Update subscription on backend
+                // update subscription on backend
                 await client.updateSubscription(backendSubscription);
-
+                dispatch(updateSubscription(backendSubscription as SubscriptionType));
 
                 setStatus('success');
                 setMessage('Your subscription has been successfully activated!');
                 
-                // Redirect to dashboard after a short delay
+                // redirect to dashboard after a short delay
                 setTimeout(() => {
                     router.push('/video-pipelines');
                 }, 2000);

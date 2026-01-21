@@ -12,6 +12,7 @@ import client from "@/lib/sdk/client";
 import type { VideoPipelineTableItem } from "@/components/pipeline/VideoPipelineTable";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 export default function TasksPage() {
   const searchParams = useSearchParams();
@@ -36,7 +37,7 @@ export default function TasksPage() {
       }
     } catch (error) {
       console.error("Error creating task:", error);
-      throw error;
+      toast.error((error as Error).message.replace("Error: ", ""));
     } finally {
       setIsCreatingTask(false);
     }

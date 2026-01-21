@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import stripe from "@/lib/stripe";
 import { headers } from "next/headers";
 
+
 export async function POST(req: NextRequest){
     const body = await req.text();
     const headersList = await headers();
@@ -33,20 +34,14 @@ export async function POST(req: NextRequest){
                         
                         // customer id should already be saved by checkout route, but update as backup
                         console.log('Checkout completed for customer', customerId, 'with email', customerEmail);
-                        // TODO: update database with new subscription
+        
                     }
                 } catch (error) {
                     console.error("Error processing checkout.session.completed:", error);
                 }
             }
-            
             console.log('Subscription created for customer', customerId);
-            // TODO: update database with new subscription
-            break;
-        case "payment_intent.succeeded":
-            const paymentIntent = event.data.object;
-            console.log('Payment intent succeeded', paymentIntent);
-            // TODO: update database with new payment
+
             break;
         default:
             console.log(`Unhandled event type ${event.type}`);

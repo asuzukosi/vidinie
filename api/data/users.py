@@ -5,8 +5,8 @@ from enum import Enum
 
 class SubscriptionType(str, Enum):
     FREE = "free"
-    PRO = "starter"
-    ENTERPRISE = "professional"
+    STARTER = "starter"
+    PROFESSIONAL = "professional"
 
 
 class RegisterUserRequest(BaseModel):
@@ -46,6 +46,7 @@ class User(BaseModel):
     profile_picture: Optional[str] = None  # path to profile picture file
     stripe_customer_id: Optional[str] = None  # stripe customer ID
     google_id: Optional[str] = None  # Google user ID for OAuth users
+    num_videos_left: int = Field(default=2)
 
 class SafeUser(BaseModel):
     id: str

@@ -23,6 +23,8 @@ export default function SettingsPage() {
   const [activeSubscription, setActiveSubscription] = useState<Subscription | null>(null);
   
   const subscriptionStatus = user?.current_subscription || "free";
+  console.log("subscriptionStatus:", subscriptionStatus);
+  console.log("price ids:", process.env.NEXT_PUBLIC_STARTER_PLAN_PRICE_ID, process.env.NEXT_PUBLIC_PROFESSIONAL_PLAN_PRICE_ID);
 
   useEffect(() => {
     loadSubscriptions();
@@ -88,6 +90,7 @@ export default function SettingsPage() {
       id: "free",
       name: "Free",
       price: "$0",
+      priceId: "cancel",
       period: "forever",
       features: ["Basic features", "Limited usage"],
     },
@@ -96,7 +99,7 @@ export default function SettingsPage() {
       name: "Starter",
       price: "$19.99",
       period: "per month",
-      priceId: "price_1SqesCRuS4nQ58s9miCyHa0c",
+      priceId: process.env.NEXT_PUBLIC_STARTER_PLAN_PRICE_ID,
       features: ["PDF & website support", 
         "Basic templates", 
         "Email support", 
@@ -109,7 +112,7 @@ export default function SettingsPage() {
       name: "Professional",
       price: "$49.99",
       period: "per month",
-      priceId: "price_1SqewLRuS4nQ58s9xnSRdWKc",
+      priceId: process.env.NEXT_PUBLIC_PROFESSIONAL_PLAN_PRICE_ID,
       features: [
         "Everything in Starter",
         "Premium templates",
@@ -218,7 +221,7 @@ export default function SettingsPage() {
                               planPrice={plan.price}
                               buttonText={plan.id === "free" ? "Downgrade" : "Upgrade"}
                               showCard={false}
-                              buttonVariant={plan.id === "professional" ? "default" : "outline"}
+                              buttonVariant={plan.id === "free" ? "outline" : "default"}
                               buttonSize="default"
                               className="w-full"
                             />
@@ -228,7 +231,7 @@ export default function SettingsPage() {
                               className="w-full"
                               disabled
                             >
-                              Current Plan
+                              Cancel Subscription
                             </Button>
                           )}
                         </div>
