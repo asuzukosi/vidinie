@@ -63,7 +63,7 @@ class ContextProcessor:
         system_prompt = system_template.render(document_title=self.document_title)
         
         response = self.client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-5",
             messages=[
                 {
                     "role": "system",

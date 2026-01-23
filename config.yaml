@@ -46,7 +46,7 @@ styles:
     dalle_size: "1792x1024"
   
   combined:
-    use_ai_selection: true  # use gpt-4 to select styles, or rotate by default
+    use_ai_selection: true  # use gpt-5 to select styles, or rotate by default
     style_rotation: ["slideshow", "animated", "ai_generated"]  # fallback pattern
 
 # font settings
