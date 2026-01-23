@@ -64,7 +64,7 @@ Edit `config.yaml` to customize:
 ## Tech Stack
 
 **AI Services:**
-- OpenAI (GPT-4, GPT-4 Vision, DALL-E)
+- OpenAI (GPT-5, DALL-E)
 - ElevenLabs (Text-to-Speech)
 - Unsplash/Pexels (Stock images)
 

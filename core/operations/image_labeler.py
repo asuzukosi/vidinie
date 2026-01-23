@@ -29,7 +29,7 @@ class ImageLabeler:
             raise ValueError("openai api key is required. set OPENAI_API_KEY environment variable.")
         
         self.client = OpenAI(api_key=self.api_key)
-        self.model = "gpt-4o"  # gpt-4 with vision
+        self.model = "gpt-5"  # gpt-5 with vision
         
         # initialize jinja2 environment for prompt templates
         self.jinja_env = Environment(

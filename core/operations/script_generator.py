@@ -31,7 +31,7 @@ class ScriptGenerator:
         if not self.api_key:
             raise ValueError("openai api key is required")
         self.client = OpenAI(api_key=self.api_key)
-        self.model = "gpt-4o"
+        self.model = "gpt-5"
         
         # initialize jinja2 environment for prompt templates
         self.jinja_env = Environment(
