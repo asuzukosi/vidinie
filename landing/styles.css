@@ -17,6 +17,11 @@ body {
 }
 
 @media (max-width: 768px) {
+    body {
+        background: #F5F5F7;
+        background-image: none;
+    }
+    
     .hero > div:last-child {
         position: relative !important;
         bottom: auto !important;
