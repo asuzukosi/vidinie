@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { VideoPlayer } from "@/components/utils/VideoPlayer";
 import { GenerateVideoPipelineRequest, VideoPipelineReviewRequest } from "@/lib/sdk/types";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,15 @@ import { VideoGenerationModal } from "@/components/modals/VideoGenerationModal";
 import { ReviewAndFeedback } from "@/components/pipeline/ReviewAndFeedback";
 import client from "@/lib/sdk/client";
 import { toast } from "sonner";
+import { useAppSelector } from "@/lib/store/hooks";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 
 interface VideoGenerationProps {
     videoPipelineId: string;
@@ -38,8 +48,12 @@ export function VideoGeneration({
     defaultVideoTitle = "",
     defaultVideoSubtitle = ""
 }: VideoGenerationProps) {
+    const router = useRouter();
+    const user = useAppSelector((state) => state.auth.user);
+    const subscription = user?.current_subscription || "free";
     const [isVideoGenerationModalOpen, setIsVideoGenerationModalOpen] = useState(false);
     const [isDownloading, setIsDownloading] = useState(false);
+    const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
 
     const handleVideoGenerationSubmit = (data: GenerateVideoPipelineRequest) => {
         if (onVideoGeneration) {
@@ -49,6 +63,12 @@ export function VideoGeneration({
     };
 
     const handleDownload = async () => {
+        // Check if user has free subscription
+        if (subscription === "free") {
+            setIsUpgradeModalOpen(true);
+            return;
+        }
+
         setIsDownloading(true);
         try {
             const blob = await client.downloadVideoPipelineOutput(videoPipelineId);
@@ -68,6 +88,11 @@ export function VideoGeneration({
         } finally {
             setIsDownloading(false);
         }
+    };
+
+    const handleUpgrade = () => {
+        setIsUpgradeModalOpen(false);
+        router.push("/settings");
     };
 
     if (!videoPath) {
@@ -104,40 +129,61 @@ export function VideoGeneration({
     }
 
     return (
-        <div className="space-y-8 pt-8">
-            <div className="max-w-4xl mx-auto space-y-6">
-                <div className="space-y-4">
-                    <h3 className="font-semibold text-sm">Generated Video</h3>
-                    <VideoPlayer videoPipelineId={videoPipelineId} />
-                    <div className="flex justify-end">
-                        <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={handleDownload}
-                            disabled={isDownloading}
-                            className="flex items-center gap-2"
-                        >
-                            {isDownloading ? (
-                                <Loader2 className="size-4 animate-spin" />
-                            ) : (
-                                <IconDownload className="size-4" />
-                            )}
-                            {isDownloading ? "Downloading..." : "Download"}
-                        </Button>
+        <>
+            <div className="space-y-8 pt-8">
+                <div className="max-w-4xl mx-auto space-y-6">
+                    <div className="space-y-4">
+                        <h3 className="font-semibold text-sm">Generated Video</h3>
+                        <VideoPlayer videoPipelineId={videoPipelineId} />
+                        <div className="flex justify-end">
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={handleDownload}
+                                disabled={isDownloading}
+                                className="flex items-center gap-2"
+                            >
+                                {isDownloading ? (
+                                    <Loader2 className="size-4 animate-spin" />
+                                ) : (
+                                    <IconDownload className="size-4" />
+                                )}
+                                {isDownloading ? "Downloading..." : "Download"}
+                            </Button>
+                        </div>
                     </div>
+                    {videoPath && (
+                        <div className="pt-6 border-t">
+                            <ReviewAndFeedback 
+                                rating={rating}
+                                feedback={feedback}
+                                updated_at={updated_at}
+                                onReviewAndFeedback={onReviewAndFeedback}
+                                isSubmittingReview={isSubmittingReview}
+                            />
+                        </div>
+                    )}
                 </div>
-                {videoPath && (
-                    <div className="pt-6 border-t">
-                        <ReviewAndFeedback 
-                            rating={rating}
-                            feedback={feedback}
-                            updated_at={updated_at}
-                            onReviewAndFeedback={onReviewAndFeedback}
-                            isSubmittingReview={isSubmittingReview}
-                        />
-                    </div>
-                )}
             </div>
-        </div>
+            <Dialog open={isUpgradeModalOpen} onOpenChange={setIsUpgradeModalOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Upgrade Required</DialogTitle>
+                        <DialogDescription>
+                            Video downloads are only available for Starter and Professional subscription plans. 
+                            Upgrade your subscription to download your videos.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsUpgradeModalOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleUpgrade}>
+                            Upgrade Subscription
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
     );
 }
