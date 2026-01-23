@@ -28,7 +28,7 @@ export default function TasksPage() {
       console.log("creating video:", task);
       if (task.file) {
         const result: VideoPipelineSummary = await client.createVideoPipelineFromFile(task.name, task.description, 
-          task.tags || [], task.projects || [], task.file);
+          [], [], task.file);
         console.log("result:", result);
       } else {
         task.file = undefined;
