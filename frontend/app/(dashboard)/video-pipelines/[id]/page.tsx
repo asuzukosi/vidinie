@@ -213,8 +213,8 @@ export default function TaskDetailPage() {
     }
     return (
         <div className="p-4">
-            <div className="flex flex-row gap-6 mx-auto">
-                <div className="w-1/3 flex flex-col gap-4">
+            <div className="flex flex-col md:flex-row gap-6 mx-auto">
+                <div className="w-full md:w-1/3 flex flex-col gap-4 order-1 md:order-1">
                     <VideoPipelineStagesManager 
                         pipelineStageStatuses={videoPipeline.stage_statuses || {}} 
                         onGenerateOutlineContent={generateOutlineContent} 
@@ -228,17 +228,8 @@ export default function TaskDetailPage() {
                         isGeneratingScripts={isGeneratingScripts}
                         isGeneratingVideo={isGeneratingVideo}
                     />
-                    <VideoPipelineDetails 
-                        name={videoPipeline.name} 
-                        description={videoPipeline.description} 
-                        tags={videoPipeline.tags} 
-                        projects={videoPipeline.projects}
-                        created_at={videoPipeline.created_at}
-                        current_stage={videoPipeline.current_stage}
-                        status={videoPipeline.status}
-                    />
                 </div>
-                <div className="w-2/3 flex flex-col gap-6">
+                <div className="w-full md:w-2/3 flex flex-col gap-6 order-2 md:order-2">
                     {shouldShowSection(VideoPipelineStage.DOCUMENT_PROCESSING) && (
                         <Card>
                             <CardHeader>
@@ -307,6 +298,17 @@ export default function TaskDetailPage() {
                             </CardContent>
                         </Card>
                     )}
+                </div>
+                <div className="w-full md:w-1/3 flex flex-col gap-4 order-3 md:order-3">
+                    <VideoPipelineDetails 
+                        name={videoPipeline.name} 
+                        description={videoPipeline.description} 
+                        tags={videoPipeline.tags} 
+                        projects={videoPipeline.projects}
+                        created_at={videoPipeline.created_at}
+                        current_stage={videoPipeline.current_stage}
+                        status={videoPipeline.status}
+                    />
                 </div>
             </div>
         </div>
