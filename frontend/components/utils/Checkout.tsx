@@ -19,6 +19,9 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import frontendClient from "@/lib/api/client";
+import { event } from "@/lib/gtag";
+import { useSelector } from "react-redux";
+import type { RootState } from "@/lib/store/store";
 
 interface CheckoutProps extends Omit<React.ComponentProps<"div">, "onError"> {
   priceId: string;
@@ -52,12 +55,28 @@ export default function Checkout({
   ...props
 }: CheckoutProps) {
   const [loading, setLoading] = useState(false);
-
+  const user = useSelector((state: RootState) => state.auth.user);
   const handleCheckout = async () => {
+    event({
+      action: "checkout_started",
+      category: "checkout",
+      label: user?.email || "unknown",
+      value: 1,
+    });
     if (!priceId) {
       toast.error("Invalid price ID", {
         description: "Please select a valid subscription plan.",
       });
+      return;
+    }
+    if (priceId == "cancel"){
+      event({
+        action: "subscription_cancellation_requested",
+        category: "checkout",
+        label: user?.email || "unknown",
+        value: 1,
+      });
+      toast.error("Subscription cancellation initiated.");
       return;
     }
     setLoading(true);

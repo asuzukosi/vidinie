@@ -20,6 +20,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import { event } from "@/lib/gtag";
 
 interface VideoGenerationProps {
     videoPipelineId: string;
@@ -63,13 +64,24 @@ export function VideoGeneration({
     };
 
     const handleDownload = async () => {
-        // Check if user has free subscription
+        // check if user has free subscription
         if (subscription === "free") {
             setIsUpgradeModalOpen(true);
             return;
         }
-
+        event({
+            action: "video_download_requested_with_free_subscription",
+            category: "video_pipeline",
+            label: user?.email || "unknown",
+            value: 1,
+        });
         setIsDownloading(true);
+        event({
+            action: "video_download_started",
+            category: "video_pipeline",
+            label: user?.email || "unknown",
+            value: 1,
+        });
         try {
             const blob = await client.downloadVideoPipelineOutput(videoPipelineId);
             // Create a blob URL and trigger download
@@ -87,6 +99,12 @@ export function VideoGeneration({
             toast.error(error.message || "Failed to download video");
         } finally {
             setIsDownloading(false);
+            event({
+                action: "video_download_completed",
+                category: "video_pipeline",
+                label: user?.email || "unknown",
+                value: 1,
+            });
         }
     };
 

@@ -1,14 +1,17 @@
 "use client";
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { IconX, IconUpload, IconFileText} from "@tabler/icons-react";
 import { Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { FieldGroup } from "@/components/ui/field";
 import { Field } from "@/components/ui/field";
 import { FieldLabel } from "@/components/ui/field";
-import { MultiSelect } from "@/components/ui/multi-select";
+// import { MultiSelect } from "@/components/ui/multi-select";
 import { CreateVideoPipelineRequest } from "@/lib/sdk/types";
 import { toast } from "sonner";
+import { useSelector } from "react-redux";
+import type { RootState } from "@/lib/store/store";
+import { event } from "@/lib/gtag";
 
 const ALLOWED_FILE_TYPES = ".pdf";
 const ALLOWED_MIME_TYPES = ["application/pdf"];
@@ -38,7 +41,16 @@ export default function CreateVideoPipelineModal({
     const [dragActive, setDragActive] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const user = useSelector((state: RootState) => state.auth.user);
 
+    useEffect(() => {
+      event({
+        action: "create_video_pipeline_creation_started",
+        category: "video_pipeline",
+        label: user?.email || "unknown",
+        value: 1,
+      });
+    }, [user]);
     const tagOptions = [
       { value: "technology", label: "Technology" },
       { value: "business", label: "Business" },
