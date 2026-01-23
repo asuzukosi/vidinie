@@ -6,7 +6,8 @@
 
 body {
     font-family: 'Source Sans 3', sans-serif;
-    background: #F5F5F7 url('noisybackground.jpg') center center / cover no-repeat fixed;
+    /* mobile-first: light gray background, no image */
+    background: #F5F5F7;
     color: #1d1d1f;
     overflow-y: auto;
     overflow-x: hidden;
@@ -16,22 +17,27 @@ body {
     -moz-osx-font-smoothing: grayscale;
 }
 
-@media (max-width: 768px) {
+/* desktop and larger: add background image */
+@media (min-width: 769px) {
     body {
-        background: #F5F5F7;
-        background-image: none;
+        background: #F5F5F7 url('noisybackground.jpg') center center / cover no-repeat fixed;
     }
-    
-    .hero > div:last-child {
-        position: relative !important;
-        bottom: auto !important;
-        right: auto !important;
-        margin-top: 40px;
-        justify-content: center !important;
-    }
-    
-    .content-page {
-        padding: 120px 20px 60px;
+}
+
+/* iOS Safari specific fixes - ensure no background image on mobile */
+@supports (-webkit-touch-callout: none) {
+    @media (max-width: 768px) {
+        html,
+        body {
+            background: #F5F5F7 !important;
+            background-image: none !important;
+            background-attachment: scroll !important;
+        }
+        
+        .main-content {
+            background: transparent !important;
+            background-image: none !important;
+        }
     }
 }
 
@@ -787,193 +793,290 @@ h1 {
 }
 
 /* Responsive */
-@media (max-width: 1024px) {
+
+/* mobile styles (default) - applied to all screens below 769px */
+.navbar {
+    padding: 16px 20px;
+    flex-wrap: wrap;
+}
+
+.nav-left {
+    gap: 20px;
+    flex: 1;
+    min-width: 0;
+}
+
+.nav-links {
+    display: none;
+}
+
+.nav-actions {
+    gap: 12px;
+}
+
+.login {
+    font-size: 13px;
+}
+
+.signup {
+    text-decoration: none;
+    padding: 10px 20px;
+    font-size: 13px;
+}
+
+.logo {
+    font-size: 22px;
+}
+
+.hero {
+    padding: 100px 20px 40px;
+}
+
+.hero > div:last-child {
+    position: relative !important;
+    bottom: auto !important;
+    right: auto !important;
+    margin-top: 40px;
+    justify-content: center !important;
+}
+
+h1 {
+    font-size: 38px;
+    line-height: 1.2;
+    max-width: 100%;
+}
+
+.content-page h1 {
+    font-size: 32px;
+}
+
+.subtitle {
+    font-size: 16px;
+    max-width: 100%;
+    padding: 0 10px;
+}
+
+.card-visual {
+    width: 100%;
+    max-width: 100%;
+    height: 280px;
+    margin-bottom: 30px;
+}
+
+.card {
+    width: 240px;
+    height: 160px;
+}
+
+.card-left {
+    left: 5%;
+    top: 20px;
+    transform: rotateY(-5deg) rotateX(2deg);
+}
+
+.card-right {
+    right: 5%;
+    top: 0;
+    transform: rotateY(5deg) rotateX(2deg);
+}
+
+.app-buttons {
+    flex-direction: column;
+    width: 100%;
+    max-width: 100%;
+    gap: 12px;
+    padding: 0 20px;
+}
+
+.cta-primary,
+.cta-secondary {
+    width: 100%;
+    max-width: 100%;
+    padding: 14px 24px;
+    font-size: 16px;
+}
+
+.content-page {
+    padding: 120px 20px 60px;
+}
+
+.pricing-grid,
+.features-grid,
+.support-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+}
+
+.pricing-card,
+.feature-item,
+.support-card {
+    padding: 24px 20px;
+}
+
+.plan-desc {
+    font-size: 18px;
+}
+
+.faq-section {
+    max-height: calc(100vh - 250px);
+}
+
+.legal-content {
+    padding: 32px 24px;
+    max-height: calc(100vh - 250px);
+}
+
+.legal-content h2 {
+    font-size: 24px;
+}
+
+.legal-content h3 {
+    font-size: 18px;
+}
+
+/* Tablet and up: show nav links */
+@media (min-width: 769px) {
     .navbar {
-        padding: 20px 40px;
+        padding: 24px 80px;
+        flex-wrap: nowrap;
     }
     
     .nav-left {
-        gap: 40px;
+        gap: 80px;
+        flex: initial;
+        min-width: initial;
     }
     
     .nav-links {
-        gap: 24px;
+        display: flex;
     }
     
-    .nav-links a {
-        font-size: 14px;
+    .nav-actions {
+        gap: 16px;
+    }
+    
+    .login {
+        font-size: 16px;
+    }
+    
+    .signup {
+        font-size: 16px;
     }
     
     .logo {
-        font-size: 24px;
+        font-size: 28px;
+    }
+    
+    .hero {
+        padding: 120px 80px 60px;
+    }
+    
+    .hero > div:last-child {
+        position: absolute;
+        bottom: 40px;
+        right: 80px;
+        justify-content: flex-end;
     }
     
     h1 {
-        font-size: 56px;
+        font-size: 64px;
+        max-width: 800px;
     }
     
     .content-page h1 {
-        font-size: 48px;
+        font-size: 56px;
     }
     
     .subtitle {
-        font-size: 20px;
+        font-size: 22px;
+        max-width: 600px;
+        padding: 0;
     }
     
     .card-visual {
         width: 100%;
-        max-width: 700px;
-        height: 350px;
+        max-width: 800px;
+        height: 400px;
+        margin-bottom: 0;
     }
     
     .card {
-        width: 400px;
-        height: 250px;
-    }
-    
-    .card-image {
-        height: 100%;
+        width: 450px;
+        height: 280px;
     }
     
     .card-left {
         left: 20px;
+        top: 0;
+        transform: rotateY(-10deg) rotateX(5deg);
     }
     
     .card-right {
         right: 20px;
-    }
-}
-
-@media (max-width: 768px) {
-    .navbar {
-        padding: 16px 20px;
-        flex-wrap: wrap;
-    }
-    
-    .nav-left {
-        gap: 20px;
-        flex: 1;
-        min-width: 0;
-    }
-    
-    .nav-links {
-        display: none;
-    }
-    
-    .nav-actions {
-        gap: 12px;
-    }
-    
-    .login {
-        font-size: 13px;
-    }
-    
-    .signup {
-        text-decoration: none;
-        padding: 10px 20px;
-        font-size: 13px;
-    }
-    
-    .logo {
-        font-size: 22px;
-    }
-    
-    .hero {
-        padding: 100px 20px 40px;
-    }
-    
-    h1 {
-        font-size: 38px;
-        line-height: 1.2;
-        max-width: 100%;
-    }
-    
-    .content-page h1 {
-        font-size: 32px;
-    }
-    
-    .subtitle {
-        font-size: 16px;
-        max-width: 100%;
-        padding: 0 10px;
-    }
-    
-    .card-visual {
-        width: 100%;
-        max-width: 100%;
-        height: 280px;
-        margin-bottom: 30px;
-    }
-    
-    .card {
-        width: 240px;
-        height: 160px;
-    }
-    
-    .card-left {
-        left: 5%;
-        top: 20px;
-        transform: rotateY(-5deg) rotateX(2deg);
-    }
-    
-    .card-right {
-        right: 5%;
         top: 0;
-        transform: rotateY(5deg) rotateX(2deg);
+        transform: rotateY(10deg) rotateX(5deg);
     }
     
     .app-buttons {
-        flex-direction: column;
-        width: 100%;
-        max-width: 100%;
-        gap: 12px;
-        padding: 0 20px;
+        flex-direction: row;
+        width: auto;
+        max-width: none;
+        gap: 16px;
+        padding: 0;
     }
     
     .cta-primary,
     .cta-secondary {
-        width: 100%;
-        max-width: 100%;
-        padding: 14px 24px;
-        font-size: 16px;
+        width: auto;
+        max-width: none;
+        padding: 16px 32px;
+        font-size: 18px;
     }
     
     .content-page {
-        padding: 120px 20px 60px;
+        padding: 160px 80px 80px;
     }
     
-    .pricing-grid,
-    .features-grid,
+    .pricing-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 32px;
+    }
+    
+    .features-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 32px;
+    }
+    
     .support-grid {
-        grid-template-columns: 1fr;
-        gap: 24px;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 32px;
     }
     
     .pricing-card,
     .feature-item,
     .support-card {
-        padding: 24px 20px;
+        padding: 32px 40px;
     }
     
     .plan-desc {
-        font-size: 18px;
+        font-size: 20px;
     }
     
     .faq-section {
-        max-height: calc(100vh - 250px);
+        max-height: none;
     }
     
     .legal-content {
-        padding: 32px 24px;
-        max-height: calc(100vh - 250px);
+        padding: 48px 60px;
+        max-height: none;
     }
     
     .legal-content h2 {
-        font-size: 24px;
+        font-size: 32px;
     }
     
     .legal-content h3 {
-        font-size: 18px;
+        font-size: 24px;
     }
 }
 
