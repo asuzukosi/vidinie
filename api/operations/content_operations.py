@@ -27,8 +27,8 @@ logger = get_logger("content_operations")
 def process_content(
     pipeline: VideoPipeline,
     skip_stock: bool = False,
-    target_segments: int = 7,
-    segment_duration: int = 45
+    target_segments: int = 5,
+    segment_duration: int = 40
 ) -> VideoPipeline:
     """
     analyze content and create video outline with visual asset planning.

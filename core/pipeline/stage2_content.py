@@ -37,8 +37,8 @@ logger = get_logger('stage2_content')
 def process_content_impl(
     pipeline: VideoPipeline,
     skip_stock: bool = False,
-    target_segments: int = 7,
-    segment_duration: int = 45
+    target_segments: int = 5,
+    segment_duration: int = 40
 ) -> VideoPipeline:
     """
     analyze content and create video outline with visual asset planning.
@@ -144,8 +144,8 @@ def process_content_impl(
 
 def create_video_outline(pipeline_id: str,
                          skip_stock: bool = False,
-                         target_segments: int = 7,
-                         segment_duration: int = 45) -> VideoPipeline:
+                         target_segments: int = 5,
+                         segment_duration: int = 40) -> VideoPipeline:
     """
     analyze content and create video outline.
     requires pipeline_id to load cached video pipeline (cache is required).
@@ -191,8 +191,8 @@ def main():
     parser.add_argument('--pipeline-id', type=str, required=True,
                         help='uuid of pipeline data (from stage 1)')
     parser.add_argument('--skip-stock', action='store_true', help='skip stock image fetching')
-    parser.add_argument('--target-segments', type=int, default=7, help='target number of video segments')
-    parser.add_argument('--segment-duration', type=int, default=45, help='target duration per segment in seconds')
+    parser.add_argument('--target-segments', type=int, default=5, help='target number of video segments')
+    parser.add_argument('--segment-duration', type=int, default=40, help='target duration per segment in seconds')
     args = parser.parse_args()
     
     video_pipeline = create_video_outline(

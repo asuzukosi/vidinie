@@ -175,7 +175,7 @@ class VideoGenerator:
         """
         try:
             # get duration from audio or estimate
-            duration = segment.audio_duration if segment.audio_duration else 45
+            duration = segment.audio_duration if segment.audio_duration else 40
             
             # create background
             background = self._create_background(segment)

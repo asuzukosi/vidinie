@@ -100,8 +100,8 @@ class Config:
                 'default_style': 'slideshow'
             },
             'content': {
-                'target_segments': 7,
-                'segment_duration': 45
+                'target_segments': 5,
+                'segment_duration': 40
             },
             'voiceover': {
                 'provider': 'elevenlabs',
