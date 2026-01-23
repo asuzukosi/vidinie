@@ -268,7 +268,7 @@ export default function CreateVideoPipelineModal({
                   onChange={(e) => setDescription(e.target.value)}
                 />
               </Field>
-              <div className="grid grid-cols-2 gap-4">
+              {/* <div className="grid grid-cols-2 gap-4">
                 <Field>
                   <FieldLabel htmlFor="tags">
                     Tags
@@ -293,7 +293,7 @@ export default function CreateVideoPipelineModal({
                     placeholder="Select projects"
                   />
                 </Field>
-              </div>
+              </div> */}
             </FieldGroup>
             </div>
   

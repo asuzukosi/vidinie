@@ -71,6 +71,7 @@ export default function SignInPage() {
 
       // load google identity services script if not already loaded
       if (!window.google) {
+        // we are adding the google authentication script to the head of the window document
         const script = document.createElement("script");
         script.src = "https://accounts.google.com/gsi/client";
         script.async = true;
@@ -79,8 +80,9 @@ export default function SignInPage() {
 
         await new Promise((resolve, reject) => {
           script.onload = () => {
-            // Wait a bit for Google to fully initialize
+            // wait a bit for google to fully initialize
             setTimeout(() => {
+              // check if google identity services are available
               if (window.google?.accounts?.id) {
                 resolve(undefined);
               } else {
@@ -88,21 +90,23 @@ export default function SignInPage() {
               }
             }, 500);
           };
+          // if there is an error with the script, we will reject the promise
           script.onerror = () => {
             reject(new Error("Failed to load Google Sign-In. Please check if ad blockers are enabled and try disabling them."));
           };
+          // if the script fails to load, we will reject the promise
           setTimeout(() => {
             reject(new Error("Google Sign-In script timed out. Please check your internet connection or disable ad blockers."));
           }, 10000); // 10 second timeout
         });
       }
 
-      // check if Google services are available
+      // check if google services are available
       if (!window.google?.accounts?.id) {
-        throw new Error("Google Sign-In services are not available. Please disable ad blockers or privacy extensions and try again.");
+        throw new Error("google sign-in services are not available. Please disable ad blockers or privacy extensions and try again.");
       }
 
-      // use a promise-based approach to handle the callback
+      // use a promise-based approach to handle the callback, this is to avoid callback hell
       let callbackResolve: ((value: any) => void) | null = null;
       let callbackReject: ((error: Error) => void) | null = null;
 
@@ -124,7 +128,7 @@ export default function SignInPage() {
         use_fedcm_for_prompt: true,
       });
 
-      // Create a temporary container for the Google button
+      // create a temporary container for the google button
       const buttonContainer = document.createElement('div');
       buttonContainer.id = 'google-signin-button-temp';
       buttonContainer.style.position = 'fixed';
@@ -132,7 +136,7 @@ export default function SignInPage() {
       buttonContainer.style.top = '-9999px';
       document.body.appendChild(buttonContainer);
 
-      // Render the Google Sign-In button
+      // render the google sign-in button
       try {
         window.google.accounts.id.renderButton(buttonContainer, {
           type: 'standard',
@@ -142,13 +146,13 @@ export default function SignInPage() {
           width: 300,
         });
 
-        // Wait a moment for the button to render, then click it
+        // wait a moment for the button to render, then click it
         setTimeout(() => {
           const googleButton = buttonContainer.querySelector('div[role="button"]') as HTMLElement;
           if (googleButton) {
             googleButton.click();
           } else {
-            // Fallback: try prompt if button rendering failed
+            // fallback: try prompt if button rendering failed
             try {
               window.google?.accounts.id.prompt();
             } catch (promptError) {
@@ -162,7 +166,7 @@ export default function SignInPage() {
         }, 200);
       } catch (renderError) {
         document.body.removeChild(buttonContainer);
-        // Fallback: try prompt
+        // fallback: try prompt
         try {
           window.google?.accounts.id.prompt();
         } catch (promptError) {
@@ -170,7 +174,7 @@ export default function SignInPage() {
         }
       }
 
-      // Wait for the callback with a timeout
+      // wait for the callback with a timeout
       const timeoutId = setTimeout(() => {
         document.body.removeChild(buttonContainer);
         if (callbackReject) {
