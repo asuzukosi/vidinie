@@ -13,6 +13,9 @@ import type { VideoPipelineTableItem } from "@/components/pipeline/VideoPipeline
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { event } from "@/lib/gtag";
+import { useSelector } from "react-redux";
+import type { RootState } from "@/lib/store/store";
 
 export default function TasksPage() {
   const searchParams = useSearchParams();
@@ -21,8 +24,11 @@ export default function TasksPage() {
   const [videoPipelines, setVideoPipelines] = useState<VideoPipelineSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreatingTask, setIsCreatingTask] = useState(false);
+  const user = useSelector((state: RootState) => state.auth.user);
+
 
   const createTask = async (task: CreateVideoPipelineRequest) => {
+
     setIsCreatingTask(true);
     try {
       console.log("creating video:", task);
@@ -38,6 +44,12 @@ export default function TasksPage() {
       toast.error((error as Error).message.replace("Error: ", ""));
     } finally {
       setIsCreatingTask(false);
+      event({
+        action: "create_video_pipeline_creation_completed",
+        category: "video_pipeline",
+        label: user?.email || "unknown",
+        value: 1,
+      });
     }
   };
 
