@@ -23,8 +23,8 @@ logger = get_logger("content_analyzer")
 class ContentAnalyzer:
     """analyze and structure content for video creation."""
     
-    def __init__(self, target_segments: int = 7, 
-                 segment_duration: int = 45):
+    def __init__(self, target_segments: int = 5, 
+                 segment_duration: int = 40):
         """
         initialize content analyzer.
         args:

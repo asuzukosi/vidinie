@@ -165,8 +165,8 @@ async def run_next_stages(video_pipeline: VideoPipeline, stage: Optional[VideoPi
         try:
             # process content
             skip_stock = kwargs.get('skip_stock', False)
-            target_segments = kwargs.get('target_segments', 7)
-            segment_duration = kwargs.get('segment_duration', 45)
+            target_segments = kwargs.get('target_segments', 5)
+            segment_duration = kwargs.get('segment_duration', 40)
             # process content
             video_pipeline = process_content(video_pipeline, 
                                             skip_stock=skip_stock, 

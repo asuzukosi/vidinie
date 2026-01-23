@@ -78,8 +78,8 @@ class DeleteVideoPipelineSectionResponse(BaseModel):
 
 class CreateVideoPipelineOutlineRequest(BaseModel):
     skip_stock: bool = False
-    target_segments: int = 7
-    segment_duration: int = 45
+    target_segments: int = 5
+    segment_duration: int = 40
 
 class CreateVideoPipelineScriptRequest(BaseModel):
     provider: str = "elevenlabs"
@@ -111,8 +111,8 @@ class RunVideoPipelineOperationsRequest(BaseModel):
     description: str
     tags: Optional[List[str]] = None
     projects: Optional[List[str]] = None
-    target_segments: int = 7
-    segment_duration: int = 45
+    target_segments: int = 5
+    segment_duration: int = 40
     provider: str = "elevenlabs"
     title: Optional[str] = None
     subtitle: Optional[str] = None

@@ -6,8 +6,8 @@ video:
   
 # content analysis
 content:
-  target_segments: 7  # Aim for 5-10 segments
-  segment_duration: 45  # Target seconds per segment
+  target_segments: 5  # Aim for 5-10 segments
+  segment_duration: 40  # Target seconds per segment
   
 # voiceover settings
 voiceover:

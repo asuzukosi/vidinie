@@ -55,6 +55,10 @@ export function VideoPipelineStagesManager({
   const [completedCount, setCompletedCount] = useState(0);
   const [isVideoGenerationModalOpen, setIsVideoGenerationModalOpen] = useState(false);
   const [isOutlineContentModalOpen, setIsOutlineContentModalOpen] = useState(false);
+
+  const anyTaskInProgress = useMemo(() => {
+    return Object.values(pipelineStageStatuses).some((status) => status === VideoPipelineStatus.IN_PROGRESS);
+  }, [pipelineStageStatuses]);
   
   // use external selectedStage if provided, otherwise use internal state
   const openStepId = externalSelectedStage !== undefined ? externalSelectedStage : internalOpenStepId;
@@ -190,9 +194,14 @@ export function VideoPipelineStagesManager({
     <>
         <div className="rounded-lg border bg-card p-4 text-card-foreground shadow-xs text-sm">
           <div className="mb-4">
-            <h3 className="ml-2 font-semibold text-foreground">
-              Create with Vidinie
-            </h3>
+            <div className="flex items-center justify-between ml-2">
+              <h3 className="font-semibold text-foreground">
+                Create with Vidinie
+              </h3>
+              {anyTaskInProgress && (
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              )}
+            </div>
             <div className="mt-2 flex items-center mb-4">
               {remainingCount === 0 ? (
                 <Badge variant="outline" className="ml-2">
