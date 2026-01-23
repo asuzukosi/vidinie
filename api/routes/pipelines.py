@@ -108,8 +108,8 @@ async def any_stage_is_processing(video_pipeline: VideoPipeline) -> bool:
 async def create_video_pipeline_from_file(
     name: str = Form(...),
     description: str = Form(...),
-    tags: Optional[List[str]] = Form(...),
-    projects: Optional[List[str]] = Form(...),
+    # tags: Optional[List[str]] = Form(...),
+    # projects: Optional[List[str]] = Form(...),
     file: UploadFile = File(...),
     user_id: str = Depends(JWTBearer()),
     background_tasks: BackgroundTasks = BackgroundTasks()
@@ -132,8 +132,8 @@ async def create_video_pipeline_from_file(
         user_id=user.id,
         name=name,
         description=description,
-        tags=tags[0].split(",") if tags and tags[0] else [],
-        projects=projects[0].split(",") if projects and projects[0] else [],
+        # tags=tags[0].split(",") if tags and tags[0] else [],
+        # projects=projects[0].split(",") if projects and projects[0] else [],
         source_type=SourceType.PDF,
         stage_statuses={VideoPipelineStage.DOCUMENT_PROCESSING: VideoPipelineStatus.IN_PROGRESS}
     )
