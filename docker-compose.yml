@@ -44,14 +44,14 @@ services:
       - redis
     volumes:
       - ./temp:/app/temp
-  mongodb:
-    image: mongo
-    networks:
-      - vidinie-network
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongodb-data:/data/db
+  # mongodb:
+  #   image: mongo
+  #   networks:
+  #     - vidinie-network
+  #   # ports:
+  #   #   - "27017:27017"
+  #   volumes:
+  #     - mongodb-data:/data/db
   redis:
     image: redis:7-alpine
     networks:
