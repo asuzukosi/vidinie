@@ -1,54 +1,105 @@
 Create an explainer video outline for the document: "{{ title }}"
 
-Target: {{ target_segments }} video segments, each approximately {{ duration }} seconds long.
+<parameters>
+- Target segments: {{ target_segments }}
+- Segment duration: approximately {{ duration }} seconds each
+- Total estimated video duration: {{ target_segments * duration }} seconds
+</parameters>
 
-Document chunks:
-{{ chunks_text }}
+<document_content>
+{{ content }}
+</document_content>
+
+<available_images>
 {% if has_images %}
-
-Available PDF Images:
 {{ images_text }}
+{% else %}
+No images available from the document.
+{% endif %}
+</available_images>
 
-For each segment, you should select the most appropriate image from the available PDF images if one matches well, OR specify a stock image query if no PDF image is suitable.{% endif %}
+<visual_asset_selection_instructions>
+You must select visual assets for each segment using two separate fields: **images** and **video_clips**.
 
-You must respond with a valid JSON object only. Use the following structure:
+**IMAGES (required - at least one per segment):**
 
-{
-  "title": "{{ title }}",
-  "total_segments": {{ target_segments }},
-  "estimated_duration": <total estimated duration in seconds>,
-  "segments": [
-    {
-      "title": "Segment title",
-      "purpose": "What this segment explains",
-      "key_points": ["Point 1", "Point 2", "Point 3"],
-      "content": "Content to be discussed in this segment",
-      "visual_keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"],
-      "duration": <estimated seconds>,
-      "image": {
-        "source": "pdf" or "stock" or "ai_generated",
-        "query": "<search keywords if stock, prompt description if ai_generated, null if pdf>",
-        "path": "<filepath from available images if pdf, null if stock or ai_generated>"
-      }
-    }
-  ]
-}
+When to use each image source:
+1. **"document"** - When available images from the document directly relate to and support the segment content
+2. **"stock"** - For straightforward, real-world visuals (people, places, objects, common scenarios)
+3. **"ai_generated"** - For visually complex concepts, imaginative ideas, abstract representations, or custom technical illustrations that stock images cannot adequately convey
 
-Image Selection Guidelines:
-- If a PDF image matches the segment well (based on label, description, key elements, and relevance), use "source": "pdf" and set "path" to the image's filepath
-- If no PDF image is suitable and stock images are available, use "source": "stock" and set "query" to 2-3 search keywords (combine from visual_keywords)
-- If you need a custom illustration that better represents abstract concepts or specific visualizations, use "source": "ai_generated" and set "query" to a descriptive prompt (e.g., "modern illustration of data visualization with charts")
-- Set "query" to null for PDF images, set "path" to null for stock and ai_generated images
-- Only one image per segment
-- Choose images that enhance understanding of the segment content
-- Prefer PDF images when available and relevant, then stock images, then ai_generated for custom illustrations
+Image field requirements:
+- Document: set "source": "document", "path": "<exact filepath>", "query": null, "timing": "start|middle|end|throughout"
+- Stock: set "source": "stock", "path": null, "query": "2-3 keywords", "timing": "start|middle|end|throughout"
+- AI image: set "source": "ai_generated", "path": null, "query": "descriptive prompt", "timing": "start|middle|end|throughout"
 
-Guidelines:
-1. Start with an engaging introduction segment
-2. Build logically from basics to advanced concepts
-3. End with a summary or call-to-action segment
-4. Each segment should be self-contained but flow naturally
-5. Identify 3-5 visual keywords per segment that would make good images/graphics
-6. Keep each segment focused on one main idea
-7. Return ONLY valid JSON, no markdown code blocks or additional text
+**VIDEO_CLIPS (optional - use sparingly, all clips are 5 seconds):**
 
+When to use video clips:
+- Only when motion/animation enhances understanding significantly
+- For demonstrating processes, transformations, or dynamic systems
+- Most segments should have empty video_clips array: []
+- All video clips are automatically 5 seconds in duration
+
+When to use each video clip source:
+1. **"stock"** - For real-world footage, b-roll, demonstrations (preferred option for video)
+2. **"ai_generated"** - ONLY when custom animation is absolutely essential and stock footage cannot provide it (use extremely sparingly due to very high cost)
+
+Video clip field requirements:
+- Stock: set "source": "stock", "path": null, "query": "2-3 keywords", "timing": "start|middle|end|throughout"
+- AI video: set "source": "ai_generated", "path": null, "query": "detailed generation prompt", "timing": "start|middle|end|throughout"
+- Note: video_clips can NEVER have source "document" - only "stock" or "ai_generated"
+- Note: NO duration field needed - all clips are automatically 5 seconds
+
+**Multiple visuals per segment:**
+- Images: 1-2 images typical; 2-3 for complex segments
+- Video clips: 0 most common; rarely 1; never more than 1 per segment
+- Specify "timing" for each: "start", "middle", "end", or "throughout"
+
+**Cost awareness:**
+- Prefer document images when relevant (free)
+- Use stock images for simple needs (low cost)
+- Use ai_generated images for complex/imaginative needs (moderate cost)
+- Use stock video clips when motion is needed (moderate cost)
+- Avoid ai_generated video clips unless absolutely necessary (very expensive)
+</visual_asset_selection_instructions>
+
+<narrative_requirements>
+Create a compelling narrative structure with smooth, continuous flow:
+
+**Overall Narrative Arc:**
+- Define the overarching story in the "narrative_arc" field
+- Ensure segments build toward a satisfying conclusion
+- Create clear beginning (hook) → middle (development) → end (resolution) structure
+
+**Per-Segment Requirements:**
+1. **narrative_hook**: Provide a specific, compelling element that maintains viewer interest for THIS segment (not generic)
+2. **transition_from_previous**: Explicitly explain how this segment connects to and builds upon the previous segment (except for first segment)
+3. **transition_to_next**: Create anticipation for the next segment by showing where the narrative is heading (except for last segment)
+4. **content**: Write detailed content that flows naturally from the transition, delivers on the hook, and sets up the next transition
+
+**Transition Quality:**
+- Transitions should feel inevitable, not arbitrary
+- Use techniques like: question-answer bridges, problem-solution flows, cause-effect chains, contrast patterns
+- Reference concepts from previous segments to maintain continuity
+- Foreshadow upcoming content to maintain forward momentum
+</narrative_requirements>
+
+<outline_requirements>
+1. Start with an engaging introduction segment that hooks the viewer with a compelling problem, question, or scenario
+2. Build logically from foundational concepts to advanced topics with each segment raising stakes or deepening understanding
+3. End with a summary, conclusion, or call-to-action segment that synthesizes insights and echoes the opening hook
+4. Each segment must be self-contained but flow naturally and inevitably to the next
+5. Generate 5 visual keywords per segment for potential visual representation
+6. Keep each segment focused on ONE main idea while maintaining narrative momentum
+7. Provide detailed content suitable for voiceover script development
+8. Select appropriate images (required) and video clips (optional, sparingly) that enhance understanding while being cost-effective
+9. Ensure every segment has a micro-hook that maintains engagement
+10. Create explicit connections between segments that make the flow feel seamless and purposeful
+11. Remember: images and video_clips are separate fields - most segments should have images but no video_clips
+12. All video clips are automatically 5 seconds - no duration field needed
+</outline_requirements>
+
+<critical_instruction>
+Return ONLY valid JSON matching the specified structure. No markdown code blocks, no explanatory text, no preamble. Your entire response must be parsable by JSON.parse().
+</critical_instruction>
