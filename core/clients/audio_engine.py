@@ -25,9 +25,9 @@ class AudioVoices(str, Enum):
     SOOTHING_BRITISH_MALE = "UmQN7jS1Ee8B1czsUtQh"
     EXPRESSIVE_PROFESSIONAL_MALE = "XwswTF89pZKbWpVX4A7R"
 
-class AudioVoiceStrings(str, Enum):
+class AudioVoiceString(str, Enum):
     """audio voice to string enum."""
-    NARRATIVE_EXPRESSIVE_MALE = "Narrative Expressive Male"
+    NARRATIVE_EXPRESSIVE_MALE = "Narrative Expressive Male" # default voice
     FUN_VIBRANT_FEMALE = "Fun Vibrant Female"
     CALM_NARRATIVE_MALE = "Calm Narrative Male"
     CALM_SOOTHING_FEMALE = "Calm Soothing Female"
@@ -35,19 +35,19 @@ class AudioVoiceStrings(str, Enum):
     EXPRESSIVE_PROFESSIONAL_MALE = "Expressive Professional Male"
 
 
-def get_audio_voice_from_string(voice_string: AudioVoiceStrings) -> AudioVoices:
+def get_audio_voice_from_string(voice_string: AudioVoiceString) -> AudioVoices:
     """get audio voice from string."""
-    if voice_string == AudioVoiceStrings.NARRATIVE_EXPRESSIVE_MALE:
+    if voice_string == AudioVoiceString.NARRATIVE_EXPRESSIVE_MALE:
         return AudioVoices.NARRATIVE_EXPRESSIVE_MALE
-    elif voice_string == AudioVoiceStrings.FUN_VIBRANT_FEMALE:
+    elif voice_string == AudioVoiceString.FUN_VIBRANT_FEMALE:
         return AudioVoices.FUN_VIBRANT_FEMALE
-    elif voice_string == AudioVoiceStrings.CALM_NARRATIVE_MALE:
+    elif voice_string == AudioVoiceString.CALM_NARRATIVE_MALE:
         return AudioVoices.CALM_NARRATIVE_MALE
-    elif voice_string == AudioVoiceStrings.CALM_SOOTHING_FEMALE:
+    elif voice_string == AudioVoiceString.CALM_SOOTHING_FEMALE:
         return AudioVoices.CALM_SOOTHING_FEMALE
-    elif voice_string == AudioVoiceStrings.SOOTHING_BRITISH_MALE:
+    elif voice_string == AudioVoiceString.SOOTHING_BRITISH_MALE:
         return AudioVoices.SOOTHING_BRITISH_MALE
-    elif voice_string == AudioVoiceStrings.EXPRESSIVE_PROFESSIONAL_MALE:
+    elif voice_string == AudioVoiceString.EXPRESSIVE_PROFESSIONAL_MALE:
         return AudioVoices.EXPRESSIVE_PROFESSIONAL_MALE
     else:
         return None
@@ -55,7 +55,7 @@ def get_audio_voice_from_string(voice_string: AudioVoiceStrings) -> AudioVoices:
 class AudioPrompt(BaseModel):
     """audio prompt with text and voice."""
     text: str
-    voice: AudioVoiceStrings
+    voice: AudioVoiceString
     output_path: str
 
 class AudioEngine:
@@ -126,11 +126,11 @@ def generate_audios(prompts: List[AudioPrompt]) -> List[Tuple[str, float]]:
 
 if __name__ == "__main__":
     prompts = [
-        AudioPrompt(text="Hello, how are you? This is a test for the vidinie audio engine.", voice=AudioVoiceStrings.NARRATIVE_EXPRESSIVE_MALE, output_path="hello1.mp3"),
-        AudioPrompt(text="Hello, how are you? This is a test for the vidinie audio engine.", voice=AudioVoiceStrings.FUN_VIBRANT_FEMALE, output_path="hello2.mp3"),
-        AudioPrompt(text="Hello, how are you? This is a test for the vidinie audio engine.", voice=AudioVoiceStrings.CALM_NARRATIVE_MALE, output_path="hello3.mp3"),
-        AudioPrompt(text="Hello, how are you? This is a test for the vidinie audio engine.", voice=AudioVoiceStrings.CALM_SOOTHING_FEMALE, output_path="hello4.mp3"),
-        AudioPrompt(text="Hello, how are you? This is a test for the vidinie audio engine.", voice=AudioVoiceStrings.SOOTHING_BRITISH_MALE, output_path="hello5.mp3"),
-        AudioPrompt(text="Hello, how are you? This is a test for the vidinie audio engine.", voice=AudioVoiceStrings.EXPRESSIVE_PROFESSIONAL_MALE, output_path="hello6.mp3"),
+        AudioPrompt(text="Hello, how are you? This is a test for the vidinie audio engine.", voice=AudioVoiceString.NARRATIVE_EXPRESSIVE_MALE, output_path="hello1.mp3"),
+        AudioPrompt(text="Hello, how are you? This is a test for the vidinie audio engine.", voice=AudioVoiceString.FUN_VIBRANT_FEMALE, output_path="hello2.mp3"),
+        AudioPrompt(text="Hello, how are you? This is a test for the vidinie audio engine.", voice=AudioVoiceString.CALM_NARRATIVE_MALE, output_path="hello3.mp3"),
+        AudioPrompt(text="Hello, how are you? This is a test for the vidinie audio engine.", voice=AudioVoiceString.CALM_SOOTHING_FEMALE, output_path="hello4.mp3"),
+        AudioPrompt(text="Hello, how are you? This is a test for the vidinie audio engine.", voice=AudioVoiceString.SOOTHING_BRITISH_MALE, output_path="hello5.mp3"),
+        AudioPrompt(text="Hello, how are you? This is a test for the vidinie audio engine.", voice=AudioVoiceString.EXPRESSIVE_PROFESSIONAL_MALE, output_path="hello6.mp3"),
     ]
     generate_audios(prompts)
