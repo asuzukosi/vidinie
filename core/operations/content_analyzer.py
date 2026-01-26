@@ -1,250 +1,201 @@
 """
 vidinie content analyzer module
-
 analyzes pdf content and creates structured video segments.
-uses openai to intelligently break content into digestible video sections
-and matches images to appropriate segments.
 """
-
-import json
-from typing import List, Dict, Optional, Any
-from openai import OpenAI
+import re
+from typing import List
+from pydantic import BaseModel
+from core.clients.reasoning_engine import reason, ReasoningPrompt
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from core.utils.logger import get_logger
 from core.utils.config_loader import config
 from core.data import (
-    VideoPipelineOutline,
-    VideoPipelineContextChunk,
+    VideoOutline,
+    ImageMetadata,
 )
+from core.data.image_models import SegmentImage, SegmentVideoClip
 
 logger = get_logger("content_analyzer")
 
 
+def clean_text_fn(text):
+    # remove extra whitespace
+    text = re.sub(r"\s+", " ", text)
+    # remove page numbers
+    text = re.sub(r"\n\s*\d+\s*\n", "\n", text)
+    return text.strip()
+
+class GenerateSummary(BaseModel):
+    """
+    generated summary of a text chunk.
+    """
+    summary: str
+
+class ContentAnalyzerOutlineSegment(BaseModel):
+    title: str
+    purpose: str
+    key_points: List[str]
+    content: str
+    narrative_hook: str
+    transition_from_previous: str
+    transition_to_next: str
+    visual_keywords: List[str]
+    duration: int
+    images: List[SegmentImage]
+    video_clips: List[SegmentVideoClip]
+
+class ContentAnalyzerOutline(BaseModel):
+    title: str
+    total_segments: int
+    estimated_duration: int
+    narrative_arc: str
+    segments: List[ContentAnalyzerOutlineSegment]
+
+
 class ContentAnalyzer:
-    """analyze and structure content for video creation."""
-    
-    def __init__(self, target_segments: int = 5, 
+    """
+    analyze and structure content for video creation.
+    """
+    def __init__(self, 
+                 target_segments: int = 5, 
                  segment_duration: int = 40):
         """
         initialize content analyzer.
-        args:
-            target_segments: target number of video segments
-            segment_duration: target duration per segment in seconds
         """
-        self.api_key = config.openai_api_key
-        if not self.api_key:
-            raise ValueError("openai api key is required")
-        # initialize openai client
-        self.client = OpenAI(api_key=self.api_key)
         # set target segments and segment duration
         self.target_segments = target_segments
         self.segment_duration = segment_duration
-        # set openai model
-        self.model = "gpt-4o-2024-08-06"
         
-        # initialize jinja2 environment for prompt templates
-        self.jinja_env = Environment(
+
+    def _split_context(self, context: str, split_by: str = '\n', chunk_length: int = 360000) -> List[str]:
+        """
+        split the context into smaller chunks.
+        """
+        all_segments: List[str] = context.split(split_by)
+        chunks: List[str] = []
+        current_chunk: str = ""
+        for segment in all_segments:
+            if len(current_chunk) + len(segment) > chunk_length:
+                chunks.append(current_chunk)
+                current_chunk = ""
+            current_chunk += segment + split_by
+        if current_chunk:
+            chunks.append(current_chunk)
+        return chunks
+
+    def _clean_text(self, text: str) -> str:
+        """
+        clean the text of llm processing
+        """
+        return clean_text_fn(text)
+
+    def iterative_summarization(self, 
+                                title: str,
+                                context: str, 
+                                split_by: str = '\n', 
+                                chunk_length: int = 360000, 
+                                max_size: int = 480000 ) -> str:
+        """
+        iteratively summarize the context.
+        """
+        # load system prompt from template
+        jinja_env = Environment(
             loader=FileSystemLoader(str(config.get_prompts_directory())),
             autoescape=select_autoescape(['html', 'xml'])
         )
+        # render system prompt
+        system_template = jinja_env.get_template('bullet_summary_system.j2')
+        system_prompt = system_template.render(document_title=title)
+
+        # combine summaries function
+        def combine_summaries(summaries: List[GenerateSummary]) -> str:
+            """
+            combine the summaries into a single string.
+            """
+            return "\n".join([summary.summary for summary in summaries])
+        
+        # iteratively summarize the context
+        logger.info(f"iteratively summarizing context of length {len(context)}")
+        context = self._clean_text(context)
+        while len(context) > max_size:
+            chunks: List[str] = self._split_context(context, split_by, chunk_length)
+            prompts: List[str] = [jinja_env.get_template('bullet_summary_prompt.j2').render(context=chunk) for chunk in chunks]
+            reasoning_prompts: List[ReasoningPrompt] = [ReasoningPrompt(task=prompt, images=[]) for prompt in prompts]
+            context: str = reason(system_prompt, reasoning_prompts, schema=GenerateSummary, combine_function=combine_summaries)
+        logger.info(f"successfully summarized context of length {len(context)}")
+        return context
+
     
-    def analyze_content(self, document_title: str, chunks: List[VideoPipelineContextChunk], 
-                       images_metadata: Optional[List[Dict]] = None) -> VideoPipelineOutline:
+    def analyze_content(self, title: str, 
+                        content: str, 
+                        images_metadata: List[ImageMetadata]) -> VideoOutline:
         """
         analyze content and create video segments.
-        args:
-            document_title: title of the document
-            chunks: list of context chunks
-            images_metadata: list of image metadata
-        returns:
-            video outline
         """
         logger.info("starting content analysis")
-        
-        # create video outline (image matching is now handled by the model)
-        outline = self._create_video_outline(document_title=document_title, 
-                                             chunks=chunks,
-                                             images_metadata=images_metadata or [])
-        
-        # convert image field to backward-compatible format
-        outline = self._convert_image_format(outline)
-        
-        logger.info(f"created {len(outline.segments)} video segments")
-        
+        # iteratively summarize the content
+        content = self.iterative_summarization(title, content, split_by='\n', 
+                                               chunk_length=360000, max_size=480000)
+        logger.info(f"successfully iteratively summarized content")
+        # create video outline
+        outline = self._create_video_outline(title=title, content=content, images_metadata=images_metadata)
+        logger.info(f"successfully created video outline")
         return outline
+    
+    def _extract_images_prompt(self, images_metadata: List[ImageMetadata]) -> str:
+        """
+        extract the prompt for video outline generation in xml tag format.
+        """
+        if not images_metadata:
+            return ""
+        images_list = []
+        for img in images_metadata:
+            label = str(img.label) if img.label is not None else ""
+            description = img.description or ""
+            image_type = img.image_type or ""
+            key_elements = img.key_elements or []
+            key_elements_str = ", ".join(key_elements)
+            filepath = img.filepath or ""
+            relevance = img.relevance or ""
+            # Render as XML tag per image
+            img_xml = (
+                f"<image>"
+                f"  <label>{label}</label>"
+                f"  <description>{description}</description>"
+                f"  <type>{image_type}</type>"
+                f"  <key_elements>{key_elements_str}</key_elements>"
+                f"  <filepath>{filepath}</filepath>"
+                f"  <relevance>{relevance}</relevance>"
+                f"</image>"
+            )
+            images_list.append(img_xml)
+        images_text = "<images>\n" + "\n".join(images_list) + "\n</images>"
+        return images_text
 
-    def _generate_summary(self, prompt: str) -> str:
+    def _create_video_outline(self, title: str, 
+                              content: str, 
+                              images_metadata: List[ImageMetadata]) -> VideoOutline:
         """
-        utility method to generate summary/outline using openai API.
-        args:
-            prompt: prompt string to send to the model.
-        returns:
-            text response generated by openai (JSON string).
-        throws:
-            exception on openai api error.
+        create structured video outline from content and metadata.
         """
-        # load system prompt from template
-        system_template = self.jinja_env.get_template('outline_system.j2')
-        system_prompt = system_template.render()
-        
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": system_prompt
-                },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            temperature=0.7,
-            max_tokens=2000,
-            response_format={"type": "json_object"}
-        )
-        return response.choices[0].message.content
-    
-    def _create_video_outline(self, document_title: str, chunks: List[VideoPipelineContextChunk],
-                             images_metadata: List[Dict]) -> VideoPipelineOutline:
-        """create structured video outline from content chunks."""
         logger.info("creating video outline with ai model")
-    
-        
-        # create outline prompt
-        prompt = self._create_outline_prompt(
-            document_title,
-            chunks,
-            images_metadata,
-            self.target_segments,
-            self.segment_duration
+        # get the prompt for video outline generation
+        images_text = self._extract_images_prompt(images_metadata)
+        jinja_env = Environment(
+            loader=FileSystemLoader(str(config.get_prompts_directory())),
+            autoescape=select_autoescape(['html', 'xml'])
         )
-        
-        try:
-            outline_json = self._generate_summary(prompt)
-            outline = self._parse_outline_json(outline_json=outline_json, 
-                                               document_title=document_title)
-            
-            logger.info("successfully created video outline")
-            return outline
-            
-        except Exception as e:
-            logger.error(f"error creating outline: {str(e)}", exc_info=True)
-            raise Exception(f"error creating outline: {str(e)}")
-    
-    def _parse_outline_json(self, outline_json: str, document_title: str) -> VideoPipelineOutline:
-        """
-        parse json outline into structured format using pydantic.
-        args:
-            outline_json: json string from ai
-            document_title: title of the document
-        returns:
-            structured outline dictionary
-        """
-        try:
-            # parse json string
-            outline_dict: Dict[str, Any] = json.loads(outline_json)
-            
-            # validate and parse with pydantic
-            outline: VideoPipelineOutline = VideoPipelineOutline(**outline_dict)
-            
-            # ensure title matches
-            if not outline.title:
-                outline.title = document_title
-            
-            # validate minimum segments
-            if outline.total_segments < 3:
-                logger.warning("outline has too few segments, using fallback")
-                raise ValueError("Too few segments generated")
-            return outline
-            
-        except json.JSONDecodeError as e:
-            logger.error(f"failed to parse json: {str(e)}")
-            raise
-        except Exception as e:
-            logger.error(f"failed to validate outline structure: {str(e)}")
-            raise
-    
-    
-    def _create_outline_prompt(self, title: str, chunks: List[VideoPipelineContextChunk], 
-                               images_metadata: List[Dict],
-                               target_segments: int, duration: int) -> str:
-        """create prompt for video outline generation.
-        args:
-            title: title of the content
-            chunks: list of chunks
-            images_metadata: list of available images from pdf
-            target_segments: target number of video segments
-            duration: target duration per segment in seconds
-        returns:
-            prompt for video outline generation
-        """
-        
-        chunks_text = "\n\n".join([
-            f"SUMMARY: {chunk.summary}\n CONTENT: {chunk.chunk}"
-            for chunk in chunks[:10]  # limit to first 10 chunks to avoid context window issues
-        ])
-        
-        # format images metadata
-        images_text = ""
-        if images_metadata:
-            images_list = []
-            for img in images_metadata:
-                img_info = f""" IMAGE_ID: {img.index_on_page}
-                                LABEL: {img.label}
-                                DESCRIPTION: {img.description}
-                                TYPE: {img.image_type}
-                                KEY_ELEMENTS: {', '.join(img.key_elements)}
-                                FILEPATH: {img.filepath}
-                                PAGE: {img.page_number}
-                                RELEVANCE: {img.ai_relevance}"""
-                images_list.append(img_info)
-            images_text = "\n\n".join(images_list)
-        
-        # load and render template
-        template = self.jinja_env.get_template('outline_instruction.j2')
+
+        system_prompt = jinja_env.get_template('outline_system.j2').render()
+        template = jinja_env.get_template('outline_instruction.j2')
         prompt = template.render(
             title=title,
-            target_segments=target_segments,
-            duration=duration,
-            chunks_text=chunks_text,
+            target_segments=self.target_segments,
+            duration=self.segment_duration,
+            content=content,
             images_text=images_text,
             has_images=len(images_metadata) > 0
         )
-        
-        return prompt
-    
-
-    def _convert_image_format(self, outline: VideoPipelineOutline) -> VideoPipelineOutline:
-        """
-        convert image field to backward-compatible format.
-        args:
-            outline: video outline with image field
-        returns:
-            outline with image field
-        """
-        for segment in outline.segments:           
-            # convert image field if present
-            if segment.image:
-                img = segment.image
-                if img.source == 'pdf' and img.path:
-                    # add to pdf_images list
-                    segment.image.path = img.path
-                elif img.source == 'stock' and img.query:
-                    # set image query
-                    segment.image.query = img.query
-        
+        reasoning_prompt = ReasoningPrompt(task=prompt, images=[])
+        outline: VideoOutline = reason(system_prompt, reasoning_prompt, schema=VideoOutline)
         return outline
-    
-    def save_outline(self, outline: VideoPipelineOutline, output_path: str):
-        """
-        save outline to json file.
-        args:
-            outline: video outline
-            output_path: path to save json
-        """
-        with open(output_path, 'w') as f:
-            json.dump(outline.model_dump(mode="json"), f, indent=2)
-        
-        logger.info(f"saved outline to {output_path}")
-
