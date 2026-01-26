@@ -18,7 +18,6 @@ from .content_models import (
     ContentSection,
     ContentMetadata,
     ParsedContent,
-    VideoPipelineContextProcessor,
 )
 
 # image models
@@ -63,7 +62,6 @@ __all__ = [
     "ContentSection",
     "ContentMetadata",
     "ParsedContent",
-    "VideoPipelineContextProcessor",
     # image model
     "ImageMetadata",
     "SegmentImage",
