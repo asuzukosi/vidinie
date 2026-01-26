@@ -382,10 +382,10 @@ h1 {
 /* Pricing Page */
 .pricing-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 32px;
     width: 100%;
-    max-width: 900px;
+    max-width: 1200px;
 }
 
 .pricing-card {
@@ -1038,7 +1038,7 @@ h1 {
     }
     
     .pricing-grid {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(3, 1fr);
         gap: 32px;
     }
     
