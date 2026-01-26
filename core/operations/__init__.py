@@ -9,9 +9,9 @@ from core.operations.content_analyzer import ContentAnalyzer
 from core.operations.image_labeler import ImageLabeler
 from core.operations.script_generator import ScriptGenerator
 from core.operations.video_generator import VideoGenerator
-from core.operations.context_processor import ContextProcessor
-from core.operations.stock_image_fetcher import StockImageFetcher
+from core.operations.stock_fetcher import StockFetcher
 from core.operations.image_generator import ImageGenerator
+from core.operations.video_clip_generator import VideoClipGenerator
 from core.operations.voiceover_generator import VoiceoverGenerator
 
 __all__ = [
@@ -19,9 +19,9 @@ __all__ = [
     'ImageLabeler',
     'ScriptGenerator',
     'VideoGenerator',
-    'ContextProcessor',
-    'StockImageFetcher',
+    'StockFetcher',
     'ImageGenerator',
+    'VideoClipGenerator',
     'VoiceoverGenerator',
 ]
 
