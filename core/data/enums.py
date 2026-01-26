@@ -41,12 +41,16 @@ class ImageSource(str, Enum):
     """
     source of the image.
     """
-    PDF = "pdf"
+    DOCUMENT = "document"
     STOCK = "stock"
-    UNSPLASH = "unsplash"
-    PEXELS = "pexels"
     AI_GENERATED = "ai_generated"
-    USER_UPLOADED = "user_uploaded"
+
+class VideoSource(str, Enum):
+    """
+    source of the video clip.
+    """
+    STOCK = "stock"
+    AI_GENERATED = "ai_generated"
 
 
 class BackgroundType(str, Enum):

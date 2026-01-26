@@ -16,12 +16,10 @@ from pydantic import BaseModel, Field
 from core.utils.logger import get_logger
 from core.data.enums import SourceType, VideoPipelineStatus, VideoPipelineStage
 from core.data.content_models import (
-    VideoPipelineParsedContent,
-    VideoPipelineContextChunk,
+    ParsedContent,
 )
-from core.data.image_models import VideoPipelineImageMetadata
-from core.data.segment_models import VideoPipelineOutline
-from core.data.script_models import VideoPipelineScript
+from core.data.image_models import ImageMetadata
+from core.data.segment_models import VideoOutline
 from core.data.statistics_models import VideoPipelineStageStatistics
 
 logger = get_logger('pipeline_data')
@@ -52,15 +50,15 @@ class VideoPipeline(BaseModel):
     source_type: Optional[SourceType] = None
 
     # document_processing & image_processing operations
-    parsed_content: Optional[VideoPipelineParsedContent] = None  # structured content from document
-    images_metadata: List[VideoPipelineImageMetadata] = Field(default_factory=list)  # extracted and labeled images
+    parsed_content: Optional[ParsedContent] = None  # structured content from document
+    images_metadata: List[ImageMetadata] = Field(default_factory=list)  # extracted and labeled images
 
     # content_analysis operation
-    chunks: List[VideoPipelineContextChunk] = Field(default_factory=list)  # processed content chunks
-    video_outline: Optional[VideoPipelineOutline] = None  # video structure and segment plan
+    content: Optional[str] = None  # processed content
+    video_outline: Optional[VideoOutline] = None  # video structure and segment plan
 
     # script_generation operation
-    script_data: Optional[VideoPipelineScript] = None  # generated narration scripts
+    script_data: Optional[VideoOutline] = None  # generated narration scripts
     full_audio_path: Optional[str] = None  # path to generated full audio file
     full_audio_duration: Optional[float] = None  # duration of generated full audio file
 

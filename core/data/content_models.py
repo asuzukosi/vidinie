@@ -6,7 +6,7 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 
 
-class VideoPipelineContentSection(BaseModel):
+class ContentSection(BaseModel):
     """
     parsed content section from the document for video pipeline.
     """
@@ -15,7 +15,7 @@ class VideoPipelineContentSection(BaseModel):
     level: Optional[int] = None
 
 
-class VideoPipelineContentMetadata(BaseModel):
+class ContentMetadata(BaseModel):
     """
     parsed content metadata from the document for video pipeline.
     """
@@ -26,22 +26,14 @@ class VideoPipelineContentMetadata(BaseModel):
     modification_date: Optional[str] = None
 
 
-class VideoPipelineParsedContent(BaseModel):
+class ParsedContent(BaseModel):
     """
     parsed content from the document for video pipeline.
     """
     title: Optional[str] = None
     total_pages: Optional[int] = None
-    sections: List[VideoPipelineContentSection] = Field(default_factory=list)
-    metadata: Optional[VideoPipelineContentMetadata] = None
-
-
-class VideoPipelineContextChunk(BaseModel):
-    """
-    context chunk with summary for video pipeline.
-    """
-    chunk: str
-    summary: str
+    sections: List[ContentSection] = Field(default_factory=list)
+    metadata: Optional[ContentMetadata] = None
 
 
 class VideoPipelineContextProcessor(BaseModel):
