@@ -1,0 +1,239 @@
+<task_prompt>
+<objective>
+Generate a complete, production-ready Remotion composition by creating and modifying source files within the existing project. Transform the provided video outline into an engaging animated video with synchronized visuals, audio, and motion graphics.
+
+**IMPORTANT: You will ONLY read and write files. Do not execute any commands, install packages, or run builds.**
+</objective>
+
+<video_outline>
+{{VIDEO_OUTLINE_XML_WILL_BE_INSERTED_HERE}}
+</video_outline>
+
+<working_environment>
+You are operating within a pre-configured Remotion project folder that contains everything you need:
+
+**Project Structure:**
+- `public/` - Contains all assets referenced in the video outline (DO NOT modify)
+  - `public/images/` - Static images for the video
+  - `public/audio/` - Audio files and narration tracks
+  - `public/video_clips/` - Video clip assets for b-roll
+  - `public/source/` - Source documents
+- `src/` - Source code directory where you'll create/modify components
+- `remotion.config.ts` - Remotion configuration (already configured)
+- `package.json` - Dependencies (already installed - DO NOT modify)
+- `node_modules/` - Installed dependencies (DO NOT touch)
+
+**Your Task:**
+Create and modify files within the `src/` directory to build the video composition. All assets are already in the `public/` folder and can be referenced using `staticFile('images/filename.png')`, `staticFile('audio/filename.mp3')`, etc.
+
+**Operations Allowed:**
+- ✅ READ operations: View files, list directories, read file contents
+- ✅ WRITE operations: Create new files, modify existing file contents
+- ❌ DO NOT execute any commands (no npm, yarn, build, dev, render, etc.)
+- ❌ DO NOT install packages or modify package.json
+- ❌ DO NOT run any processes or scripts
+</working_environment>
+
+<input_context>
+The video outline above follows this XML structure:
+- `<metadata>`: Title, segment count, and total estimated duration
+- `<full_script>`: Complete narration script (if available)
+- `<segments>`: Array of video segments, each containing:
+  - `<basic_info>`: Title, purpose, content summary, key points, visual keywords
+  - `<script_info>`: Segment script, word count, duration
+  - `<images>`: Image assets with source, query/path, and timing
+  - `<video_clips>`: Video clip assets with source, query/path, and timing
+  - `<transitions>`: Transition type and target for segment flow
+  - `<audio>`: Audio file path and duration
+
+All assets referenced in the outline are already placed in the `public/` folder of this composition.
+</input_context>
+
+<required_deliverables>
+Create and modify the following files within the composition folder:
+
+1. **Root Composition** (`src/Root.tsx` or `src/Video.tsx`):
+   - Main composition configuration
+   - Sequence management for all segments
+   - Global styling and theme setup
+
+2. **Segment Components** (`src/components/segments/` or inline):
+   - Individual React components for each segment
+   - Properly typed props and composition metadata
+   - Frame-accurate timing calculations
+   - **Keep lightweight**: Consider combining simple segments into single file if appropriate
+
+3. **Shared Components** (`src/components/` - if needed):
+   - Reusable components for common patterns (title cards, text animations)
+   - Only create if truly reusable across multiple segments
+
+4. **Utilities** (`src/utils/` - if needed):
+   - Animation helper functions (only if complex patterns are repeated)
+   - Timing calculation helpers (only if needed)
+   - **Minimize file count**: Only create utilities if they significantly reduce code duplication
+
+5. **Configuration Updates** (`remotion.config.ts` - only if needed):
+   - Verify or update composition registration
+   - Ensure settings are appropriate for the video
+
+All files must be syntactically correct TypeScript/React that will render without errors.
+</required_deliverables>
+
+<implementation_requirements>
+<timing_accuracy>
+- Calculate all durations in frames: `durationInFrames = durationSeconds * fps`
+- Use the `from` prop in `<Sequence>` for precise timing: `from={startFrame}`
+- Ensure total duration matches the outline's `estimated_duration`
+- Account for transition overlaps in timing calculations
+</timing_accuracy>
+
+<visual_design>
+- Implement title cards for each segment that reflect the segment's purpose
+- Animate text appearances using `interpolate()` with smooth easing
+- Position and time images/videos according to the timing specifications from the outline
+- Apply visual keywords as design inspiration (colors, themes, composition)
+- Ensure text is large enough and remains on screen long enough to be read
+</visual_design>
+
+<audio_synchronization>
+- Load audio files using `<Audio src={staticFile('audio/filename.mp3')} />`
+- Place audio sequences at correct timestamps
+- Use the `audio_duration` field from the outline for accurate timing
+- Sync visual beats with audio cues (if script provides timing markers)
+</audio_synchronization>
+
+<transitions>
+- Implement the specified transition type from the outline between segments
+- Use common patterns: fade, slide, zoom, wipe
+- Keep transitions brief (typically 15-30 frames) unless specified
+- Ensure transitions feel purposeful and match content tone
+</transitions>
+
+<animations>
+- Use `useCurrentFrame()` and `interpolate()` for frame-based animations
+- Apply `spring()` for physics-based motion (preferred for organic feel)
+- Common patterns to implement:
+  - Fade in/out: opacity from 0 to 1
+  - Slide in: translateY from 100 to 0
+  - Scale in: scale from 0.8 to 1
+  - Stagger: delay child elements by frame offset
+- Match animation energy to content (subtle for serious topics, dynamic for energetic content)
+</animations>
+
+<responsive_layout>
+- Design for standard video dimensions (1920x1080 or 1080x1920 as specified)
+- Use flexbox for centering and alignment
+- Ensure text doesn't get cut off at edges (maintain safe margins)
+- Scale elements proportionally if dimensions differ from standard
+</responsive_layout>
+
+<code_efficiency>
+- Keep implementations lightweight and focused
+- Combine related components when appropriate to minimize file count
+- Avoid over-engineering - prioritize clarity and simplicity
+- Use concise patterns that follow Remotion best practices
+- Write code that will render efficiently without performance issues
+</code_efficiency>
+</implementation_requirements>
+
+<step_by_step_approach>
+1. **Read the Remotion Skill**: Read the Remotion skill documentation to understand current best practices
+
+2. **Explore the Project**: Read the current project structure (check `src/`, `public/` folders)
+
+3. **Parse the Video Outline**: Extract and understand all segments, timing, and assets from the XML structure in the `<video_outline>` section
+
+4. **Verify Asset Availability**: List files in `public/images/`, `public/audio/`, and `public/video_clips/` directories
+
+5. **Calculate Frame Timings**: Convert all duration values to frames and create a timing map for the entire video
+
+6. **Plan Implementation**: Decide on file structure - keep it lightweight and minimize file count
+
+7. **Create/Modify Root Composition**: Write or modify `src/Root.tsx` or existing composition file
+
+8. **Create Segment Components**: Write each segment as a focused component
+
+9. **Integrate Assets**: Reference images, videos, and audio from `public/` using `staticFile()` with paths from the outline's `path` fields
+
+10. **Add Transitions**: Connect segments with smooth transition effects
+
+11. **Polish Animations**: Ensure easing, timing, and visual hierarchy are correct
+
+12. **Verify**: Review all created files for syntax correctness and proper asset paths
+
+13. **Track Issues**: Note any missing assets, format issues, or problems encountered during implementation
+</step_by_step_approach>
+
+<output_format>
+**CRITICAL: You must return your response in the following structured JSON format:**
+```json
+{
+  "summary": "string",
+  "changes_made": ["string", "string", ...],
+  "issues_found": ["string", "string", ...]
+}
+```
+
+**Field Specifications:**
+
+**summary** (string):
+- Brief overview (2-4 sentences) of your implementation approach
+- Mention the video structure (number of segments, key features)
+- Highlight any notable design decisions or patterns used
+- Keep it concise and focused on what was accomplished
+
+**changes_made** (array of strings):
+- Each entry should describe a bulk category of modifications, NOT individual files
+- Group related changes together (e.g., "Created 5 segment components with animations")
+- Focus on high-level changes and their purpose
+- Keep descriptions concise (1-2 sentences per category)
+- Typical categories: root composition setup, segment components, shared utilities, configuration updates
+- Do NOT list every single file - provide overview summaries
+
+**issues_found** (array of strings):
+- Each entry should describe a category or pattern of issues, NOT individual problems
+- Group similar issues together into summary statements
+- Focus on the overall impact and pattern rather than enumerating each instance
+- Keep descriptions concise and actionable
+- Common issue categories: missing assets, timing conflicts, format incompatibilities
+- If no issues were found, return an empty array: `[]`
+- Do NOT list every single missing file or problem - provide overview summaries
+</output_format>
+
+<success_criteria>
+Your video composition code is successful when it:
+✓ Contains syntactically correct TypeScript/React code
+✓ Uses only dependencies already installed in the project
+✓ Matches the total duration specified in the outline (±1 second tolerance)
+✓ Properly synchronizes audio with visual elements using correct frame calculations
+✓ Presents all key points from each segment clearly
+✓ References visual assets from `public/` folder using `staticFile()` with correct paths from outline
+✓ Implements smooth, professional transitions between segments
+✓ Maintains visual coherence and design quality throughout
+✓ Creates engagement through purposeful animation
+✓ Tells a clear, compelling story that matches the outline's intent
+✓ Follows Remotion best practices and conventions
+✓ Will render without errors when build/render commands are executed later
+✓ Uses a lightweight, efficient implementation
+✓ Returns a properly structured JSON response with summary, changes_made, and issues_found
+</success_criteria>
+
+<important_reminders>
+- **READ AND WRITE ONLY**: Perform only read and write operations on files
+- **NO COMMAND EXECUTION**: Do not run npm, build, dev, render, or any execution commands
+- **NO NEW DEPENDENCIES**: Work only with packages already installed in package.json
+- **STRUCTURED OUTPUT REQUIRED**: You must return your response in the specified JSON format
+- Always start by reading the Remotion skill documentation
+- Read the project structure and `public/` folder contents to understand available assets
+- Parse the complete video outline in the `<video_outline>` section carefully
+- All assets are in the `public/` folder - reference them using `staticFile('subfolder/filename.ext')`
+- Use the `path` field from the outline for asset references
+- Use the `audio_duration` field from the outline for audio timing
+- Frame-perfect timing is critical - double-check all calculations
+- Keep implementation lightweight to minimize writing time
+- Write clean, maintainable code that will render successfully
+- Focus on creating files that are syntactically correct and follow Remotion patterns
+- Track issues as categories or patterns, not individual instances
+- Return a complete JSON response with all three required fields at the end of your work
+</important_reminders>
+</task_prompt>
