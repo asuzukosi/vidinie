@@ -9,49 +9,54 @@ import json
 import hashlib
 import io
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import List, Any, Optional
 from bs4 import BeautifulSoup
 from PIL import Image
 import requests
 from core.utils.logger import get_logger
-from core.utils.config_loader import config
 from datetime import datetime
 from core.processors.base import DocumentProcessor
 from core.data import (
-    VideoPipelineImageMetadata,
-    VideoPipelineParsedContent,
-    VideoPipelineContentMetadata,
-    VideoPipelineContentSection,
-    VideoPipelineImageStats,
+    ImageMetadata,
+    ParsedContent,
+    ContentMetadata,
+    ContentSection,
 )
 from core.operations.image_labeler import ImageLabeler
+from urllib.parse import urljoin
+import random
 
+# setup the html processor logger
 logger = get_logger('html_processor')
 
 
 class HTMLProcessor(DocumentProcessor):
     """
     processor for extracting text, structure, and images from html documents.
-    args:
-        html_content: html content as string
-        images_output_dir: directory to save extracted images (default: "temp/images")
     """
     
-    def __init__(self, html_content: str, images_output_dir: str = "temp/images"):
+    def __init__(self, html_content: str, 
+                 images_output_dir: str = "temp/images", 
+                 original_url: Optional[str] = None,
+                 user_instructions: str = ""):
         """
         initialize HTML processor.
         args:
             html_content: html content as string
             images_output_dir: directory to save extracted images
+            original_url: original url of the html document
+            user_instructions: user instructions to guide AI operations
         """
+        self.user_instructions = user_instructions
         if not html_content:
             raise ValueError("html_content must be provided")
         
         self.html_content = html_content
         self.images_output_dir = images_output_dir
         self.soup = None
-        self.images_metadata: List[VideoPipelineImageMetadata] = []
-        
+        self.images_metadata: List[ImageMetadata] = []
+        self.original_url = original_url
+
         # create output directory for images
         Path(images_output_dir).mkdir(parents=True, exist_ok=True)
         
@@ -90,7 +95,7 @@ class HTMLProcessor(DocumentProcessor):
         logger.info("exxtracted text from html document")
         return text
     
-    def extract_structured_content(self) -> VideoPipelineParsedContent:
+    def extract_structured_content(self) -> ParsedContent:
         """
         extract text with structure information (headings, paragraphs, sections).
         returns:
@@ -101,15 +106,15 @@ class HTMLProcessor(DocumentProcessor):
         # extract title
         title = self._extract_title()
         # extract sections based on headings
-        sections: List[VideoPipelineContentSection] = self._extract_sections()
+        sections: List[ContentSection] = self._extract_sections()
         # count "pages" (approximate by major sections)
         total_sections = len([s for s in sections if s.level == 1])
         
-        structured_content = VideoPipelineParsedContent()
+        structured_content = ParsedContent()
         structured_content.title = title
         structured_content.sections = sections
         structured_content.total_pages = max(total_sections, 1)
-        structured_content.metadata = VideoPipelineContentMetadata(
+        structured_content.metadata = ContentMetadata(
             title=title,
             creator="html processor",
             producer="html processor",
@@ -141,13 +146,13 @@ class HTMLProcessor(DocumentProcessor):
         
         return "untitled document"
     
-    def _extract_sections(self) -> List[VideoPipelineContentSection]:
+    def _extract_sections(self) -> List[ContentSection]:
         """
         extract sections from html based on heading tags.
         returns:
             list of sections with title and content
         """
-        sections: List[VideoPipelineContentSection] = []
+        sections: List[ContentSection] = []
         current_section = None
         
         # find all heading and content elements
@@ -163,7 +168,7 @@ class HTMLProcessor(DocumentProcessor):
                 # start new section
                 level = int(tag_name[1])  # h1 -> 1, h2 -> 2, etc.
                 title = element.get_text().strip()
-                current_section = VideoPipelineContentSection()
+                current_section = ContentSection()
                 current_section.title = title if title else "untitled section"
                 current_section.content = ""
                 current_section.level = level
@@ -179,7 +184,7 @@ class HTMLProcessor(DocumentProcessor):
         # if no sections found, create one with all content
         if not sections:
             text = self.extract_text()
-            sections.append(VideoPipelineContentSection(
+            sections.append(ContentSection(
                 title="content",
                 content=text,
                 level=1
@@ -188,20 +193,16 @@ class HTMLProcessor(DocumentProcessor):
         logger.info(f"identified {len(sections)} sections")
         return sections
     
-    def extract_images(self, min_width: int = 100, min_height: int = 100) -> List[VideoPipelineImageMetadata]:
+    def extract_images(self, min_width: int = 100, min_height: int = 100, max_images: int = 10) -> List[ImageMetadata]:
         """
         extract all images from the html document.
-        args:
-            min_width: minimum image width to extract
-            min_height: minimum image height to extract
-        returns:
-            list of image metadata objects
         """
         if not self.soup:
             raise ValueError("html document not opened. use context manager or call __enter__()")
         logger.info("starting image extraction from html content")
-        # initialize image count
+        # initialize image count and list
         image_count = 0
+        images_list = []
         # find all img tags
         img_tags = self.soup.find_all('img')
         # iterate over img tags
@@ -212,13 +213,16 @@ class HTMLProcessor(DocumentProcessor):
                 if not src:
                     continue
                 
-                # only process absolute urls (http/https)
-                # relative urls cannot be resolved without the original source path/url
+                # if path is relative, check if we have the original url to resolve it
                 if not src.startswith(('http://', 'https://')):
-                    logger.warning(f"Skipping relative image URL (cannot resolve without source path): {src}")
-                    continue
-                
-                img_url = src
+                    if self.original_url:
+                        img_url = urljoin(self.original_url, src)
+                        logger.info(f"Resolved relative image URL to: {img_url}")
+                    else:
+                        logger.warning(f"Skipping relative image URL (cannot resolve without source path): {src}")
+                        continue
+                else:
+                    img_url = src
                 
                 # try to download image from URL
                 try:
@@ -249,31 +253,16 @@ class HTMLProcessor(DocumentProcessor):
                 # save image
                 with open(filepath, "wb") as img_file:
                     img_file.write(image_bytes)
-                # try to get alt text and surrounding context
+                # try to get alt text
                 alt_text = img_tag.get('alt', '')
-                text_context = self._extract_text_context(img_tag)
                 # store metadata
-                image_metadata = VideoPipelineImageMetadata(
+                image_metadata = ImageMetadata(
                     filename=filename,
                     filepath=filepath,
-                    page_number=1,  # html doesn't have pages, use 1
-                    width=width,
-                    height=height,
-                    format=format_name or "unknown",
-                    mode=mode,
-                    size_bytes=len(image_bytes),
-                    text_context=text_context,
-                    xref=None,
-                    index_on_page=img_index,
                     label=alt_text,
-                    description=None,
-                    relevance_score=None,
-                    image_type=None,
-                    key_elements=None,
-                    ai_relevance=None
                 )
                 # add metadata to list
-                self.images_metadata.append(image_metadata)
+                images_list.append(image_metadata)
                 image_count += 1
                 # log image extraction
                 logger.info(f"extracted image {image_count}: {filename} ({width}x{height})")
@@ -281,6 +270,11 @@ class HTMLProcessor(DocumentProcessor):
             except Exception as e:
                 logger.error(f"Error extracting image {img_index}: {str(e)}")
                 continue
+        # limit the number of images extracted
+        if len(images_list) > max_images:
+            images_list = random.sample(images_list, max_images)
+        # update the images metadata list
+        self.images_metadata = images_list
         # log total number of images extracted
         logger.info(f"extracted {image_count} images from html document")
         # save metadata to json
@@ -320,62 +314,16 @@ class HTMLProcessor(DocumentProcessor):
         # log saved metadata
         logger.info(f"Saved metadata to {metadata_path}")
         
-    def get_image_stats(self) -> VideoPipelineImageStats:
-        """
-        get statistics about extracted images.
-        returns:
-            VideoPipelineImageStats object with image statistics
-        """
-        if not self.images_metadata:
-            return VideoPipelineImageStats(
-                total_images=0,
-                average_size=0,
-                total_size=0,
-                formats={},
-                pages_with_images=0
-            )
-        
-        total_size = sum(img.size_bytes or 0 for img in self.images_metadata)
-        formats: Dict[str, int] = {}
-        for img in self.images_metadata:
-            fmt = img.format or 'unknown'
-            formats[fmt] = formats.get(fmt, 0) + 1
-        
-        return VideoPipelineImageStats(
-            total_images=len(self.images_metadata),
-            average_size=total_size // len(self.images_metadata) if self.images_metadata else 0,
-            total_size=total_size,
-            formats=formats,
-            pages_with_images=1 if self.images_metadata else 0  # HTML is single "page"
-        )
-
-
     def label_images(self):
-        logger.info("extracting images from html")
+        logger.info("labeling images")
         images_metadata = self.extract_images()
         
         if images_metadata:
-            stats = self.get_image_stats()
-            logger.info(f"extracted {stats.total_images} images")
+            logger.info(f"extracted {len(images_metadata)} images")
             
-            # label images with ai if api key is available
-            openai_api_key = config.openai_api_key
-            if openai_api_key:
-                logger.info("labeling images with AI")
-                labeler = ImageLabeler()
-                labeled_metadata = labeler.label_images_batch(images_metadata)
-                
-                # save labeled metadata
-                Path(self.images_output_dir).mkdir(parents=True, exist_ok=True)
-                metadata_path = os.path.join(self.images_output_dir, 'images_metadata_labeled.json')
-                labeler.save_labeled_metadata(labeled_metadata, metadata_path)
-                
-                self.images_metadata = labeled_metadata
-                logger.info(f"labeled {len(labeled_metadata)} images")
-            else:
-                logger.warning("openai api key not found, skipping image labeling")
-                self.images_metadata = images_metadata
-        else:
-            logger.info("no images found in pdf")
-            self.images_metadata = []
+        logger.info("labeling images")
+        labeler = ImageLabeler(user_instructions=self.user_instructions)
+        labeled_metadata = labeler.label_images_batch(images_metadata)
+        self.images_metadata = labeled_metadata
+        logger.info(f"labeled {len(labeled_metadata)} images")
 

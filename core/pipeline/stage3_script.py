@@ -14,34 +14,38 @@ workflow sequence:
 import sys
 import os
 import argparse
-from typing import Optional
 from utils.logger import setup_logging, get_logger
 from core.utils.config_loader import config
 from core.data import (
     VideoPipeline,
-    VideoPipelineScript,
+    VideoOutline,
     VideoPipelineStage,
     VideoPipelineStatus,
 )
 from core.operations.script_generator import ScriptGenerator
 from core.operations.voiceover_generator import VoiceoverGenerator
+from core.operations.music_generator import MusicGenerator
+from core.clients.audio_engine import AudioVoiceString
 
 setup_logging(log_dir='temp')
 logger = get_logger('stage3_script')
 
 
 def generate_scripts_impl(
-    pipeline: VideoPipeline,
-    provider: Optional[str] = None,
-    voice_id: Optional[str] = None
+    pipeline: VideoPipeline
 ) -> VideoPipeline:
     """
     generate narration scripts and voiceovers from video outline.
     Explicit implementation using ScriptGenerator and VoiceoverGenerator classes directly.
     """
-    voice_id = voice_id or config.get('voiceover.voice_id')
-    provider = provider or config.get('voiceover.provider', 'elevenlabs')
-    temp_dir = config.get('output.temp_directory', 'temp')
+    # Use pipeline voice (required)
+    if not pipeline.voice:
+        raise ValueError("Voice is required but not found in pipeline")
+    try:
+        voice = AudioVoiceString(pipeline.voice)
+    except (ValueError, ImportError):
+        raise ValueError(f"Invalid voice value in pipeline: {pipeline.voice}")
+    temp_dir = config.output_temp_directory
     
     pipeline.update_stage(VideoPipelineStage.SCRIPT_GENERATION, VideoPipelineStatus.IN_PROGRESS)
     
@@ -56,25 +60,33 @@ def generate_scripts_impl(
         
         # Generate scripts using ScriptGenerator class
         logger.info("Generating scripts")
-        script_gen = ScriptGenerator()
-        script_data: VideoPipelineScript = script_gen.generate_script(outline)
+        script_gen = ScriptGenerator(user_instructions=pipeline.instructions)
+        script_data: VideoOutline = script_gen.generate_script(outline)
         pipeline.script_data = script_data
         logger.info(f"Generated scripts for {len(script_data.segments)} segments")
         
         # Generate voiceovers using VoiceoverGenerator class
-        logger.info(f"Using voiceover provider: {provider}")
         audio_dir = os.path.join(temp_dir, pipeline.id, 'audio')
         os.makedirs(audio_dir, exist_ok=True)
         
         voiceover_gen = VoiceoverGenerator(
-            provider=provider,
-            voice_id=voice_id,
+            voice=voice,
             output_dir=audio_dir
         )
         
-        script_data_with_audio: VideoPipelineScript = voiceover_gen.generate_voiceovers(script_data)
+        script_data_with_audio: VideoOutline = voiceover_gen.generate_voiceovers(script_data)
         pipeline.script_data = script_data_with_audio
         logger.info(f"Generated voiceovers for {len(script_data_with_audio.segments)} segments")
+        
+        # Generate background music if query is provided
+        music_dir = os.path.join(temp_dir, pipeline.id, 'music')
+        os.makedirs(music_dir, exist_ok=True)
+        
+        music_gen = MusicGenerator(output_dir=music_dir)
+        script_data_with_music: VideoOutline = music_gen.generate_background_music(script_data_with_audio)
+        pipeline.script_data = script_data_with_music
+        if script_data_with_music.background_music_path:
+            logger.info(f"Generated background music: {script_data_with_music.background_music_path}")
         
         # Generate combined audio
         combined_audio_path = os.path.join(audio_dir, 'full_voiceover.mp3')
@@ -95,20 +107,18 @@ def generate_scripts_impl(
         return pipeline
 
 
-def generate_scripts_and_voiceovers(pipeline_id: str,
-                                    provider: Optional[str] = None) -> VideoPipeline:
+def generate_scripts_and_voiceovers(pipeline_id: str) -> VideoPipeline:
     """
     generate scripts and voiceovers from video outline.
     requires pipeline_id to load cached video pipeline.
     args:
         pipeline_id: uuid of existing video pipeline
-        provider: voiceover provider (elevenlabs or gtts)
     returns:
         video pipeline instance with scripts and audio
     """
     logger.info("stage 3: script generation and voiceover started")
     
-    temp_dir = config.get('output.temp_directory', 'temp')
+    temp_dir = config.output_temp_directory
     # load video pipeline by ID (cache is required)
     try:
         video_pipeline = VideoPipeline.load_by_id(pipeline_id, temp_dir)
@@ -119,15 +129,11 @@ def generate_scripts_and_voiceovers(pipeline_id: str,
         sys.exit(1)
     
     # use explicit implementation to generate scripts
-    video_pipeline = generate_scripts_impl(
-        video_pipeline,
-        provider=provider,
-        voice_id=config.get('voiceover.voice_id')
-    )
+    video_pipeline = generate_scripts_impl(video_pipeline)
     
     # save video pipeline
     if video_pipeline.status.value == "completed":
-        temp_dir = config.get('output.temp_directory', 'temp')
+        temp_dir = config.output_temp_directory
         video_pipeline.save_to_folder(temp_dir)
         video_pipeline.save_to_pickle(os.path.join(temp_dir, f"pipeline_{video_pipeline.id}.pkl"))
     
@@ -138,14 +144,9 @@ def main():
     parser = argparse.ArgumentParser(description='stage 3: generate scripts and voiceovers')
     parser.add_argument('--pipeline-id', type=str, required=True,
                         help='uuid of pipeline data (from stage 2)')
-    parser.add_argument('--provider', type=str, choices=['elevenlabs', 'gtts'], default=None,
-                        help='voiceover provider: elevenlabs or gtts')
     args = parser.parse_args()
     
-    video_pipeline = generate_scripts_and_voiceovers(
-        args.pipeline_id,
-        provider=args.provider
-    )
+    video_pipeline = generate_scripts_and_voiceovers(args.pipeline_id)
     
     if video_pipeline.status == "completed":
         logger.info(f"scripts and voiceovers generated successfully. pipeline id: {video_pipeline.id}")

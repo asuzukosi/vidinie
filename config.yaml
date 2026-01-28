@@ -1,69 +1,24 @@
-# video configuration
-video:
-  resolution: [1920, 1080]  # 1080p
-  fps: 30
-  default_style: "slideshow"  # slideshow, animated, ai_generated, combined
-  
-# content analysis
-content:
-  target_segments: 5  # Aim for 5-10 segments
-  segment_duration: 40  # Target seconds per segment
-  
-# voiceover settings
-voiceover:
-  provider: "elevenlabs"  # elevenlabs or gtts
-  voice_id: "21m00Tcm4TlvDq8ikWAM"  # ElevenLabs Rachel voice
-  model: "eleven_monolingual_v1"
-  
-# image settings
-images:
-  extract_from_pdf: true
-  use_stock_images: true
-  use_ai_generated: false  # enable ai-generated images using dall-e
-  max_stock_images_per_segment: 1
-  preferred_stock_provider: "unsplash"  # unsplash or pexels
-  ai_generator:
-    model: "dall-e-3"  # dall-e-2 or dall-e-3
-    quality: "standard"  # standard or hd (dall-e-3 only)
-    size: "1024x1024"  # dall-e-3: "1024x1024", "1792x1024", "1024x1792"
-  
-# style-specific settings
-styles:
-  slideshow:
-    transition_duration: 0.5
-    text_animation: true
-    background_type: "gradient"  # solid, gradient, image
-    
-  animated:
-    animation_speed: 1.0
-    enable_shapes: true
-    camera_movement: true
-    
-  ai_generated:
-    image_generator: "dalle"  # dalle or stable_diffusion
-    dalle_model: "dall-e-3"
-    dalle_quality: "standard"  # standard or hd
-    dalle_size: "1792x1024"
-  
-  combined:
-    use_ai_selection: true  # use gpt-5 to select styles, or rotate by default
-    style_rotation: ["slideshow", "animated", "ai_generated"]  # fallback pattern
+# flat configuration file
+# all values are at the root level for easy loading
 
-# font settings
-# provide paths to font files - can be absolute paths, relative to fonts directory, 
-# relative to project root, or system font paths
-fonts:
-  title_font: null  # path to font file for titles (e.g., "/path/to/Roboto-Bold.ttf" or "fonts/Roboto-Bold.ttf")
-  body_font: null   # path to font file for body text (e.g., "/path/to/Roboto-Regular.ttf" or "fonts/Roboto-Regular.ttf")
-  subtitle_font: null  # path to font file for subtitles (e.g., "/path/to/Roboto-Light.ttf" or "fonts/Roboto-Light.ttf")
-  default_font: null  # path to default font file (e.g., "/path/to/font.ttf" or "fonts/font.ttf")
-  fonts_directory: "fonts"  # default directory to search for fonts (if relative path provided)
+# api keys (loaded from environment variables, can be overridden here)
+anthropic_api_key: null
+replicate_api_token: null
+elevenlabs_api_key: null
+pexels_api_key: null
+
+# content settings
+content_chunk_length: 4000
 
 # output settings
-output:
-  directory: "output"
-  temp_directory: "temp"
-  keep_temp_files: false
-  codec: "libx264"
-  audio_codec: "aac"
+output_directory: "output"
+output_temp_directory: "temp"
+output_codec: "libx264"
+output_audio_codec: "aac"
 
+# path settings
+paths_prompts_directory: "core/prompts"
+
+# font settings
+fonts_fonts_directory: "fonts"
+fonts_default_font: null

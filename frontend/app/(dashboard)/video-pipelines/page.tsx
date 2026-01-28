@@ -4,12 +4,12 @@ import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { IconPlus } from "@tabler/icons-react";
 import { Loader2 } from "lucide-react";
-import CreateTaskModal from "@/components/modals/CreateVideoPipelineModal";
+import CreateTaskModal from "@/components/modals/create-video-pipeline-modal";
 import {CreateVideoPipelineRequest, VideoPipelineSummary } from "@/lib/sdk/types";
-import VideoPipelineTable from "@/components/pipeline/VideoPipelineTable";
-import { LoadingPage } from "@/components/utils/LoadingPage";
+import VideoPipelineTable from "@/components/pipeline/video-pipeline-table";
+import { LoadingPage } from "@/components/utils/loading-page";
 import client from "@/lib/sdk/client";
-import type { VideoPipelineTableItem } from "@/components/pipeline/VideoPipelineTable";
+import type { VideoPipelineTableItem } from "@/components/pipeline/video-pipeline-table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -33,11 +33,10 @@ export default function TasksPage() {
     try {
       console.log("creating video:", task);
       if (task.file) {
-        const result: VideoPipelineSummary = await client.createVideoPipelineFromFile(task.name, task.description, 
-          [], [], task.file);
+        await client.createVideoPipelineFromFile(task.name, task.instructions, task.voice, task.file);
       } else {
         task.file = undefined;
-        const result: VideoPipelineSummary = await client.createVideoPipelineFromUrl(task);
+        await client.createVideoPipelineFromUrl(task);
       }
     } catch (error) {
       console.error("Error creating task:", error);

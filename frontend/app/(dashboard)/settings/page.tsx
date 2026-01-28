@@ -1,31 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector } from "react-redux";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { LoadingPage } from "@/components/utils/LoadingPage";
+import { LoadingPage } from "@/components/utils/loading-page";
 import { Badge } from "@/components/ui/badge";
-import Checkout from "@/components/utils/Checkout";
-import frontendClient from "@/lib/api/client";
+import Checkout from "@/components/utils/checkout";
 import type { RootState } from "@/lib/store/store";
-import client from "@/lib/sdk/client";
-import type { Subscription } from "@/lib/sdk/types";
+import { getCurrentSubscription, getAllSubscriptions, createCustomerPortalSession } from "@/lib/stripe";
+import type { SubscriptionInfo } from "@/lib/stripe";
 
 export default function SettingsPage() {
   const user = useSelector((state: RootState) => state.auth.user);
   const [isLoadingPortal, setIsLoadingPortal] = useState(false);
   const [isLoadingSubscriptions, setIsLoadingSubscriptions] = useState(true);
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
-  const [activeSubscription, setActiveSubscription] = useState<Subscription | null>(null);
-  
-  const subscriptionStatus = user?.current_subscription || "free";
-  console.log("subscriptionStatus:", subscriptionStatus);
-  console.log("price ids:", process.env.NEXT_PUBLIC_STARTER_PLAN_PRICE_ID, process.env.NEXT_PUBLIC_PROFESSIONAL_PLAN_PRICE_ID);
-
+  const [subscriptions, setSubscriptions] = useState<SubscriptionInfo[]>([]);
+  const [activeSubscription, setActiveSubscription] = useState<SubscriptionInfo | null>(null);
   useEffect(() => {
     loadSubscriptions();
   }, []);
@@ -33,11 +27,12 @@ export default function SettingsPage() {
   const loadSubscriptions = async () => {
     try {
       setIsLoadingSubscriptions(true);
-      const [allSubscriptions, active] = await Promise.all([
-        client.getSubscriptions(),
-        client.getActiveSubscription()
-      ]);
+      // get all subscriptions from Better Auth
+      const allSubscriptions = await getAllSubscriptions();
       setSubscriptions(allSubscriptions);
+      
+      // get the active subscription
+      const active = await getCurrentSubscription();
       setActiveSubscription(active);
     } catch (error: any) {
       console.error("Failed to load subscriptions:", error);
@@ -49,28 +44,16 @@ export default function SettingsPage() {
     }
   };
 
+  // derive subscription status from active subscription
+  const subscriptionStatus = activeSubscription?.plan || "free";
+
   const handleManageBilling = async () => {
     setIsLoadingPortal(true);
     try {
-      // get customer id from user state
-      const currentCustomerId = user?.stripe_customer_id;
-      
-      if (!currentCustomerId) {
-        toast.error("No customer account found", {
-          description: "Please complete a subscription purchase first to create a customer account.",
-        });
-        setIsLoadingPortal(false);
-        return;
-      }
-      
-      const { url } = await frontendClient.createCustomerPortalSession({
-        customerId: currentCustomerId,
-        returnUrl: `${window.location.origin}/settings`,
-      });
-
-      if (url) {
-        window.location.href = url;
-      }
+      const url = await createCustomerPortalSession(
+        `${window.location.origin}/settings`
+      );
+      window.location.href = url;
     } catch (error: any) {
       toast.error("Failed to open billing portal", {
         description: error.message,
@@ -214,14 +197,14 @@ export default function SettingsPage() {
                             <Button disabled variant="outline" className="w-full">
                               Current Plan
                             </Button>
-                          ) : plan.priceId ? (
+                          ) : plan.id !== "free" ? (
                             <Checkout
-                              priceId={plan.priceId}
+                              plan={plan.id}
                               planName={plan.name}
                               planPrice={plan.price}
-                              buttonText={plan.id === "free" ? "Downgrade" : "Upgrade"}
+                              buttonText="Upgrade"
                               showCard={false}
-                              buttonVariant={plan.id === "free" ? "outline" : "default"}
+                              buttonVariant="default"
                               buttonSize="default"
                               className="w-full"
                             />
@@ -241,23 +224,26 @@ export default function SettingsPage() {
                 </div>
               </Field>
 
-              <Separator />
-
-              <Field>
-                <Button
-                  variant="outline"
-                  onClick={handleManageBilling}
-                  disabled={isLoadingPortal}
-                >
-                  {isLoadingPortal
-                    ? "Loading..."
-                    : "Open Billing Portal"}
-                </Button>
-                <FieldDescription>
-                  Access your billing portal to view invoices, update payment
-                  methods, and manage your subscription
-                </FieldDescription>
-              </Field>
+              {activeSubscription && (
+                <>
+                  <Separator />
+                  <Field>
+                    <Button
+                      variant="outline"
+                      onClick={handleManageBilling}
+                      disabled={isLoadingPortal}
+                    >
+                      {isLoadingPortal
+                        ? "Loading..."
+                        : "Open Billing Portal"}
+                    </Button>
+                    <FieldDescription>
+                      Access your billing portal to view invoices, update payment
+                      methods, and manage your subscription
+                    </FieldDescription>
+                  </Field>
+                </>
+              )}
 
               <Separator />
 
@@ -275,10 +261,10 @@ export default function SettingsPage() {
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="font-medium capitalize">
-                              {subscription.subscription_type}
+                              {subscription.plan}
                             </span>
                             <Badge variant={
-                              subscription.status === "active" ? "default" :
+                              subscription.status === "active" || subscription.status === "trialing" ? "default" :
                               subscription.status === "canceled" ? "secondary" : "outline"
                             }>
                               {subscription.status}
@@ -289,14 +275,16 @@ export default function SettingsPage() {
                               </Badge>
                             )}
                           </div>
-                          {subscription.current_period_start && subscription.current_period_end && (
+                          {subscription.currentPeriodStart && subscription.currentPeriodEnd && (
                             <div className="text-sm text-muted-foreground mt-1">
-                              {new Date(subscription.current_period_start).toLocaleDateString()} - {new Date(subscription.current_period_end).toLocaleDateString()}
+                              {subscription.currentPeriodStart.toLocaleDateString()} - {subscription.currentPeriodEnd.toLocaleDateString()}
                             </div>
                           )}
-                          <div className="text-xs text-muted-foreground mt-1">
-                            Created {new Date(subscription.created_at).toLocaleDateString()}
-                          </div>
+                          {subscription.cancelAtPeriodEnd && (
+                            <div className="text-xs text-muted-foreground mt-1">
+                              Cancels at period end
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}

@@ -164,12 +164,10 @@ async def run_next_stages(video_pipeline: VideoPipeline, stage: Optional[VideoPi
         await update_pipeline_in_db(video_pipeline.id, video_pipeline)
         try:
             # process content
-            skip_stock = kwargs.get('skip_stock', False)
             target_segments = kwargs.get('target_segments', 5)
             segment_duration = kwargs.get('segment_duration', 40)
             # process content
             video_pipeline = process_content(video_pipeline, 
-                                            skip_stock=skip_stock, 
                                             target_segments=target_segments, 
                                             segment_duration=segment_duration)
             # update database
@@ -191,10 +189,7 @@ async def run_next_stages(video_pipeline: VideoPipeline, stage: Optional[VideoPi
         video_pipeline.update_stage(VideoPipelineStage.SCRIPT_GENERATION, VideoPipelineStatus.IN_PROGRESS)
         await update_pipeline_in_db(video_pipeline.id, video_pipeline)
         try:
-            # extract all the arguments from kwargs
-            provider = kwargs.get('provider', 'elevenlabs')
-            voice_id = kwargs.get('voice_id', None)
-            video_pipeline = generate_scripts(video_pipeline, provider=provider, voice_id=voice_id)
+            video_pipeline = generate_scripts(video_pipeline)
             # update database
             await update_pipeline_in_db(video_pipeline.id, video_pipeline)
             # broadcast message
@@ -233,37 +228,27 @@ async def run_next_stages(video_pipeline: VideoPipeline, stage: Optional[VideoPi
     logger.info(f"pipeline completed for pipeline: {video_pipeline.id}")
     return video_pipeline
 
+
+async def run_next_stages_async(video_pipeline: VideoPipeline, stage: Optional[VideoPipelineStage] = None, **kwargs) -> VideoPipeline:
+    """
+    async function that retrieves the pipeline from the database and runs run_next_stages.
+    """
+    logger.info(f"run_next_stages_async: starting for pipeline {video_pipeline.id}")
+    # retrieve pipeline from database
+    video_pipeline = await get_pipeline_by_id(video_pipeline.id)
+    # run the async run_next_stages function
+    return await run_next_stages(video_pipeline, stage=stage, **kwargs)
+
 @celery.task
 def run_next_stages_task(video_pipeline_id: str, stage: Optional[VideoPipelineStage] = None, **kwargs) -> bool:
     """
     celery task wrapper that retrieves the pipeline from the database and runs run_next_stages.
     This separates the Celery task logic from the async pipeline execution logic.
     """
-    logger.info(f"run_next_stages_task: starting for pipeline {video_pipeline_id}")
-    
-    # get the event loop for this worker process (created during worker initialization)
+    logger.info(f"starting celery task to run stages")
     try:
-        loop = asyncio.get_event_loop()
-        if loop.is_closed():
-            # if loop is closed, create a new one
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            # re-initialize database connection if loop was closed
-            loop.run_until_complete(initialize_db())
-    except RuntimeError:
-        # if no event loop exists, create a new one
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        # initialize database connection
-        loop.run_until_complete(initialize_db())
-    
-    try:
-        # retrieve pipeline from database
-        video_pipeline = loop.run_until_complete(get_pipeline_by_id(video_pipeline_id))
-        # run the async run_next_stages function
-        loop.run_until_complete(run_next_stages(video_pipeline, stage=stage, **kwargs))
-        logger.info(f"run_next_stages_task: completed for pipeline {video_pipeline_id}")
+        asyncio.run(run_next_stages_async(video_pipeline_id, stage=stage, **kwargs))
         return True
     except Exception as e:
         logger.error(f"run_next_stages_task: error for pipeline {video_pipeline_id}: {str(e)}")
-        raise
+        return False

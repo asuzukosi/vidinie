@@ -18,17 +18,16 @@ import {
 } from "@/components/ui/field";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import frontendClient from "@/lib/api/client";
+import { createOrUpgradeSubscription } from "@/lib/stripe";
 import { event } from "@/lib/gtag";
 import { useSelector } from "react-redux";
 import type { RootState } from "@/lib/store/store";
 
 interface CheckoutProps extends Omit<React.ComponentProps<"div">, "onError"> {
-  priceId: string;
+  plan: string; // plan id for better-auth subscription - required
   planName?: string;
   planPrice?: string;
   planDescription?: string;
-  quantity?: number;
   onSuccess?: () => void;
   onCheckoutError?: (error: Error) => void;
   buttonText?: string;
@@ -39,11 +38,10 @@ interface CheckoutProps extends Omit<React.ComponentProps<"div">, "onError"> {
 }
 
 export default function Checkout({
-  priceId,
+  plan,
   planName,
   planPrice,
   planDescription,
-  quantity = 1,
   onSuccess,
   onCheckoutError,
   buttonText = "Subscribe",
@@ -63,39 +61,32 @@ export default function Checkout({
       label: user?.email || "unknown",
       value: 1,
     });
-    if (!priceId) {
-      toast.error("Invalid price ID", {
+    
+    if (!plan) {
+      toast.error("Invalid plan", {
         description: "Please select a valid subscription plan.",
       });
       return;
     }
-    if (priceId == "cancel"){
-      event({
-        action: "subscription_cancellation_requested",
-        category: "checkout",
-        label: user?.email || "unknown",
-        value: 1,
-      });
-      toast.error("Subscription cancellation initiated.");
-      return;
-    }
+    
     setLoading(true);
     try {
-      const { url } = await frontendClient.createCheckoutSession({
-        priceId,
-        quantity,
-      });
+      // create or upgrade subscription using better-auth
+      const result = await createOrUpgradeSubscription(
+        plan,
+        `${window.location.origin}/success`,
+        `${window.location.origin}/cancel`
+      );
 
-      if (url) {
-        if (onSuccess) {
-          onSuccess();
-        }
-        // Redirect to Stripe checkout
-        window.location.href = url;
-        return;
+      if (!result.url) {
+        throw new Error("link to checkout page not returned");
       }
 
-      throw new Error("No checkout URL returned from server");
+      if (onSuccess) {
+        onSuccess();
+      }
+      // redirect to stripe checkout page
+      window.location.href = result.url;
     } catch (error: any) {
       console.error("Checkout error:", error);
       const errorMessage = error.message || "An error occurred during checkout";
@@ -131,7 +122,7 @@ export default function Checkout({
       <Field>
         <Button
           onClick={handleCheckout}
-          disabled={loading || !priceId}
+          disabled={loading || !plan}
           variant={buttonVariant}
           size={buttonSize}
           className={cn("w-full", buttonClassName)}

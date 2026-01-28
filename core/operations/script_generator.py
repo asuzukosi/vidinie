@@ -32,10 +32,11 @@ class ScriptResponse(BaseModel):
 class ScriptGenerator:
     """generate voiceover scripts from video segments."""
     
-    def __init__(self):
+    def __init__(self, user_instructions: str = ""):
         """
         initialize script generator.
-        """        
+        """
+        self.user_instructions = user_instructions
         # initialize jinja2 environment for prompt templates
         self.jinja_env = Environment(
             loader=FileSystemLoader(str(config.get_prompts_directory())),
@@ -48,7 +49,9 @@ class ScriptGenerator:
         """
         logger.info(f"generating script for {len(video_outline.segments)} segments")
         segment_json = [segment.model_dump(mode="json") for segment in video_outline.segments]
-        system_prompt = self.jinja_env.get_template('script_system.j2').render()
+        system_prompt = self.jinja_env.get_template('script_system.j2').render(
+            user_instructions=self.user_instructions if self.user_instructions else None
+        )
         
         prompt = self.jinja_env.get_template('script_instruction.j2').render(
             video_outline=video_outline.model_dump(mode="json"),

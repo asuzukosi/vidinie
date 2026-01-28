@@ -42,14 +42,15 @@ When to use video clips:
 - All video clips are automatically 5 seconds in duration
 
 When to use each video clip source:
-1. **"stock"** - For real-world footage, b-roll, demonstrations (preferred option for video)
+1. **"stock"** - For real-world footage, b-roll, demonstrations (preferred option for video). You can create queries for stock videos - these will be used to search for appropriate stock video footage.
 2. **"ai_generated"** - ONLY when custom animation is absolutely essential and stock footage cannot provide it (use extremely sparingly due to very high cost)
 
 Video clip field requirements:
-- Stock: set "source": "stock", "path": null, "query": "2-3 keywords", "timing": "start|middle|end|throughout"
+- Stock: set "source": "stock", "path": null, "query": "2-3 keywords describing the video footage needed", "timing": "start|middle|end|throughout"
 - AI video: set "source": "ai_generated", "path": null, "query": "detailed generation prompt", "timing": "start|middle|end|throughout"
 - Note: video_clips can NEVER have source "document" - only "stock" or "ai_generated"
 - Note: NO duration field needed - all clips are automatically 5 seconds
+- Note: Stock video queries should describe the type of footage needed (e.g., "business meeting", "technology workspace", "nature landscape")
 
 **Multiple visuals per segment:**
 - Images: 1-2 images typical; 2-3 for complex segments
@@ -85,6 +86,30 @@ Create a compelling narrative structure with smooth, continuous flow:
 - Foreshadow upcoming content to maintain forward momentum
 </narrative_requirements>
 
+<background_music_guidance>
+Background music is OPTIONAL and should only be included when it would enhance the video experience and is relevant to the pipeline task.
+
+**When to include background music:**
+- When the content would benefit from emotional enhancement (e.g., motivational, dramatic, educational)
+- When music would help maintain viewer engagement throughout longer videos
+- When the tone/mood of the content suggests music would be appropriate
+
+**When NOT to include background music:**
+- For purely technical or dry informational content where music might be distracting
+- When the content is very short or focused on specific data/statistics
+- When the user instructions or content nature suggests a minimalist approach
+
+**If including background music:**
+- Provide a descriptive prompt in "background_music_query" that captures the mood, tempo, and style needed
+- Examples: "calm ambient background with soft piano for educational content", "upbeat corporate music with subtle electronic elements", "dramatic orchestral piece with building tension"
+- The query should describe the emotional tone and musical characteristics needed
+- Set to null if background music is not needed
+
+**Format:**
+- Include: "background_music_query": "descriptive prompt for music generation"
+- Exclude: "background_music_query": null
+</background_music_guidance>
+
 <outline_requirements>
 1. Start with an engaging introduction segment that hooks the viewer with a compelling problem, question, or scenario
 2. Build logically from foundational concepts to advanced topics with each segment raising stakes or deepening understanding
@@ -98,6 +123,7 @@ Create a compelling narrative structure with smooth, continuous flow:
 10. Create explicit connections between segments that make the flow feel seamless and purposeful
 11. Remember: images and video_clips are separate fields - most segments should have images but no video_clips
 12. All video clips are automatically 5 seconds - no duration field needed
+13. Consider whether background music would enhance the video - include "background_music_query" only when relevant
 </outline_requirements>
 
 <critical_instruction>

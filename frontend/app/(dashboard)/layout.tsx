@@ -3,10 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
-import Sidebar from "@/components/sidebar/Sidebar";
-import client from "@/lib/sdk/client";
+import Sidebar from "@/components/sidebar/sidebar";
 import type { RootState } from "@/lib/store/store";
-import { LoadingPage } from "@/components/utils/LoadingPage";
+import { LoadingPage } from "@/components/utils/loading-page";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();
@@ -18,10 +17,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }, [user]);
 
     const checkAuthentication = () => {
-        // first check redux state
-        if (user?.token) {
-            // sync token to sdk client
-            client.setToken(user.token);
+        // better-auth handles tokens automatically, no need to sync
+        if (user) {
             setIsCheckingAuth(false);
             return;
         }

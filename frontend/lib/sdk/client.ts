@@ -1,36 +1,38 @@
-import { CreateVideoPipelineOutlineRequest, DeleteVideoPipelineImageResponse, DeleteVideoPipelineResponse, DeleteVideoPipelineSectionResponse, VideoPipelineImageMetadata,
-        VideoPipelineContentSection, VideoPipeline, VideoPipelineReviewRequest,
+import { CreateVideoOutlineRequest, DeleteVideoPipelineImageResponse, DeleteVideoPipelineResponse, DeleteVideoPipelineSectionResponse, ImageMetadata,
+        ContentSection, VideoPipeline, VideoPipelineReviewRequest,
         CreateVideoPipelineRequest, VideoPipelineSummary,
         GenerateVideoPipelineRequest,
-        VideoPipelineSegment,
-        LoginResponse, RegisterResponse, User,
-        Subscription} from "./types";
-import frontendClient from "@/lib/api/client";
+        VideoSegment} from "@/lib/sdk/types";
+import { authClient } from "@/lib/auth-client";
 
 export class VidinieAPIClient {
     private baseUrl: string;
-    private token: string | null = null;
 
     constructor(baseUrl: string) {
         this.baseUrl = baseUrl;
     }
 
-    setToken(token: string | null): void {
-        this.token = token;
-        frontendClient.setToken(token);
+    private async getTokenFromSession(): Promise<string | null> {
+        try {
+            // get jwt token from better-auth session
+            const session = await authClient.getSession();
+            if (session?.data?.session?.token) {
+                return session.data.session.token;
+            }
+            return null;
+        } catch (error) {
+            console.error("error getting token from better-auth session:", error);
+            return null;
+        }
     }
 
-    private getTokenFromMemory(): string | null {
-        return this.token;
-    }
-
-    private getAuthHeader(): string | null {
-        const token = this.getTokenFromMemory();
+    private async getAuthHeader(): Promise<string | null> {
+        const token = await this.getTokenFromSession();
         return token ? `Bearer ${token}` : null;
     }
 
-    private getAuthHeaders(additionalHeaders: Record<string, string> = {}): Record<string, string> {
-        const authHeader = this.getAuthHeader();
+    private async getAuthHeaders(additionalHeaders: Record<string, string> = {}): Promise<Record<string, string>> {
+        const authHeader = await this.getAuthHeader();
         if (!authHeader) {
             throw new Error('Not authenticated. Please log in.');
         }
@@ -64,21 +66,19 @@ export class VidinieAPIClient {
 
     async createVideoPipelineFromFile(
         name: string,
-        description: string,
-        tags: string[],
-        projects: string[],
+        instructions: string,
+        voice: string,
         file: File
     ): Promise<VideoPipelineSummary> {
         const formData = new FormData();
         formData.append('name', name);
-        formData.append('description', description);
-        tags.forEach(tag => formData.append('tags', tag));
-        projects.forEach(project => formData.append('projects', project));
+        formData.append('instructions', instructions);
+        formData.append('voice', voice);
         formData.append('file', file);
 
         const response = await fetch(`${this.baseUrl}/video-pipelines/from-file`, {
             method: 'POST',
-            headers: this.getAuthHeaders(),
+            headers: await this.getAuthHeaders(),
             body: formData
         });
         return this.handleResponse<VideoPipelineSummary>(response, "Create video pipeline from file");
@@ -87,7 +87,7 @@ export class VidinieAPIClient {
     async createVideoPipelineFromUrl(request: CreateVideoPipelineRequest): Promise<VideoPipelineSummary> {
         const response = await fetch(`${this.baseUrl}/video-pipelines/from-url`, {
             method: 'POST',
-            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
+            headers: await this.getAuthHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(request)
         });
         return this.handleResponse<VideoPipelineSummary>(response, "Create video pipeline from URL");
@@ -96,7 +96,7 @@ export class VidinieAPIClient {
     async getAllVideoPipelines(): Promise<VideoPipelineSummary[]> {
         const response = await fetch(`${this.baseUrl}/video-pipelines/`, {
             method: 'GET',
-            headers: this.getAuthHeaders()
+            headers: await this.getAuthHeaders()
         });
         return this.handleResponse<VideoPipelineSummary[]>(response, "Get all video pipelines");
     }
@@ -104,7 +104,7 @@ export class VidinieAPIClient {
     async getVideoPipelineDetails(videoPipelineId: string): Promise<VideoPipeline> {
         const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}`, {
             method: 'GET',
-            headers: this.getAuthHeaders()
+            headers: await this.getAuthHeaders()
         });
         return this.handleResponse<VideoPipeline>(response, "Get video pipeline details");
     }
@@ -112,7 +112,7 @@ export class VidinieAPIClient {
     async deleteVideoPipeline(videoPipelineId: string): Promise<DeleteVideoPipelineResponse> {
         const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}`, {
             method: 'DELETE',
-            headers: this.getAuthHeaders()
+            headers: await this.getAuthHeaders()
         });
         return this.handleResponse<DeleteVideoPipelineResponse>(response, "Delete video pipeline");
     }
@@ -122,7 +122,7 @@ export class VidinieAPIClient {
         image: File,
         textContext: string = "",
         label: boolean = false
-    ): Promise<VideoPipelineImageMetadata> {
+    ): Promise<ImageMetadata> {
         const formData = new FormData();
         formData.append('image', image);
         formData.append('text_context', textContext);
@@ -130,59 +130,59 @@ export class VidinieAPIClient {
 
         const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/images`, {
             method: 'POST',
-            headers: this.getAuthHeaders(),
+            headers: await this.getAuthHeaders(),
             body: formData
         });
-        return this.handleResponse<VideoPipelineImageMetadata>(response, "Add video pipeline image");
+        return this.handleResponse<ImageMetadata>(response, "Add video pipeline image");
     }
 
     async deleteVideoPipelineImage(videoPipelineId: string, index: number): Promise<DeleteVideoPipelineImageResponse> {
         const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/images/${index}`, {
             method: 'DELETE',
-            headers: this.getAuthHeaders()
+            headers: await this.getAuthHeaders()
         });
         return this.handleResponse<DeleteVideoPipelineImageResponse>(response, "Delete video pipeline image");
     }
 
-    async addVideoPipelineSection(videoPipelineId: string, section: VideoPipelineContentSection): Promise<VideoPipelineContentSection> {
+    async addVideoPipelineSection(videoPipelineId: string, section: ContentSection): Promise<ContentSection> {
         const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/sections`, {
             method: 'POST',
-            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
+            headers: await this.getAuthHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(section)
         });
-        return this.handleResponse<VideoPipelineContentSection>(response, "Add video pipeline section");
+        return this.handleResponse<ContentSection>(response, "Add video pipeline section");
     }
 
     async deleteVideoPipelineSection(videoPipelineId: string, index: number): Promise<DeleteVideoPipelineSectionResponse> {
         const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/sections/${index}`, {
             method: 'DELETE',
-            headers: this.getAuthHeaders()
+            headers: await this.getAuthHeaders()
         });
         return this.handleResponse<DeleteVideoPipelineSectionResponse>(response, "Delete video pipeline section");
     }
 
-    async processVideoPipelineContent(videoPipelineId: string, request: CreateVideoPipelineOutlineRequest): Promise<VideoPipeline> {
+    async processVideoPipelineContent(videoPipelineId: string, request: CreateVideoOutlineRequest): Promise<VideoPipeline> {
         const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/process`, {
             method: 'POST',
-            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
+            headers: await this.getAuthHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(request)
         });
         return this.handleResponse<VideoPipeline>(response, "Process video pipeline content");
     }
 
-    async addVideoPipelineOutlineSegment(videoPipelineId: string, segment: VideoPipelineSegment): Promise<VideoPipelineSegment> {
+    async addVideoOutlineSegment(videoPipelineId: string, segment: VideoSegment): Promise<VideoSegment> {
         const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/outline/segments`, {
             method: 'POST',
-            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
+            headers: await this.getAuthHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(segment)
         });
-        return this.handleResponse<VideoPipelineSegment>(response, "Add video pipeline outline segment");
+        return this.handleResponse<VideoSegment>(response, "Add video pipeline outline segment");
     }
 
     async generateVideoPipelineScripts(videoPipelineId: string, provider: string = 'elevenlabs'): Promise<VideoPipeline> {
         const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/generate-scripts`, {
             method: 'POST',
-            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
+            headers: await this.getAuthHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify({ provider })
         });
         return this.handleResponse<VideoPipeline>(response, "Generate video pipeline scripts");
@@ -191,7 +191,7 @@ export class VidinieAPIClient {
     async generateVideoPipelineOutput(videoPipelineId: string, request: GenerateVideoPipelineRequest): Promise<VideoPipeline> {
         const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/generate`, {
             method: 'POST',
-            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
+            headers: await this.getAuthHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(request)
         });
         return this.handleResponse<VideoPipeline>(response, "Generate video pipeline output");
@@ -200,7 +200,7 @@ export class VidinieAPIClient {
     async downloadVideoPipelineOutput(videoPipelineId: string): Promise<Blob> {
         const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/output/download`, {
             method: 'GET',
-            headers: this.getAuthHeaders()
+            headers: await this.getAuthHeaders()
         });
 
         if (!response.ok) {
@@ -220,7 +220,7 @@ export class VidinieAPIClient {
     async streamVideoPipelineOutput(videoPipelineId: string): Promise<Response> {
         const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/output/stream`, {
             method: 'GET',
-            headers: this.getAuthHeaders()
+            headers: await this.getAuthHeaders()
         });
 
         if (!response.ok) {
@@ -240,99 +240,19 @@ export class VidinieAPIClient {
     async addVideoPipelineReview(videoPipelineId: string, request: VideoPipelineReviewRequest): Promise<VideoPipeline> {
         const response = await fetch(`${this.baseUrl}/video-pipelines/${videoPipelineId}/review`, {
             method: 'POST',
-            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
+            headers: await this.getAuthHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(request)
         });
         return this.handleResponse<VideoPipeline>(response, "Add video pipeline review");
     }
-
-    async login(email: string, password: string): Promise<LoginResponse> {
-        const response = await fetch(`${this.baseUrl}/users/login`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ email, password }),
-        });
-
-        const data = await this.handleResponse<LoginResponse>(response, "Login");
-        
-        if (data.token) {
-            this.setToken(data.token);
-        }
-
-        return data;
-    }
-
-    async register(email: string, password: string): Promise<RegisterResponse> {
-        const response = await fetch(`${this.baseUrl}/users/register`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ email, password }),
-        });
-
-        return this.handleResponse<RegisterResponse>(response, "Register");
-    }
-
-    async getCurrentUser(): Promise<User | null> {
-        const token = this.getTokenFromMemory();
-        if (!token) {
-            return null;
-        }
-
-        try {
-            const response = await fetch(`${this.baseUrl}/users/me`, {
-                method: 'GET',
-                headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch user');
-            }
-
-            return await response.json();
-        } catch (error) {
-            this.setToken(null);
-            return null;
-        }
-    }
-
-    async updateUser(data: { email?: string }): Promise<User> {
-        const response = await fetch(`${this.baseUrl}/users/me`, {
-            method: 'PUT',
-            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
-            body: JSON.stringify(data),
-        });
-
-        return this.handleResponse<User>(response, "Update user");
-    }
-
-    logout(): void {
-        this.setToken(null);
-    }
-
-    async changePassword(currentPassword: string, newPassword: string): Promise<void> {
-        const response = await fetch(`${this.baseUrl}/users/change-password`, {
-            method: 'POST',
-            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
-            body: JSON.stringify({
-                current_password: currentPassword,
-                new_password: newPassword,
-            }),
-        });
-
-        await this.handleResponse<{ message: string }>(response, "Change password");
-    }
-
+    
     async uploadProfilePicture(file: File): Promise<{ message: string; profile_picture: string }> {
         const formData = new FormData();
         formData.append('file', file);
 
         const response = await fetch(`${this.baseUrl}/users/profile-picture`, {
             method: 'POST',
-            headers: this.getAuthHeaders(),
+            headers: await this.getAuthHeaders(),
             body: formData
         });
 
@@ -344,47 +264,6 @@ export class VidinieAPIClient {
         return `${this.baseUrl}/media/${profilePicturePath}`;
     }
 
-    async updateSubscription(subscription: string): Promise<User> {
-        const response = await fetch(`${this.baseUrl}/users/subscription`, {
-            method: 'PUT',
-            headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
-            body: JSON.stringify({ subscription }),
-        });
-
-        return this.handleResponse<User>(response, "Update subscription");
-    }
-
-    async getSubscriptions(): Promise<Subscription[]> {
-        const response = await fetch(`${this.baseUrl}/users/subscriptions`, {
-            method: 'GET',
-            headers: this.getAuthHeaders()
-        });
-
-        return this.handleResponse<Subscription[]>(response, "Get subscriptions");
-    }
-
-    async getActiveSubscription(): Promise<Subscription | null> {
-        const response = await fetch(`${this.baseUrl}/users/subscriptions/active`, {
-            method: 'GET',
-            headers: this.getAuthHeaders()
-        });
-
-        if (!response.ok) {
-            throw new Error('Failed to get active subscription');
-        }
-
-        const data = await response.json();
-        return data === null ? null : data as Subscription;
-    }
-
-    async getSubscription(subscriptionId: string): Promise<Subscription> {
-        const response = await fetch(`${this.baseUrl}/users/subscriptions/${subscriptionId}`, {
-            method: 'GET',
-            headers: this.getAuthHeaders()
-        });
-
-        return this.handleResponse<Subscription>(response, "Get subscription");
-    }
 }
 
 // create a singleton instance of the client

@@ -5,24 +5,17 @@ loads configuration from config.yaml and environment variables.
 
 import os
 import yaml
+from typing import Dict
 from pathlib import Path
-from typing import Dict, Any
 from dotenv import load_dotenv
 from core.utils.logger import get_logger
 
-logger = get_logger(__name__)
+logger = get_logger("config_loader")
 
 
 class Config:
     """
     configuration manager for the application.
- 
-    example:
-        from core.utils.config_loader import Config
-        config = Config()
-        print(config.get('video.resolution')) # [1920, 1080]
-        print(config.get('content.target_segments')) # 7
-        print(config.get('voiceover.provider')) # elevenlabs
     """
     
     def __init__(self, config_path: str = "config.yaml"):
@@ -32,144 +25,97 @@ class Config:
             config_path: path to config.yaml file
         """
         self.config_path = config_path
-        self.config = {}
-        self.load_config()
-        self.load_env()
-        
-    def load_config(self):
-        """ 
-        load configuration from yaml file
-        """
-        if os.path.exists(self.config_path):
-            with open(self.config_path, 'r') as f:
-                self.config = yaml.safe_load(f)
-                logger.info(f"configuration loaded from {self.config_path}")
-        else:
-            logger.warning(f"configuration file {self.config_path} not found. using default configuration.")
-            self.config = self._get_default_config()
+        # set default values
+        self._set_defaults()
+        # load from yaml file
+        self._load_config()
+        # load from environment variables
+        self._load_env()
     
-    def load_env(self):
-        """ 
-        load environment variables from .env file.
-        """
+    def _set_defaults(self):
+        """set default configuration values as flat attributes."""
+        # content settings
+        self.content_chunk_length = 4000
+
+        # output settings
+        self.output_directory = 'output'
+        self.output_temp_directory = 'temp'
+        self.output_codec = 'libx264'
+        self.output_audio_codec = 'aac'
+        
+        # path settings
+        self.paths_prompts_directory = 'core/prompts'
+        
+        # font settings
+        self.fonts_fonts_directory = 'fonts'
+        self.fonts_default_font = None
+        
+        # api keys (will be loaded from env)
+        self.anthropic_api_key = None
+        self.replicate_api_token = None
+        self.elevenlabs_api_key = None
+        self.pexels_api_key = None
+    
+    def _load_config(self):
+        """Load configuration from flat YAML file and set as attributes."""
+        if not os.path.exists(self.config_path):
+            logger.warning(f"Configuration file {self.config_path} not found. Using default configuration.")
+            return
+        
+        with open(self.config_path, 'r') as f:
+            yaml_data = yaml.safe_load(f)
+            if not yaml_data:
+                return
+        
+        logger.info(f"Configuration loaded from {self.config_path}")
+        
+        # directly set attributes from flat yaml structure
+        for key, value in yaml_data.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
+            else:
+                logger.warning(f"Unknown config key: {key}")
+    
+    def _load_env(self):
+        """load environment variables from .env file and override config."""
         load_dotenv()
         
-        # Load API keys from environment
-        self.openai_api_key = os.getenv('OPENAI_API_KEY')
-        self.elevenlabs_api_key = os.getenv('ELEVENLABS_API_KEY')
-        self.unsplash_access_key = os.getenv('UNSPLASH_ACCESS_KEY')
-        self.pexels_api_key = os.getenv('PEXELS_API_KEY')
-        
-        # Override config with env vars if present
-        voice_id = os.getenv('VOICE_ID')
-        if voice_id:
-            self.config['voiceover']['voice_id'] = voice_id
-    
-    def get(self, key_path: str, default: Any = None) -> Any:
-        """
-        get configuration value using dot notation.
-        args:
-            key_path: dot-separated path (e.g., 'video.resolution')
-            default: default value if key not found
-        returns:
-            configuration value
-        example:
-            from utils.config_loader import Config
-            config = Config()
-            print(config.get('video.resolution')) # [1920, 1080]
-        """
-        keys = key_path.split('.')
-        value = self.config
-        # we recursively traverse the dictionary to get the value
-        for key in keys:
-            if isinstance(value, dict) and key in value:
-                value = value[key]
-            else:
-                return default
-        
-        return value
-    
-    def _get_default_config(self) -> Dict:
-        """
-        retreive default configuration.
-        """
-        return {
-            'video': {
-                'resolution': [1920, 1080],
-                'fps': 30,
-                'default_style': 'slideshow'
-            },
-            'content': {
-                'target_segments': 5,
-                'segment_duration': 40
-            },
-            'voiceover': {
-                'provider': 'elevenlabs',
-                'voice_id': '21m00Tcm4TlvDq8ikWAM',
-                'model': 'eleven_monolingual_v1'
-            },
-            'images': {
-                'extract_from_pdf': True,
-                'use_stock_images': True,
-                'max_stock_images_per_segment': 1,
-                'preferred_stock_provider': 'unsplash'
-            },
-            'output': {
-                'directory': 'output',
-                'temp_directory': 'temp',
-                'keep_temp_files': False,
-                'codec': 'libx264',
-                'audio_codec': 'aac'
-            },
-            'paths': {
-                'prompts_directory': 'core/prompts'
-            }
-        }
+        # load api keys from environment
+        self.anthropic_api_key = os.getenv('ANTHROPIC_API_KEY') or self.anthropic_api_key
+        self.replicate_api_token = os.getenv('REPLICATE_API_TOKEN') or self.replicate_api_token
+        self.elevenlabs_api_key = os.getenv('ELEVENLABS_API_KEY') or self.elevenlabs_api_key
+        self.pexels_api_key = os.getenv('PEXELS_API_KEY') or self.pexels_api_key
     
     def validate_api_keys(self) -> Dict[str, bool]:
         """
         validate that required API keys are present.
         returns:
-            dictionary of API key availability
-        example:
-            from core.utils.config_loader import Config
-            config = Config()
-            print(config.validate_api_keys()) # {'openai': True, 'elevenlabs': True, 'unsplash': True, 'pexels': True}
+            dictionary mapping service names to boolean indicating if key is present
         """
-        return {
-            'openai': bool(self.openai_api_key),
-            'elevenlabs': bool(self.elevenlabs_api_key),
-            'unsplash': bool(self.unsplash_access_key),
-            'pexels': bool(self.pexels_api_key)
-        }
+        return [
+            ('anthropic', bool(self.anthropic_api_key)),
+            ('replicate', bool(self.replicate_api_token)),
+            ('elevenlabs', bool(self.elevenlabs_api_key)),
+            ('pexels', bool(self.pexels_api_key))
+        ]
     
     def ensure_directories(self):
-        """
-        ensure output and temp directories exist.
-        """
-        output_dir = self.get('output.directory', 'output')
-        temp_dir = self.get('output.temp_directory', 'temp')
+        """ensure output and temp directories exist."""
+        Path(self.output_directory).mkdir(exist_ok=True)
+        Path(self.output_temp_directory).mkdir(exist_ok=True)
         
-        Path(output_dir).mkdir(exist_ok=True)
-        Path(temp_dir).mkdir(exist_ok=True)
-        
-        logger.info(f"Ensured directories: {output_dir}, {temp_dir}")
+        logger.info(f"Ensured directories: {self.output_directory}, {self.output_temp_directory}")
     
     def get_prompts_directory(self) -> Path:
         """
-        Get the prompts directory path.
-        
-        Returns:
-            Path object pointing to prompts directory
+        get the prompts directory path.
+        returns:
+            Path object for prompts directory
         """
-        prompts_dir = self.get('paths.prompts_directory', 'prompts')
-        # Resolve relative to project root
-        project_root = Path(__file__).parent.parent
-        return project_root / prompts_dir
+        # resolve relative to project root
+        project_root = Path(__file__).parent.parent.parent
+        return project_root / self.paths_prompts_directory
 
 
+# singleton instance
 config = Config()
-
-
-
-

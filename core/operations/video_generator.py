@@ -1,426 +1,241 @@
 """
 vidinie unified video generator
-creates presentation-style explainer videos with:
-- slide backgrounds (gradient, solid, or images)
-- text overlays synchronized with voiceover
-- image displays (PDF and stock images from content analysis)
-- smooth transitions between segments
-- title and end cards
+creates presentation-style explainer videos with the remotion engine using a claude agent.
 """
-
+import sys
 import os
-from typing import Optional, Tuple
-import numpy as np
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from pydantic import BaseModel
+from typing import List
+import shutil
+import subprocess
+from enum import Enum
+from typing import Optional
+from jinja2 import Environment, FileSystemLoader, select_autoescape
+from core.utils.config_loader import config
+import asyncio
 from core.data import (
-    VideoOutline,
-    VideoSegment,
-    BackgroundType,
+    VideoOutline, 
 )
-from core.utils.config_loader import Config
-from PIL import Image
-if not hasattr(Image, 'ANTIALIAS'):
-    Image.ANTIALIAS = Image.LANCZOS
+from core.data.segment_models import to_xml_prompt_context
 
-from moviepy.editor import (
-    VideoClip, ImageClip, AudioFileClip,
-    concatenate_videoclips
-)
-from moviepy.video.fx.fadein import fadein
-from moviepy.video.fx.fadeout import fadeout
-
-from core.utils.video_utils import VideoUtils
-from core.utils.font_loader import FontLoader
+from claude_agent_sdk import query # function to query the agent
+from claude_agent_sdk.types import ClaudeAgentOptions # class for the agent options
+from claude_agent_sdk.types import AssistantMessage # class for the assistant message
+from claude_agent_sdk.types import ResultMessage # class for the result of the agent
 from core.utils.logger import get_logger
-
-
-"""
-claude agent module
-this operation wraps the entire video generation procecess with a single claude agent
-using remotion
-"""
-import asyncio
-from claude_agent_sdk import query # function to query the agent
-from claude_agent_sdk.types import ClaudeAgentOptions # class for the agent options
-from claude_agent_sdk.types import AssistantMessage # class for the assistant message
-from claude_agent_sdk.types import ResultMessage # class for the result of the agent
-
-async def main(instructions: str):
-    # Agentic loop: streams messages as Claude works
-    async for message in query(
-        prompt="In the folder vidinie_base, there is a remotion project. You are to follow the instructions below to create a video with the code in the project." + 
-        "The instructions are: " + instructions,
-        options=ClaudeAgentOptions(
-            system_prompt="You are an expert agentic video generation developer. You will use the remotion javascript library to generate videos with code. You will be providded the skills needed to execute this task.",
-            setting_sources=["project"],  # Load Skills from filesystem
-            allowed_tools=["Skill", "Read", "Write", "Bash"], # Enable Skill tools
-            permission_mode="acceptEdits",            # Auto-approve file edits
-            # allowed_tools=["Read", "Edit", "Glob"],  # tools claude can use (analyze and modify)
-            # allowed_tools=["Read", "Grep", "Glob"] # tools claude can use (read only)
-            # allowed_tools=["Read", "Grep", "Glob", "Edit", "Bash"] # tools claude can use (full automation)
-        )
-    ):
-        # Print human-readable output
-        if isinstance(message, AssistantMessage):
-            for block in message.content:
-                if hasattr(block, "text"):
-                    print(block.text)              # Claude's reasoning
-                elif hasattr(block, "name"):
-                    print(f"Tool: {block.name}")   # Tool being called
-        elif isinstance(message, ResultMessage):
-            print(f"Done: {message.subtype}")      # Final result
-
-task = "create a web window interface that is opened inside of a youtube video (leonardo grigerio channel), the video shows the cluade code terminal interface (like the image in claude_code_screenshot.png, but wihtout my email) and it starts typing in 'Testing out vidinie v2 using remotion engine'"\
-"The video should be 10 seconds long. Dont run npm run dev as it already running."
-asyncio.run(main(task))
-
-
-import asyncio
-from claude_agent_sdk.types import ClaudeAgentOptions # class for the agent options
-from claude_agent_sdk import query # function to query the agent
-from claude_agent_sdk.types import AssistantMessage # class for the assistant message
-from claude_agent_sdk.types import ResultMessage # class for the result of the agent
-
-
-async def check_skills():
-    """check the skills available"""
-    options = ClaudeAgentOptions(
-        setting_sources=["project"],  # Load Skills from filesystem
-        allowed_tools=["Skill"]
-    )
-
-    async for message in query(
-        prompt="What Skills are available?",
-        options=options
-    ):
-        if isinstance(message, ResultMessage):
-            print(message.result)
-        else:
-            print(message)
-
-asyncio.run(check_skills())
-
-
 logger = get_logger("video_generator")
 
 
+
+class VideoResolution(str, Enum):
+    """video resolution."""
+    RESOLUTION_4K = "4K"
+    RESOLUTION_1080P = "1080P"
+    RESOLUTION_720P = "720P"
+    RESOLUTION_480P = "480P"
+
+
+class VideoGenerationResult(BaseModel):
+    """result from video generation."""
+    summary: str
+    changes_made: List[str]
+    issues_found: List[str]
+
 class VideoGenerator:
-    """unified video generator based on slideshow style."""
+    """agentic video generator using the remotion engine."""
     
-    def __init__(self, config: Config, 
-                 video_title: Optional[str] = 'Untitled',
-                 subtitle: Optional[str] = 'Explainer Video by Vidinie',
-                 resolution: Optional[Tuple[int, int]] = [1920, 1080],
-                 fps: Optional[int] = 30,
-                 title_duration: Optional[float] = 3.0,
-                 end_duration: Optional[float] = 3.0,
-                 transition_duration: Optional[float] = 0.5,
-                 background_type: Optional[BackgroundType] = BackgroundType.GRADIENT):
+    def __init__(self,
+                 resolution: Optional[VideoResolution] = VideoResolution.RESOLUTION_720P,
+                 user_instructions: str = ""):
         """
         initialize video generator.
-        args:
-            config: configuration object
         """
-        self.config = config
-        self.width = resolution[0]
-        self.height = resolution[1]
-        self.fps = fps
-        self.subtitle = subtitle
-        self.title_duration = title_duration
-        self.end_duration = end_duration
-        self.transition_duration = transition_duration
-        self.background_type = background_type
-        
-        # initialize font loader
-        self.font_loader = FontLoader(config)
-        VideoUtils.set_font_loader(self.font_loader)
-        # video title will be set when generate_video is called
-        self.video_title = video_title
-        logger.info(f"initialized video generator: {self.width}x{self.height} @ {self.fps}fps")
-        # log available fonts
-        available_fonts = self.font_loader.list_available_fonts()
-        if available_fonts:
-            logger.info(f"available fonts: {', '.join(available_fonts)}")
-    
-    def generate_video(self, script_data: VideoOutline, output_path: str) -> str:
-    # TODO: copy reference content into provided output path
-    # TODO: convert video outline into json and store in task temp file
-    # TODO: check if remotion tool is available
-    # TODO: initiate agent with context of the task and location of the remotion project, video outline data and media assets
-    # TODO: agent will generate the video code and store in the task temp file
-    # TODO: run the render function using npx and define the output quality based on provided arguments
-    # TODO: return the path to the generated video
-    #     """
-    #     generate video from script and audio data.
-    #     args:
-    #         script_with_audio: script data with audio files
-    #         output_path: path to save output video
-    #     returns:
-    #         path to generated video
-    #     """
-    #     logger.info("starting video generation")
-    #     clips = []
-        
-    #     # store video title for use in all segments
-    #     self.video_title = self.video_title if self.video_title else script_data.title
-        
-    #     # create title card
-    #     title_clip = self._create_title_card(self.video_title)
-    #     clips.append(title_clip)
-        
-    #     # create clips for each segment
-    #     for i, segment in enumerate(script_data.segments, 1):
-    #         logger.info(f"creating slide {i}/{len(script_data.segments)}: {segment.title}")
-    #         segment_clip = self._create_segment_clip(segment, i)
-    #         if segment_clip is not None:
-    #             clips.append(segment_clip)
-        
-    #     # create end card
-    #     end_clip = self._create_end_card()
-    #     clips.append(end_clip)
-        
-    #     # concatenate all clips
-    #     logger.info("concatenating video clips...")
-    #     final_video = concatenate_videoclips(clips, method='compose')
-        
-    #     # write video file
-    #     logger.info(f"writing video to {output_path}...")
-    #     final_video.write_videofile(
-    #         output_path,
-    #         fps=self.fps,
-    #         codec=self.config.output_codec,
-    #         audio_codec=self.config.output_audio_codec,
-    #         temp_audiofile='temp_audio.m4a',
-    #         remove_temp=True,
-    #     )
-        
-    #     logger.info(f"video generated successfully: {output_path}")
-    #     return output_path
-    
-    # def _create_title_card(self, title: str) -> VideoClip:
-    #     """
-    #     create title card clip. 
-    #     args:
-    #         title: video title
-    #     returns:
-    #         video clip for title card
-    #     """
-    #     logger.info("creating title card...")
-        
-    #     title_card = VideoUtils.create_title_card(
-    #         self.width,
-    #         self.height,
-    #         title,
-    #         subtitle=self.subtitle
-    #     )
-        
-    #     clip = ImageClip(title_card).set_duration(self.title_duration)
-    #     clip = clip.fx(fadein, 0.5).fx(fadeout, 0.5)
-        
-    #     return clip
-    
-    # def _create_end_card(self) -> VideoClip:
-    #     """
-    #     create end card clip.
-    #     returns:
-    #         video clip for end card
-    #     """
-    #     logger.info("creating end card...")
-        
-    #     end_card = VideoUtils.create_end_card(
-    #         self.width,
-    #         self.height,
-    #         message="Thank you for watching!"
-    #     )
-        
-    #     clip = ImageClip(end_card).set_duration(self.end_duration)
-    #     clip = clip.fx(fadein, 0.5).fx(fadeout, 0.5)
-        
-    #     return clip
-    
-    # def _create_segment_clip(self, 
-    #                         segment: VideoSegment, 
-    #                         segment_number: int) -> Optional[VideoClip]:
-    #     """
-    #     create video clip for a segment.
-    #     args:
-    #         segment: video segment data
-    #         segment_number: segment number
-    #     returns:
-    #         video clip for segment or None if failed
-    #     """
-    #     try:
-    #         # get duration from audio or estimate
-    #         duration = segment.audio_duration if segment.audio_duration else 40
-            
-    #         # create background
-    #         background = self._create_background(segment)
-            
-    #         # add image if available (from image field or legacy fields)
-    #         image_path = self._get_image_path(segment)
-    #         if image_path and os.path.exists(image_path):
-    #             background = self._add_image_to_slide(background, image_path)
-            
-    #         # add text overlay
-    #         background = self._add_text_overlay(background, segment)
-            
-    #         # create clip
-    #         clip = ImageClip(background).set_duration(duration)
-            
-    #         # add audio if available
-    #         audio_file = segment.audio_file
-    #         if audio_file and os.path.exists(audio_file):
-    #             audio = AudioFileClip(audio_file)
-    #             clip = clip.set_audio(audio)
-    #             # ensure video duration matches audio
-    #             clip = clip.set_duration(audio.duration)
-            
-    #         # add transitions
-    #         clip = clip.fx(fadein, self.transition_duration)
-    #         clip = clip.fx(fadeout, self.transition_duration)
-            
-    #         return clip
-            
-    #     except Exception as e:
-    #         logger.error(f"error creating segment clip {segment_number}: {str(e)}", exc_info=True)
-    #         return None
-    
-    # def _get_image_path(self, segment: VideoSegment) -> Optional[str]:
-    #     """
-    #     get image path from segment.
-    #     prioritizes: image field > pdf_images > stock_image (legacy support).
-    #     args:
-    #         segment: segment data
-    #     returns:
-    #         path to image or None
-    #     """
-    #     # check new image field from content analyzer
-    #     if segment.image:
-    #         return segment.image.path
-    #     return None
-    
-    # def _create_background(self, segment: VideoSegment) -> np.ndarray:
-    #     """
-    #     create background for slide.
-    #     args:
-    #         segment: segment data
-    #     returns:
-    #         background as numpy array
-    #     """
-    #     if self.background_type == BackgroundType.GRADIENT:
-    #         return VideoUtils.create_gradient_background(
-    #             self.width, self.height,
-    #             color1=(0, 0, 0),
-    #             color2=(0, 0, 0),
-    #         )
-    #     elif self.background_type == BackgroundType.SOLID:
-    #         # solid color
-    #         return VideoUtils.create_solid_background(
-    #             self.width, self.height,
-    #             color=(0, 0, 0),
-    #         )
-    #     elif self.background_type == BackgroundType.IMAGE:
-    #         # image background
-    #         return VideoUtils.create_image_background(
-    #             self.width, self.height,
-    #             segment.background_image_path if segment.background_image_path else None
-    #         )
-    #     else:
-    #         logger.warning(f"unsupported background type: {self.background_type}")
-    #         return None
-    
-    # def _add_image_to_slide(self, background: np.ndarray, image_path: str) -> np.ndarray:
-    #     """
-    #     add image to slide background.
-    #     image takes up 50% of horizontal space on the right side.
-    #     args:
-    #         background: background numpy array
-    #         image_path: path to image file
-    #     returns:
-    #         background with image composited
-    #     """
-    #     if image_path and os.path.exists(image_path):
-    #         try:
-    #             # composite image on right side, taking 50% of width
-    #             background = VideoUtils.composite_image_on_background(
-    #                 background,
-    #                 image_path,
-    #                 position='right',
-    #                 width_percentage=0.5,
-    #                 mode='fill'
-    #             )
-    #         except Exception as e:
-    #             logger.warning(f"could not add image {image_path}: {str(e)}")
-        
-    #     return background
-    
-    # def _add_text_overlay(self, background: np.ndarray, segment: VideoSegment) -> np.ndarray:
-    #     """
-    #     add text overlay to slide.
-    #     video title is fixed at top, segment title below it, then bullet points.
-    #     args:
-    #         background: background with possible image
-    #         segment: segment data
-    #     returns:
-    #         background with text overlay
-    #     """
-    #     img = Image.fromarray(background)
-        
-    #     # check if image exists to determine text area width
-    #     image_path = self._get_image_path(segment)
-    #     has_image = image_path and os.path.exists(image_path)
-        
-    #     # calculate text area width (50% if image exists as the image takes up 50% of the width, full width otherwise)
-    #     if has_image:
-    #         text_area_width = int(self.width * 0.5)
-    #     else:
-    #         text_area_width = self.width - 200
-    #     position_x = 50
-    #     position_y = 50
+        self.resolution = resolution
+        self.user_instructions = user_instructions
+        self.jinja_env = Environment(
+            loader=FileSystemLoader(str(config.get_prompts_directory())),
+            autoescape=select_autoescape(['html', 'xml'])
+        )
+        self.base_project_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '_base')
+        self.remotion_tool_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '.claude/skills/remotion-best-practices')
+        logger.info(f"initialized video generator: {self.resolution}")
 
-    #     line_spacing = 30
-    #     # fixed video title at top (all segments)
-    #     img, space_used = VideoUtils.add_text_to_image(
-    #         img,
-    #         self.video_title,
-    #         position=(position_x, position_y),
-    #         font_size=70,
-    #         color=(255, 255, 255),
-    #         max_width=text_area_width - 100,
-    #         align='left'
-    #     )
-    #     space_used += 30
-    #     position_y += space_used + line_spacing
+        if not self._check_remotion_tool():
+            raise ValueError("remotion tool is not available")
+        if not self._check_base_project():
+            raise ValueError("base project is not available")
 
-    #     # segment title below video title (no segment number prefix)
-    #     img, space_used = VideoUtils.add_text_to_image(
-    #         img,
-    #         segment.title,
-    #         position=(position_x, position_y),
-    #         font_size=50,
-    #         color=(255, 255, 255),
-    #         max_width=text_area_width,
-    #         align='left'
-    #     )
+    def _check_remotion_tool(self) -> bool:
+        """check if the remotion tool is available."""
+        logger.info(f"checking if remotion tool is available at {self.remotion_tool_path}")
+        available = os.path.exists(self.remotion_tool_path)
+        if not available:
+            logger.error(f"remotion tool is not available at {self.remotion_tool_path}")
+        else:
+            logger.info(f"remotion tool is available at {self.remotion_tool_path}")
+        return available
+    
+    def _check_base_project(self) -> bool:
+        """check if the base project is available."""
+        logger.info(f"checking if base project is available at {self.base_project_path}")
+        available = os.path.exists(self.base_project_path)
+        if not available:
+            logger.error(f"base project is not available at {self.base_project_path}")
+        else:
+            logger.info(f"base project is available at {self.base_project_path}")
+        return available
+    
+    def _copy_base_to_target(self, target_path: str) -> bool:
+        """copy the base project to the target path."""
+        copy_target_path = os.path.join(target_path, 'composition')
+        if os.path.exists(copy_target_path):
+            logger.info(f"removing existing composition at {copy_target_path}")
+            shutil.rmtree(copy_target_path)
+        logger.info(f"copying base project to {copy_target_path}")
+        return shutil.copytree(self.base_project_path, copy_target_path)
+    
+    def _install_dependencies_in_target(self, target_path: str) -> bool:
+        """install dependencies in the target path."""
+        composition_path = os.path.join(target_path, 'composition')
+        return subprocess.run(
+            ['npm', 'install'],
+            cwd=composition_path,
+            check=False
+        )
+    
+    def _move_assets_from_target_to_remotion_public(self, target_path: str) -> bool:
+        """move assets from the target path to the remotion public folder."""
+        composition_path = os.path.join(target_path, 'composition')
+        composition_public_path = os.path.join(composition_path, 'public')
+        if not os.path.exists(composition_public_path):
+            os.makedirs(composition_public_path)
+        # move audio
+        audio_path = os.path.join(target_path, 'audio')
+        if os.path.exists(audio_path):
+            shutil.copytree(audio_path, os.path.join(composition_public_path, 'audio'))
+        # move source
+        source_path = os.path.join(target_path, 'source')
+        if os.path.exists(source_path):
+            shutil.copytree(source_path, os.path.join(composition_public_path, 'source'))
+        # move images
+        images_path = os.path.join(target_path, 'images')
+        if os.path.exists(images_path):
+            shutil.copytree(images_path, os.path.join(composition_public_path, 'images'))
+        # move video clips
+        video_clips_path = os.path.join(target_path, 'video_clips')
+        if os.path.exists(video_clips_path):
+            shutil.copytree(video_clips_path, os.path.join(composition_public_path, 'video_clips'))
+    
+    def _render_video_in_target(self, target_path: str) -> str:
+        scale = 1
+        if self.resolution == VideoResolution.RESOLUTION_4K:
+            scale = 4
+        elif self.resolution == VideoResolution.RESOLUTION_1080P:
+            scale = 2
+        elif self.resolution == VideoResolution.RESOLUTION_720P:
+            scale = 1
+        elif self.resolution == VideoResolution.RESOLUTION_480P:
+            scale = 0.5
+        
+        composition_path = os.path.join(target_path, 'composition')
+        entry_file = 'src/index.ts'
+        return subprocess.run(
+            ['npx', 'remotion', 'render', entry_file, '--scale', str(scale)],
+            cwd=composition_path,
+            check=False
+        )
+    
+    def _move_remotion_output_to_target_output(self, target_path: str) -> bool:
+        """copy remotion output to the target output path."""
+        remotion_output_path = os.path.join(target_path, 'composition', 'out', 'MyComp.mp4')
+        target_output_dir = os.path.join(target_path, 'result')
+        target_output_path = os.path.join(target_output_dir, 'vidinie_video.mp4')
+        if not os.path.exists(remotion_output_path):
+            logger.error(f"remotion output not found at {remotion_output_path}")
+            return False
+        # create target directory if it doesn't exist
+        os.makedirs(target_output_dir, exist_ok=True)
+        logger.info(f"copying remotion output from {remotion_output_path} to {target_output_path}")
+        shutil.copy2(remotion_output_path, target_output_path)
+        logger.info(f"remotion output copied to {target_output_path}")
+        return True
+    
+    async def _agentic_video_generation(self, xml_prompt_context: str, target_path: str):
+        """agentic video generation."""
+        system_prompt = self.jinja_env.get_template('video_generation_system.j2').render(
+            user_instructions=self.user_instructions if self.user_instructions else None
+        )
+        prompt = self.jinja_env.get_template('video_generation_instruction.j2').render(video_outline=xml_prompt_context)
+        if target_path.endswith("/"):
+            target_path = target_path[:-1]
+        prompt = prompt.replace(f'{target_path}', "public")
+        options = ClaudeAgentOptions(
+            system_prompt=system_prompt,
+            setting_sources=["project"],  # load skills from the project file system
+            allowed_tools=["Skill", "Read", "Write", "Bash"], # allow tools to read, write and bash commands (only use bash for read operations)
+            permission_mode="acceptEdits",  # allow file edits
+            output_format={
+                "type": "json_schema",
+                "schema": VideoGenerationResult.model_json_schema()
+            }
+        )
+        message_usages = []
+        result = None
+        async for message in query(prompt=prompt,options=options):
+            # print human-readable agent and tool interactions
+            if isinstance(message, AssistantMessage):
+                for block in message.content:
+                    if hasattr(block, "text"):
+                        logger.info(f"agent reasoning: {block.text}")              # agent reasoning
+                    elif hasattr(block, "name"):
+                        logger.info(f"executed tool: {block.name}")   # tool being called
+            elif isinstance(message, ResultMessage) and message.structured_output:
+                result = VideoGenerationResult.model_validate(message.structured_output)
+                logger.info(f"video generation result summary: {result.summary}")
+                logger.info(f"video generation result changes made: {result.changes_made}")
+                logger.info(f"video generation result issues found: {result.issues_found}")
+            
+            # calculate message token usage
+            if hasattr(message, "usage"):
+                message_usages.append(message.usage["output_tokens"])
+        
+        # calculate total token usage
+        total_token_usage = sum(message_usages)
+        logger.info(f"total token usage: {total_token_usage}")
 
-    #     position_y += space_used + line_spacing
-        
-    #     # add key points (first 3) with better spacing
-    #     key_points = segment.key_points[:3]
-    #     if key_points:
-    #         position_y += 20          
-    #         for point in key_points:
-    #             # add bullet point with proper alignment
-    #             point_text = f"• {point}"
-    #             img, space_used = VideoUtils.add_text_to_image(
-    #                 img,
-    #                 point_text,
-    #                 position=(position_x + 20, position_y),
-    #                 font_size=40,
-    #                 color=(255, 255, 255),
-    #                 max_width=text_area_width - 40,
-    #                 align='left'
-    #             )
-    #             position_y += space_used + line_spacing
-        
-    #     return np.array(img)
-        pass
+
+    def generate_video(self, script_data: VideoOutline, target_path: str) -> str:
+        # copy reference content into provided output path
+        self._copy_base_to_target(target_path)
+        # install dependencies in target path
+        self._install_dependencies_in_target(target_path)
+        # convert video outline into json and store in task temp file
+        xml_prompt_context = to_xml_prompt_context(script_data)
+        # check if remotion tool is available
+        if not self._check_remotion_tool():
+            raise ValueError("remotion tool is not available")
+        # initiate agent with context of the task and location of the remotion project, video outline data and media assets
+        asyncio.run(self._agentic_video_generation(xml_prompt_context, target_path))
+        # render video in target path
+        self._render_video_in_target(target_path)
+        # move remotion output to target output path
+        self._move_remotion_output_to_target_output(target_path)
+        # return the path to the generated video
+        return os.path.join(target_path, 'result', 'vidinie_video.mp4')
+
+if __name__ == "__main__":
+    logger.info("starting video generator experiment")
+    video_generator = VideoGenerator()
+    logger.info("video generator initialized")
+    video_generator._copy_base_to_target('temp/696fed125aaee84dd0d1bbd1')
+    logger.info("base project copied to target path")
+    video_generator._move_assets_from_target_to_remotion_public('temp/696fed125aaee84dd0d1bbd1')
+    logger.info("assets moved to remotion public folder")
+    video_generator._install_dependencies_in_target('temp/696fed125aaee84dd0d1bbd1')
+    logger.info("dependencies installed in target path")
+    video_generator._render_video_in_target('temp/696fed125aaee84dd0d1bbd1')
+    logger.info("video rendered in target path")
+    video_generator._move_remotion_output_to_target_output('temp/696fed125aaee84dd0d1bbd1')
+    logger.info("remotion output moved to target output path")
+    # asyncio.run(test_agent())

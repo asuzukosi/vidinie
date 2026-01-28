@@ -12,7 +12,7 @@ from core.data import (
     VideoPipeline,
     VideoPipelineStage,
     VideoPipelineStatus,
-    VideoPipelineParsedContent,
+    ParsedContent,
     SourceType,
 )
 from core.processors.pdf_processor import PDFProcessor
@@ -37,7 +37,7 @@ def process_pdf_document(
     returns:
         updated video pipeline with parsed content and optionally labeled images
     """
-    temp_dir = config.get('output.temp_directory', 'temp')
+    temp_dir = config.output_temp_directory
     images_dir = os.path.join(temp_dir, pipeline.id, 'images')
     os.makedirs(images_dir, exist_ok=True)
     
@@ -61,10 +61,10 @@ def process_pdf_document(
     
     try:
         # process with pdf_content
-        processor = PDFProcessor(pdf_content=pdf_content, images_output_dir=images_dir)
+        processor = PDFProcessor(pdf_content=pdf_content, images_output_dir=images_dir, user_instructions=pipeline.instructions)
         
         with processor:
-            content: VideoPipelineParsedContent = processor.extract_structured_content()
+            content: ParsedContent = processor.extract_structured_content()
             pipeline.parsed_content = content
             
             logger.info(f"Title: {content.title}")
@@ -105,7 +105,7 @@ def process_html_document(
     returns:
         updated video pipeline with parsed content and optionally labeled images
     """
-    temp_dir = config.get('output.temp_directory', 'temp')
+    temp_dir = config.output_temp_directory
     images_dir = os.path.join(temp_dir, pipeline.id, 'images')
     os.makedirs(images_dir, exist_ok=True)
     
@@ -142,10 +142,10 @@ def process_html_document(
     
     try:
         # process with html_content
-        processor = HTMLProcessor(html_content=html_content, images_output_dir=images_dir)
+        processor = HTMLProcessor(html_content=html_content, images_output_dir=images_dir, original_url=html_path, user_instructions=pipeline.instructions)
         
         with processor:
-            content: VideoPipelineParsedContent = processor.extract_structured_content()
+            content: ParsedContent = processor.extract_structured_content()
             pipeline.parsed_content = content
             
             logger.info(f"Title: {content.title}")

@@ -15,7 +15,23 @@ RUN apt-get update && apt-get install -y \
     libfontconfig1 \
     libxrender1 \
     libglib2.0-0 \
+    curl \
     && rm -rf /var/lib/apt/lists/*
+
+ENV NODE_VERSION=20.19.5
+RUN apt install -y curl
+RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+ENV NVM_DIR=/root/.nvm
+RUN . "$NVM_DIR/nvm.sh" && nvm install ${NODE_VERSION}
+RUN . "$NVM_DIR/nvm.sh" && nvm use v${NODE_VERSION}
+RUN . "$NVM_DIR/nvm.sh" && nvm alias default v${NODE_VERSION}
+ENV PATH="/root/.nvm/versions/node/v${NODE_VERSION}/bin/:${PATH}"
+RUN node --version
+RUN npm --version
+
+# install claude code cli
+# the claude-agent-sdk python package is already installed via requirements.txt
+RUN curl -fsSL https://claude.ai/install.sh | bash
 
 # copy requirements file
 COPY requirements.txt .

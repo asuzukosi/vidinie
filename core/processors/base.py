@@ -5,9 +5,8 @@ Abstract base class for the input document processors.
 from abc import ABC, abstractmethod
 from typing import List
 from core.data import (
-    VideoPipelineParsedContent,
-    VideoPipelineImageMetadata,
-    VideoPipelineImageStats,
+    ParsedContent,
+    ImageMetadata,
 )
 
 class DocumentProcessor(ABC):
@@ -31,7 +30,7 @@ class DocumentProcessor(ABC):
         pass
     
     @abstractmethod
-    def extract_structured_content(self) -> VideoPipelineParsedContent:
+    def extract_structured_content(self) -> ParsedContent:
         """
         extract text with structure information (headings, paragraphs, sections).
         returns:
@@ -40,40 +39,10 @@ class DocumentProcessor(ABC):
         pass
     
     @abstractmethod
-    def extract_images(self, min_width: int = 100, min_height: int = 100) -> List[VideoPipelineImageMetadata]:
+    def extract_images(self, min_width: int = 100, min_height: int = 100) -> List[ImageMetadata]:
         """
         extract all images from the document.
         returns:
             list of image metadata objects
         """
         pass
-    
-    @abstractmethod
-    def get_image_stats(self) -> VideoPipelineImageStats:
-        """
-        get statistics about extracted images.
-        returns:
-            image stats object
-        """
-        pass
-    
-    def process_all(self, extract_images: bool = True,
-                   min_image_width: int = 100,
-                   min_image_height: int = 100) -> VideoPipelineParsedContent:
-        """
-        process document: extract both text content and images.
-        args:
-            extract_images: whether to extract images
-            min_image_width: minimum image width
-            min_image_height: minimum image height
-        returns:
-            parsed content object
-        """
-        content = self.extract_structured_content()
-        images: List[VideoPipelineImageMetadata] = []
-        
-        if extract_images:
-            images = self.extract_images(min_image_width, min_image_height)
-        
-        return content
-

@@ -1,60 +1,59 @@
 "use client";
 
-import { SignupForm } from "@/components/authentication/SignUpForm";
-import client from "@/lib/sdk/client";
+import { SignupForm } from "@/components/authentication/sign-up-form";
+import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { useDispatch, useSelector } from "react-redux";
-import { setUser } from "@/lib/store/slices/authSlice";
+import { useDispatch } from "react-redux";
+import { setUser } from "@/lib/store/slices/auth-slice";
 import { useEffect, useCallback } from "react";
-import type { RootState } from "@/lib/store/store";
-
-declare global {
-  interface Window {
-    google?: {
-      accounts: {
-        id: {
-          initialize: (config: any) => void;
-          prompt: () => void;
-          renderButton: (element: HTMLElement, config: any) => void;
-        };
-      };
-    };
-  }
-}
 
 export default function SignUpPage() {
+  // router to navigate to the video pipelines page
   const router = useRouter();
+  // dispatch to dispatch the user data to the redux store
   const dispatch = useDispatch();
-  const user = useSelector((state: RootState) => state.auth.user);
 
   useEffect(() => {
-    // check if user is already authenticated
-    if (user?.token) {
-      router.push("/video-pipelines");
-      return;
-    }
-  }, [user, router]);
+    // check if user is already authenticated via better-auth session
+    authClient.getSession().then((session) => {
+      if (session?.data && session.data.user) {
+        // navigate to the video pipelines page
+        router.push("/video-pipelines");
+      }
+      // if user is not authenticated, continue to the signup page
+    });
+  }, [router]);
 
   const handleSignup = async (email: string, password: string) => {
     try {
-      await client.register(email, password);
+      const result = await authClient.signUp.email({ name: email, email, password });
+      // if there is an error, throw an error
+      if (result.error) {
+        throw new Error(result.error.message || "Could not create account");
+      }
       toast.success("Account created successfully!");
-      
       // auto-login after signup
-      const response = await client.login(email, password);
-      const userData = {
-        id: response.id,
-        email: response.email,
-        token: response.token,
-        created_at: response.created_at,
-        updated_at: response.updated_at,
-        is_verified: response.is_verified,
-      };
-      dispatch(setUser(userData));
-      // sync token to sdk client
-      client.setToken(response.token);
-      
+      const loginResponse = await authClient.signIn.email({
+        email,
+        password,
+      });
+      // if there is an error, throw an error
+      if (loginResponse.error) {
+        throw new Error(loginResponse.error.message || "Login failed after signup");
+      }
+      // get session to store user data
+      const session = await authClient.getSession();
+      if (session?.data && session.data.user) {
+        // store user data in redux store
+        const userData = { id: session.data.user.id, email: session.data.user.email, token: session.data.session?.token || "", created_at: session.data.user.createdAt.toISOString(), 
+                           updated_at: session.data.user.updatedAt.toISOString(), is_verified: session.data.user.emailVerified || false };
+        // dispatch user data to redux store
+        dispatch(setUser(userData));
+      }
+      // show success toast
+      toast.success("Account created successfully!");
+      // navigate to the video pipelines page
       router.push("/video-pipelines");
     } catch (error: any) {
       toast.error("Signup failed", {
@@ -66,176 +65,30 @@ export default function SignUpPage() {
 
   const handleGoogleSignup = useCallback(async () => {
     try {
-      const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID;
-      if (!googleClientId) {
-        toast.error("google authentication not configured");
-        return;
-      }
-
-      // load google identity services script if not already loaded
-      if (!window.google) {
-        const script = document.createElement("script");
-        script.src = "https://accounts.google.com/gsi/client";
-        script.async = true;
-        script.defer = true;
-        document.head.appendChild(script);
-
-        await new Promise((resolve, reject) => {
-          script.onload = () => {
-            // Wait a bit for Google to fully initialize
-            setTimeout(() => {
-              if (window.google?.accounts?.id) {
-                resolve(undefined);
-              } else {
-                reject(new Error("Google Sign-In services failed to initialize. Please disable ad blockers or privacy extensions and try again."));
-              }
-            }, 500);
-          };
-          script.onerror = () => {
-            reject(new Error("Failed to load Google Sign-In. Please check if ad blockers are enabled and try disabling them."));
-          };
-          setTimeout(() => {
-            reject(new Error("Google Sign-In script timed out. Please check your internet connection or disable ad blockers."));
-          }, 10000); // 10 second timeout
-        });
-      }
-
-      // Check if Google services are available
-      if (!window.google?.accounts?.id) {
-        throw new Error("Google Sign-In services are not available. Please disable ad blockers or privacy extensions and try again.");
-      }
-
-      // Use a promise-based approach to handle the callback
-      let callbackResolve: ((value: any) => void) | null = null;
-      let callbackReject: ((error: Error) => void) | null = null;
-
-      const callbackPromise = new Promise<any>((resolve, reject) => {
-        callbackResolve = resolve;
-        callbackReject = reject;
+      // use better-auth google authentication
+      const response = await authClient.signIn.social({
+        provider: "google",
+        callbackURL: "/video-pipelines",
       });
-
-      // Initialize google identity services with callback
-      window.google.accounts.id.initialize({
-        client_id: googleClientId,
-        callback: (response: any) => {
-          if (response.credential && callbackResolve) {
-            callbackResolve(response);
-          } else if (callbackReject) {
-            callbackReject(new Error("No credential received from Google"));
-          }
-        },
-        use_fedcm_for_prompt: true,
-      });
-
-      // Create a temporary container for the Google button
-      const buttonContainer = document.createElement('div');
-      buttonContainer.id = 'google-signin-button-temp';
-      buttonContainer.style.position = 'fixed';
-      buttonContainer.style.left = '-9999px';
-      buttonContainer.style.top = '-9999px';
-      document.body.appendChild(buttonContainer);
-
-      // Render the Google Sign-In button
-      try {
-        window.google.accounts.id.renderButton(buttonContainer, {
-          type: 'standard',
-          theme: 'outline',
-          size: 'large',
-          text: 'signin_with',
-          width: 300,
-        });
-
-        // Wait a moment for the button to render, then click it
-        setTimeout(() => {
-          const googleButton = buttonContainer.querySelector('div[role="button"]') as HTMLElement;
-          if (googleButton) {
-            googleButton.click();
-          } else {
-            // Fallback: try prompt if button rendering failed
-            try {
-              window.google?.accounts.id.prompt();
-            } catch (promptError) {
-              document.body.removeChild(buttonContainer);
-              if (callbackReject) {
-                callbackReject(new Error("Unable to start Google Sign-In. Please try disabling ad blockers."));
-              }
-              return;
-            }
-          }
-        }, 200);
-      } catch (renderError) {
-        document.body.removeChild(buttonContainer);
-        // Fallback: try prompt
-        try {
-          window.google?.accounts.id.prompt();
-        } catch (promptError) {
-          throw new Error("Unable to start Google Sign-In. Please try disabling ad blockers.");
-        }
+      // if there is an error, throw an error
+      if (response.error) {
+        throw new Error(response.error.message || "Google authentication failed");
       }
-
-      // Wait for the callback with a timeout
-      const timeoutId = setTimeout(() => {
-        document.body.removeChild(buttonContainer);
-        if (callbackReject) {
-          callbackReject(new Error("Google Sign-In timed out. Please try again."));
-        }
-      }, 60000); // 60 second timeout
-
-      try {
-        const response = await callbackPromise;
-        clearTimeout(timeoutId);
-        document.body.removeChild(buttonContainer);
-
-        if (!response.credential) {
-          toast.error("Google authentication failed", {
-            description: "No credential received from Google",
-          });
-          return;
-        }
-
-        // send id token to api route which verifies and handles authentication
-        const apiResponse = await fetch('/api/auth/google', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ id_token: response.credential }),
-        });
-
-        if (!apiResponse.ok) {
-          const errorData = await apiResponse.json().catch(() => ({}));
-          throw new Error(errorData.error || 'Authentication failed');
-        }
-
-        const loginResponse = await apiResponse.json();
-        
-        // store user data and token in redux
-        const userData = {
-          id: loginResponse.id,
-          email: loginResponse.email,
-          token: loginResponse.token,
-          created_at: loginResponse.created_at,
-          updated_at: loginResponse.updated_at,
-          is_verified: loginResponse.is_verified,
-        };
+      // get session after google authentication
+      const session = await authClient.getSession();
+      if (session?.data && session.data.user) {
+        // store user data in redux store
+        const userData = { id: session.data.user.id, email: session.data.user.email, token: session.data.session?.token || "", created_at: session.data.user.createdAt.toISOString(), 
+                           updated_at: session.data.user.updatedAt.toISOString(), is_verified: session.data.user.emailVerified || false };
+        // dispatch user data to redux store
         dispatch(setUser(userData));
-        client.setToken(loginResponse.token);
-        toast.success("Account created successfully!");
-        router.push("/video-pipelines");
-      } catch (callbackError: any) {
-        clearTimeout(timeoutId);
-        if (buttonContainer.parentNode) {
-          document.body.removeChild(buttonContainer);
-        }
-        throw callbackError;
       }
+      // show success toast
+      toast.success("Account created successfully!");
+      router.push("/video-pipelines");
     } catch (error: any) {
-      const errorMessage = error.message || "Please try again";
-      toast.error("Failed to initialize Google Sign-In", {
-        description: errorMessage.includes("ad blocker") || errorMessage.includes("privacy")
-          ? errorMessage
-          : `${errorMessage}. If the issue persists, please try disabling ad blockers or privacy extensions.`,
-        duration: 6000,
+      toast.error("Google authentication failed", {
+        description: error.message || "Please try again",
       });
     }
   }, [dispatch, router]);

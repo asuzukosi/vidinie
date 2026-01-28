@@ -3,38 +3,32 @@ script generation operations for the api.
 generates narration scripts and voiceovers from video outline.
 """
 import os
-from typing import Optional
 from core.utils.logger import get_logger
 from core.utils.config_loader import config
 from core.data import (
     VideoPipeline,
-    VideoPipelineScript,
+    VideoOutline,
     VideoPipelineStage,
     VideoPipelineStatus,
 )
 from core.operations.script_generator import ScriptGenerator
 from core.operations.voiceover_generator import VoiceoverGenerator
+from core.operations.music_generator import MusicGenerator
 
 logger = get_logger("script_operations")
 
 
 def generate_scripts(
-    pipeline: VideoPipeline,
-    provider: Optional[str] = None,
-    voice_id: Optional[str] = None
+    pipeline: VideoPipeline
 ) -> VideoPipeline:
     """
     generate narration scripts and voiceovers from video outline.
     args:
         pipeline: video pipeline object with video outline
-        provider: voiceover provider ('elevenlabs' or 'gtts') (optional, uses config if not provided)
-        voice_id: elevenlabs voice id (optional, uses config if not provided)
     returns:
         updated video pipeline with script data, full audio path, and full audio duration
     """
-    voice_id = voice_id or config.get('voiceover.voice_id')
-    provider = provider or config.get('voiceover.provider', 'elevenlabs')
-    temp_dir = config.get('output.temp_directory', 'temp')
+    temp_dir = config.output_temp_directory
     
     pipeline.update_stage(VideoPipelineStage.SCRIPT_GENERATION, VideoPipelineStatus.IN_PROGRESS)
     
@@ -49,25 +43,33 @@ def generate_scripts(
         
         # Generate scripts
         logger.info("Generating scripts")
-        script_gen = ScriptGenerator()
-        script_data: VideoPipelineScript = script_gen.generate_script(outline)
+        script_gen = ScriptGenerator(user_instructions=pipeline.instructions)
+        script_data: VideoOutline = script_gen.generate_script(outline)
         pipeline.script_data = script_data
         logger.info(f"Generated scripts for {len(script_data.segments)} segments")
         
         # Generate voiceovers
-        logger.info(f"Using voiceover provider: {provider}")
         audio_dir = os.path.join(temp_dir, pipeline.id, 'audio')
         os.makedirs(audio_dir, exist_ok=True)
         
         voiceover_gen = VoiceoverGenerator(
-            provider=provider,
-            voice_id=voice_id,
+            voice=pipeline.voice,
             output_dir=audio_dir
         )
         
-        script_data_with_audio: VideoPipelineScript = voiceover_gen.generate_voiceovers(script_data)
+        script_data_with_audio: VideoOutline = voiceover_gen.generate_voiceovers(script_data)
         pipeline.script_data = script_data_with_audio
         logger.info(f"Generated voiceovers for {len(script_data_with_audio.segments)} segments")
+        
+        # senerate background music if query is provided
+        music_dir = os.path.join(temp_dir, pipeline.id, 'music')
+        os.makedirs(music_dir, exist_ok=True)
+        
+        music_gen = MusicGenerator(output_dir=music_dir)
+        script_data_with_music: VideoOutline = music_gen.generate_background_music(script_data_with_audio)
+        pipeline.script_data = script_data_with_music
+        if script_data_with_music.background_music_path:
+            logger.info(f"generated background music: {script_data_with_music.background_music_path}")
         
         # Generate combined audio
         combined_audio_path = os.path.join(audio_dir, 'full_voiceover.mp3')

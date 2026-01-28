@@ -15,7 +15,7 @@ You are operating within a pre-configured Remotion project folder that contains 
 **Project Structure:**
 - `public/` - Contains all assets referenced in the video outline (DO NOT modify)
   - `public/images/` - Static images for the video
-  - `public/audio/` - Audio files and narration tracks
+  - `public/audio/` - Audio files including narration tracks and background music (if provided)
   - `public/video_clips/` - Video clip assets for b-roll
   - `public/source/` - Source documents
 - `src/` - Source code directory where you'll create/modify components
@@ -45,6 +45,7 @@ The video outline above follows this XML structure:
   - `<video_clips>`: Video clip assets with source, query/path, and timing
   - `<transitions>`: Transition type and target for segment flow
   - `<audio>`: Audio file path and duration
+- `<background_music>`: Optional background music with query and path (if provided)
 
 All assets referenced in the outline are already placed in the `public/` folder of this composition.
 </input_context>
@@ -93,13 +94,20 @@ All files must be syntactically correct TypeScript/React that will render withou
 - Position and time images/videos according to the timing specifications from the outline
 - Apply visual keywords as design inspiration (colors, themes, composition)
 - Ensure text is large enough and remains on screen long enough to be read
+- **Typography**: Use Remotion Google Fonts to access a wide variety of fonts. Import fonts using `loadFont()` from `@remotion/google-fonts` to enhance visual design. Choose fonts that match the content tone (e.g., professional serif fonts for formal content, modern sans-serif for contemporary topics, decorative fonts for creative segments)
 </visual_design>
 
 <audio_synchronization>
-- Load audio files using `<Audio src={staticFile('audio/filename.mp3')} />`
-- Place audio sequences at correct timestamps
-- Use the `audio_duration` field from the outline for accurate timing
+- Load narration audio files using `<Audio src={staticFile('audio/filename.mp3')} />`
+- Place narration audio sequences at correct timestamps
+- Use the `audio_duration` field from each segment for accurate timing
 - Sync visual beats with audio cues (if script provides timing markers)
+- **Background Music (if provided)**: 
+  - Load background music from the `<background_music>` section using `staticFile('audio/background_music.mp3')`
+  - Mix background music at a lower volume (typically 20-30% of narration volume) so it doesn't overpower the narration
+  - Loop the background music seamlessly if it's shorter than the total video duration
+  - Apply fade in/out effects at the beginning and end of the video for smooth transitions
+  - Ensure background music enhances the mood without distracting from the narration
 </audio_synchronization>
 
 <transitions>

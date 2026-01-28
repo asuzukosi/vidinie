@@ -3,7 +3,7 @@ vidinie content analyzer module
 analyzes pdf content and creates structured video segments.
 """
 import re
-from typing import List
+from typing import List, Optional
 from pydantic import BaseModel
 from core.clients.reasoning_engine import reason, ReasoningPrompt
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -49,6 +49,7 @@ class ContentAnalyzerOutline(BaseModel):
     total_segments: int
     estimated_duration: int
     narrative_arc: str
+    background_music_query: Optional[str] = None
     segments: List[ContentAnalyzerOutlineSegment]
 
 
@@ -58,13 +59,15 @@ class ContentAnalyzer:
     """
     def __init__(self, 
                  target_segments: int = 5, 
-                 segment_duration: int = 40):
+                 segment_duration: int = 40,
+                 user_instructions: str = ""):
         """
         initialize content analyzer.
         """
         # set target segments and segment duration
         self.target_segments = target_segments
         self.segment_duration = segment_duration
+        self.user_instructions = user_instructions
         
 
     def _split_context(self, context: str, split_by: str = '\n', chunk_length: int = 360000) -> List[str]:
@@ -105,7 +108,10 @@ class ContentAnalyzer:
         )
         # render system prompt
         system_template = jinja_env.get_template('bullet_summary_system.j2')
-        system_prompt = system_template.render(document_title=title)
+        system_prompt = system_template.render(
+            document_title=title,
+            user_instructions=self.user_instructions if self.user_instructions else None
+        )
 
         # combine summaries function
         def combine_summaries(summaries: List[GenerateSummary]) -> str:
@@ -186,7 +192,9 @@ class ContentAnalyzer:
             autoescape=select_autoescape(['html', 'xml'])
         )
 
-        system_prompt = jinja_env.get_template('outline_system.j2').render()
+        system_prompt = jinja_env.get_template('outline_system.j2').render(
+            user_instructions=self.user_instructions if self.user_instructions else None
+        )
         template = jinja_env.get_template('outline_instruction.j2')
         prompt = template.render(
             title=title,
@@ -197,5 +205,29 @@ class ContentAnalyzer:
             has_images=len(images_metadata) > 0
         )
         reasoning_prompt = ReasoningPrompt(task=prompt, images=[])
-        outline: VideoOutline = reason(system_prompt, reasoning_prompt, schema=VideoOutline)
-        return outline
+        outline: ContentAnalyzerOutline = reason(system_prompt, reasoning_prompt, schema=ContentAnalyzerOutline)
+        # convert content analyzer outline to video outline
+        segments: List[ContentAnalyzerOutlineSegment] = []
+        for segment in outline.segments:
+            segments.append(ContentAnalyzerOutlineSegment(
+                title=segment.title,
+                purpose=segment.purpose,
+                key_points=segment.key_points,
+                content=segment.content,
+                narrative_hook=segment.narrative_hook,
+                transition_from_previous=segment.transition_from_previous,
+                transition_to_next=segment.transition_to_next,
+                visual_keywords=segment.visual_keywords,
+                duration=segment.duration,
+                images=segment.images,
+                video_clips=segment.video_clips,
+            ))
+        video_outline = VideoOutline(
+            title=outline.title,
+            total_segments=outline.total_segments,
+            estimated_duration=outline.estimated_duration,
+            narrative_arc=outline.narrative_arc,
+            background_music_query=outline.background_music_query,
+            segments=segments,
+        )
+        return video_outline

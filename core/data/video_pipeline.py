@@ -37,9 +37,8 @@ class VideoPipeline(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     user_id: Optional[str] = None # user id of the user who created the video pipeline
     name: str = Field(default="")
-    description: str = Field(default="")
-    tags: List[str] = Field(default_factory=list)  # tags of the video pipeline
-    projects: List[str] = Field(default_factory=list)  # projects of the video pipeline
+    instructions: str  # user instructions to guide AI operations (required)
+    voice: str  # audio voice selection for narration (required)
 
     # timing information
     updated_at: str = Field(default_factory=lambda: datetime.now().isoformat())
@@ -69,21 +68,17 @@ class VideoPipeline(BaseModel):
     # configuration
     config: Optional[Dict[str, Any]] = None  # video pipeline configuration settings
 
-    # status tracking
+    # status tracking - flat structure for easier frontend access
     current_stage: VideoPipelineStage = VideoPipelineStage.INITIALIZED  # current operation name
     status: VideoPipelineStatus = VideoPipelineStatus.PENDING
     
-    # stage status tracking (used for workflow status management)
-    stage_statuses: Dict[VideoPipelineStage, VideoPipelineStatus] = Field(
-        default_factory=lambda: {
-            VideoPipelineStage.INITIALIZED: VideoPipelineStatus.PENDING,
-            VideoPipelineStage.DOCUMENT_PROCESSING: VideoPipelineStatus.PENDING,
-            VideoPipelineStage.IMAGE_PROCESSING: VideoPipelineStatus.PENDING,
-            VideoPipelineStage.CONTENT_ANALYSIS: VideoPipelineStatus.PENDING,
-            VideoPipelineStage.SCRIPT_GENERATION: VideoPipelineStatus.PENDING,
-            VideoPipelineStage.VIDEO_GENERATION: VideoPipelineStatus.PENDING,
-        }
-    )
+    # individual stage statuses (flat structure)
+    initialized_status: VideoPipelineStatus = VideoPipelineStatus.PENDING
+    document_processing_status: VideoPipelineStatus = VideoPipelineStatus.PENDING
+    image_processing_status: VideoPipelineStatus = VideoPipelineStatus.PENDING
+    content_analysis_status: VideoPipelineStatus = VideoPipelineStatus.PENDING
+    script_generation_status: VideoPipelineStatus = VideoPipelineStatus.PENDING
+    video_generation_status: VideoPipelineStatus = VideoPipelineStatus.PENDING
 
     stage_statistics: Dict[VideoPipelineStage, VideoPipelineStageStatistics] = Field(
         default_factory=dict
@@ -265,19 +260,26 @@ class VideoPipeline(BaseModel):
     def update_stage(self, stage: VideoPipelineStage, status: VideoPipelineStatus = VideoPipelineStatus.IN_PROGRESS):
         """
         update current operation and status, tracking stage statuses.
-        Args:
-            stage: current operation name (e.g., 'document_processing', 'content_analysis', etc.)
-            status: status (pending, in_progress, completed, failed)
         """
-        # update stage status tracking
-        self.stage_statuses[stage] = status
+        # update the specific stage status field
+        if stage == VideoPipelineStage.INITIALIZED:
+            self.initialized_status = status
+        elif stage == VideoPipelineStage.DOCUMENT_PROCESSING:
+            self.document_processing_status = status
+        elif stage == VideoPipelineStage.IMAGE_PROCESSING:
+            self.image_processing_status = status
+        elif stage == VideoPipelineStage.CONTENT_ANALYSIS:
+            self.content_analysis_status = status
+        elif stage == VideoPipelineStage.SCRIPT_GENERATION:
+            self.script_generation_status = status
+        elif stage == VideoPipelineStage.VIDEO_GENERATION:
+            self.video_generation_status = status
         
-        # Update current stage and overall status
+        # update current stage and overall status
         self.current_stage = stage
         self.status = status
         
-        # initialize stages that haven't been set yet as pending
-        # only initialize stages that come before the current stage
+        # auto-complete previous stages if we're moving forward
         all_stages = [
             VideoPipelineStage.INITIALIZED,
             VideoPipelineStage.DOCUMENT_PROCESSING,
@@ -289,24 +291,34 @@ class VideoPipeline(BaseModel):
         
         current_stage_index = all_stages.index(stage) if stage in all_stages else -1
         for i, s in enumerate(all_stages):
-            if s not in self.stage_statuses:
-                if i < current_stage_index:
-                    # previous stages that haven't been set should be COMPLETED if we're past them
-                    self.stage_statuses[s] = VideoPipelineStatus.COMPLETED
-                elif i == current_stage_index:
-                    # current stage status is already set above
-                    pass
-                else:
-                    # future stages should be pending
-                    self.stage_statuses[s] = VideoPipelineStatus.PENDING
+            if i < current_stage_index:
+                # previous stages should be COMPLETED if we're past them
+                if s == VideoPipelineStage.INITIALIZED and self.initialized_status == VideoPipelineStatus.PENDING:
+                    self.initialized_status = VideoPipelineStatus.COMPLETED
+                elif s == VideoPipelineStage.DOCUMENT_PROCESSING and self.document_processing_status == VideoPipelineStatus.PENDING:
+                    self.document_processing_status = VideoPipelineStatus.COMPLETED
+                elif s == VideoPipelineStage.IMAGE_PROCESSING and self.image_processing_status == VideoPipelineStatus.PENDING:
+                    self.image_processing_status = VideoPipelineStatus.COMPLETED
+                elif s == VideoPipelineStage.CONTENT_ANALYSIS and self.content_analysis_status == VideoPipelineStatus.PENDING:
+                    self.content_analysis_status = VideoPipelineStatus.COMPLETED
+                elif s == VideoPipelineStage.SCRIPT_GENERATION and self.script_generation_status == VideoPipelineStatus.PENDING:
+                    self.script_generation_status = VideoPipelineStatus.COMPLETED
     
     def get_stage_status(self, stage: VideoPipelineStage) -> VideoPipelineStatus:
         """
         get the status of a specific stage.
-        args:
-            stage: the stage to get status for
-        returns:
-            the status of the stage, or pending if not set
         """
-        return self.stage_statuses.get(stage, VideoPipelineStatus.PENDING)
+        if stage == VideoPipelineStage.INITIALIZED:
+            return self.initialized_status
+        elif stage == VideoPipelineStage.DOCUMENT_PROCESSING:
+            return self.document_processing_status
+        elif stage == VideoPipelineStage.IMAGE_PROCESSING:
+            return self.image_processing_status
+        elif stage == VideoPipelineStage.CONTENT_ANALYSIS:
+            return self.content_analysis_status
+        elif stage == VideoPipelineStage.SCRIPT_GENERATION:
+            return self.script_generation_status
+        elif stage == VideoPipelineStage.VIDEO_GENERATION:
+            return self.video_generation_status
+        return VideoPipelineStatus.PENDING
 

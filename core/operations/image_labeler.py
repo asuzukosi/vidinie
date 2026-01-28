@@ -23,10 +23,11 @@ class ImageLabelOutput(BaseModel):
 class ImageLabeler:
     """label and describe images using ai vision models."""
     
-    def __init__(self):
+    def __init__(self, user_instructions: str = ""):
         """
         initialize image labeler.
         """
+        self.user_instructions = user_instructions
         # initialize jinja2 environment for prompt templates
         self.jinja_env = Environment(
             loader=FileSystemLoader(str(config.get_prompts_directory())),
@@ -42,7 +43,9 @@ class ImageLabeler:
             updated metadata list with labels and descriptions
         """
         logger.info(f"Starting batch labeling for {len(images_metadata)} images")
-        system_prompt = self.jinja_env.get_template('image_labeling_system.j2').render()
+        system_prompt = self.jinja_env.get_template('image_labeling_system.j2').render(
+            user_instructions=self.user_instructions if self.user_instructions else None
+        )
         template = self.jinja_env.get_template('image_labeling_instruction.j2')
         prompts = [ReasoningPrompt(task=template.render(), images=[img_meta.filepath]) for img_meta in images_metadata]
         results: List[ImageLabelOutput] = reason(system_prompt, prompts, schema=ImageLabelOutput)        

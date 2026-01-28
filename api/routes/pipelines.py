@@ -9,13 +9,13 @@ from core.data import (
     SourceType,
     VideoPipelineStage,
     VideoPipelineStatus,
-    VideoPipelineSegment,
-    VideoPipelineContentSection,
-    VideoPipelineImageMetadata,
+    VideoSegment,
+    ContentSection,
+    ImageMetadata,
 )
 import asyncio
 from api.data.users import User
-from api.core.auth import JWTBearer
+from api.core.auth import BetterAuthBearer
 from core.utils.logger import setup_logging, get_logger
 from api.operations.content_operations import (
     add_section_to_content as add_section_to_pipeline,
@@ -41,9 +41,10 @@ from pathlib import Path
 from api.data.pipelines import CreateVideoPipelineRequest, VideoPipelineSummary, \
                                DeleteVideoPipelineResponse, DeleteVideoPipelineImageResponse, \
                                DeleteVideoPipelineSectionResponse, \
-                               CreateVideoPipelineOutlineRequest, CreateVideoPipelineScriptRequest, \
+                               CreateVideoOutlineRequest, CreateVideoPipelineScriptRequest, \
                                VideoPipelineReviewRequest, VideoResolution, GenerateVideoPipelineRequest
 from core.utils.config_loader import config
+from core.clients.audio_engine import AudioVoiceString
 from datetime import datetime
 from typing import Optional, Tuple, List
 import shutil
@@ -59,21 +60,13 @@ logger = get_logger('pipelines')
 
 router = APIRouter(tags=["pipelines"])
 
-# keep track of resolutions in a map for easy lookup
-resolution_map = {
-    VideoResolution.RESOLUTION_4K: (3840, 2160),
-    VideoResolution.RESOLUTION_1080P: (1920, 1080),
-    VideoResolution.RESOLUTION_720P: (1280, 720),
-    VideoResolution.RESOLUTION_480P: (640, 480),
-}
-
 
 # special utility function to write content to file for pipeline
 async def write_content_to_file_for_pipeline(video_pipeline: VideoPipeline, 
                                              filename: str, 
                                              file_content: bytes) -> None:
     # now save file to disk with the final id
-    temp_dir = config.get('output.temp_directory', 'temp')
+    temp_dir = config.output_temp_directory
     pipeline_dir = os.path.join(temp_dir, video_pipeline.id, "source")
     Path(pipeline_dir).mkdir(parents=True, exist_ok=True)
     file_path = os.path.join(pipeline_dir, filename)
@@ -87,7 +80,7 @@ async def write_content_to_file_for_pipeline(video_pipeline: VideoPipeline,
 # special utility function to delete pipeline temp directory
 async def delete_pipeline_temp_directory(video_pipeline: VideoPipeline) -> None:
     # delete temp directory for pipeline
-    temp_dir = config.get('output.temp_directory', 'temp')
+    temp_dir = config.output_temp_directory
     pipeline_dir = os.path.join(temp_dir, video_pipeline.id)
     if os.path.exists(pipeline_dir):
         shutil.rmtree(pipeline_dir)
@@ -103,15 +96,14 @@ async def any_stage_is_processing(video_pipeline: VideoPipeline) -> bool:
 
 
 
-@router.post("/from-file", name="create video pipeline from file", dependencies=[Depends(JWTBearer())])
+@router.post("/from-file", name="create video pipeline from file", dependencies=[Depends(BetterAuthBearer())])
 @error_wrapper("create video pipeline from file")
 async def create_video_pipeline_from_file(
     name: str = Form(...),
-    description: str = Form(...),
-    # tags: Optional[List[str]] = Form(...),
-    # projects: Optional[List[str]] = Form(...),
+    instructions: str = Form(...),
+    voice: str = Form(...),
     file: UploadFile = File(...),
-    user_id: str = Depends(JWTBearer()),
+    user_id: str = Depends(BetterAuthBearer()),
     background_tasks: BackgroundTasks = BackgroundTasks()
 ) -> VideoPipelineSummary:
     user = await get_user_by_id(user_id)
@@ -120,6 +112,12 @@ async def create_video_pipeline_from_file(
     # check if user has enough videos left
     if user.num_videos_left <= 0:
         raise HTTPException(status_code=400, detail="You have reached the maximum number of videos allowed. Please upgrade your subscription to create more videos.")
+    # validate voice string
+    try:
+        AudioVoiceString(voice)
+    except (ValueError, KeyError):
+        valid_voices = [v.value for v in AudioVoiceString]
+        raise HTTPException(status_code=400, detail=f"Invalid voice value: {voice}. Must be one of {valid_voices}")
     logger.info("received request to start pipeline with file")
     if file.filename == "" or not file.filename.endswith(".pdf"):
         raise HTTPException(status_code=400, detail=f"invalid file type, only pdf files currently supported: {file.filename}")
@@ -131,11 +129,10 @@ async def create_video_pipeline_from_file(
     video_pipeline = VideoPipeline(
         user_id=user.id,
         name=name,
-        description=description,
-        # tags=tags[0].split(",") if tags and tags[0] else [],
-        # projects=projects[0].split(",") if projects and projects[0] else [],
+        instructions=instructions,
+        voice=voice,
         source_type=SourceType.PDF,
-        stage_statuses={VideoPipelineStage.DOCUMENT_PROCESSING: VideoPipelineStatus.IN_PROGRESS}
+        document_processing_status=VideoPipelineStatus.IN_PROGRESS
     )
     logger.info("pipeline data object created")
     video_pipeline = await create_pipeline_in_db(video_pipeline)
@@ -148,10 +145,10 @@ async def create_video_pipeline_from_file(
     # return pipeline summary
     return VideoPipelineSummary(**video_pipeline.model_dump(mode="json"))
 
-@router.post("/from-url", name="create video pipeline from url", dependencies=[Depends(JWTBearer())])
+@router.post("/from-url", name="create video pipeline from url", dependencies=[Depends(BetterAuthBearer())])
 @error_wrapper("create video pipeline from url")
 async def create_video_pipeline_from_url(request: CreateVideoPipelineRequest,
-                                         user_id: str = Depends(JWTBearer()),
+                                         user_id: str = Depends(BetterAuthBearer()),
                                          background_tasks: BackgroundTasks = BackgroundTasks()) -> VideoPipelineSummary:
     user = await get_user_by_id(user_id)
     if not user:
@@ -171,15 +168,20 @@ async def create_video_pipeline_from_url(request: CreateVideoPipelineRequest,
             raise HTTPException(status_code=400, detail=f"Failed to download file from url: {request.url} with status code: {response.status_code}")
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=400, detail=f"Failed to download file from url: {request.url} with error: {str(e)}")
+    # validate voice string
+    try:
+        AudioVoiceString(request.voice)
+    except (ValueError, KeyError):
+        valid_voices = [v.value for v in AudioVoiceString]
+        raise HTTPException(status_code=400, detail=f"Invalid voice value: {request.voice}. Must be one of {valid_voices}")
     logger.info("creating pipeline data object")
     video_pipeline = VideoPipeline(
         user_id=user.id,
         name=request.name,
-        description=request.description,
-        tags=request.tags or [],
-        projects=request.projects or [],
+        instructions=request.instructions,
+        voice=request.voice,
         source_type=SourceType.HTML,
-        stage_statuses={VideoPipelineStage.DOCUMENT_PROCESSING: VideoPipelineStatus.IN_PROGRESS}
+        document_processing_status=VideoPipelineStatus.IN_PROGRESS
     )
     # save pipeline data to database first
     logger.info("saving pipeline data to database")
@@ -196,7 +198,7 @@ async def create_video_pipeline_from_url(request: CreateVideoPipelineRequest,
 
 @router.get("/", name="get all video pipelines")
 @error_wrapper("get all video pipelines")
-async def get_all_video_pipelines(user_id: str = Depends(JWTBearer())) -> List[VideoPipelineSummary]:
+async def get_all_video_pipelines(user_id: str = Depends(BetterAuthBearer())) -> List[VideoPipelineSummary]:
     # verify user exists using helper
     await get_user_by_id(user_id)
     logger.info("received request to get all pipelines")
@@ -206,7 +208,7 @@ async def get_all_video_pipelines(user_id: str = Depends(JWTBearer())) -> List[V
 
 @router.get("/{video_pipeline_id}", name="get video pipeline details")
 @error_wrapper("get video pipeline details")
-async def get_video_pipeline_details(video_pipeline_id: str, user_id: str = Depends(JWTBearer())) -> VideoPipeline:
+async def get_video_pipeline_details(video_pipeline_id: str, user_id: str = Depends(BetterAuthBearer())) -> VideoPipeline:
     user = await get_user_by_id(user_id)
     if not user:
         raise HTTPException(status_code=401, detail="Unauthorized")
@@ -216,10 +218,10 @@ async def get_video_pipeline_details(video_pipeline_id: str, user_id: str = Depe
     return video_pipeline
 
 @router.delete("/{video_pipeline_id}", name="delete video pipeline", 
-               dependencies=[Depends(JWTBearer())])
+               dependencies=[Depends(BetterAuthBearer())])
 @error_wrapper("delete video pipeline")
 async def delete_video_pipeline(video_pipeline_id: str, 
-                                user_id: str = Depends(JWTBearer()),
+                                user_id: str = Depends(BetterAuthBearer()),
                                 background_tasks: BackgroundTasks = BackgroundTasks()) -> DeleteVideoPipelineResponse:
     # verify user exists using helper
     user = await get_user_by_id(user_id)
@@ -240,12 +242,11 @@ async def delete_video_pipeline(video_pipeline_id: str,
     return DeleteVideoPipelineResponse(video_pipeline_id=video_pipeline_id, message="Pipeline deleted successfully")
 
 @router.post("/{video_pipeline_id}/images", name="add video pipeline image", 
-               dependencies=[Depends(JWTBearer())])
+               dependencies=[Depends(BetterAuthBearer())])
 @error_wrapper("add video pipeline image")
 async def add_video_pipeline_image(video_pipeline_id: str, image: UploadFile,
-                             text_context: Optional[str] = None,
                              label: Optional[bool] = False, 
-                             user_id: str = Depends(JWTBearer())) -> VideoPipelineImageMetadata:
+                             user_id: str = Depends(BetterAuthBearer())) -> ImageMetadata:
     user = await get_user_by_id(user_id)
     if not user:
         raise HTTPException(status_code=401, detail="Unauthorized")
@@ -257,20 +258,20 @@ async def add_video_pipeline_image(video_pipeline_id: str, image: UploadFile,
     try:
         # use reusable function to add image
         await broadcast_message(f"pipeline-tasks-{video_pipeline_id}", {"type": "image_adding", "pipeline_id": video_pipeline_id, "image_filename": image.filename})
-        image_metadata = add_image_to_pipeline(video_pipeline, image, text_context=text_context, label=label or False)
+        image_metadata = add_image_to_pipeline(video_pipeline, image, label=label or False)
         await broadcast_message(f"pipeline-tasks-{video_pipeline_id}", {"type": "image_added", "pipeline_id": video_pipeline_id, "image_metadata": image_metadata.model_dump(mode="json")})
-        return VideoPipelineImageMetadata(**image_metadata.model_dump(mode="json"))
+        return ImageMetadata(**image_metadata.model_dump(mode="json"))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/{video_pipeline_id}/images/{index}", name="delete video pipeline image", 
-               dependencies=[Depends(JWTBearer())])
+               dependencies=[Depends(BetterAuthBearer())])
 @error_wrapper("delete video pipeline image")
 async def delete_video_pipeline_image(video_pipeline_id: str, 
                                       index: int,
-                                      user_id: str = Depends(JWTBearer())) -> DeleteVideoPipelineImageResponse:
+                                      user_id: str = Depends(BetterAuthBearer())) -> DeleteVideoPipelineImageResponse:
     user = await get_user_by_id(user_id)
     if not user:
         raise HTTPException(status_code=401, detail="Unauthorized")
@@ -292,10 +293,10 @@ async def delete_video_pipeline_image(video_pipeline_id: str,
     except IndexError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
-@router.post("/{video_pipeline_id}/sections", name="add video pipeline section", dependencies=[Depends(JWTBearer())])
+@router.post("/{video_pipeline_id}/sections", name="add video pipeline section", dependencies=[Depends(BetterAuthBearer())])
 @error_wrapper("add video pipeline section")
-async def add_video_pipeline_section(video_pipeline_id: str, section: VideoPipelineContentSection,
-                                     user_id: str = Depends(JWTBearer())) -> VideoPipelineContentSection:
+async def add_video_pipeline_section(video_pipeline_id: str, section: ContentSection,
+                                     user_id: str = Depends(BetterAuthBearer())) -> ContentSection:
     user = await get_user_by_id(user_id)
     if not user:
         raise HTTPException(status_code=401, detail="Unauthorized")
@@ -312,11 +313,11 @@ async def add_video_pipeline_section(video_pipeline_id: str, section: VideoPipel
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
-@router.delete("/{video_pipeline_id}/sections/{index}", name="delete video pipeline section", dependencies=[Depends(JWTBearer())])
+@router.delete("/{video_pipeline_id}/sections/{index}", name="delete video pipeline section", dependencies=[Depends(BetterAuthBearer())])
 @error_wrapper("delete video pipeline section")
 async def delete_video_pipeline_section(video_pipeline_id: str, 
                                         index: int,
-                                        user_id: str = Depends(JWTBearer())) -> DeleteVideoPipelineSectionResponse:
+                                        user_id: str = Depends(BetterAuthBearer())) -> DeleteVideoPipelineSectionResponse:
     user = await get_user_by_id(user_id)
     if not user:
         raise HTTPException(status_code=401, detail="Unauthorized")
@@ -339,10 +340,10 @@ async def delete_video_pipeline_section(video_pipeline_id: str,
     except (ValueError, IndexError) as e:
         raise HTTPException(status_code=404, detail=str(e))
 
-@router.post("/{video_pipeline_id}/process", name="process video pipeline content", dependencies=[Depends(JWTBearer())])
+@router.post("/{video_pipeline_id}/process", name="process video pipeline content", dependencies=[Depends(BetterAuthBearer())])
 @error_wrapper("process video pipeline content")
-async def process_video_pipeline_content(video_pipeline_id: str, request: CreateVideoPipelineOutlineRequest,
-                                         user_id: str = Depends(JWTBearer())) -> VideoPipeline:
+async def process_video_pipeline_content(video_pipeline_id: str, request: CreateVideoOutlineRequest,
+                                         user_id: str = Depends(BetterAuthBearer())) -> VideoPipeline:
     user = await get_user_by_id(user_id)
     if not user:
         raise HTTPException(status_code=401, detail="Unauthorized")
@@ -353,24 +354,22 @@ async def process_video_pipeline_content(video_pipeline_id: str, request: Create
     if await any_stage_is_processing(video_pipeline):
         raise HTTPException(status_code=409, detail="another pipeline stage is currently in progress, please wait until it completes.")
     # process content
-    skip_stock = request.skip_stock
     target_segments = request.target_segments
     segment_duration = request.segment_duration
     # run content analysis task in the background
     run_next_stages_task.delay(
                               video_pipeline.id, 
                               stage=VideoPipelineStage.CONTENT_ANALYSIS, 
-                              skip_stock=skip_stock, 
                               target_segments=target_segments, 
                               segment_duration=segment_duration)
     # return pipeline summary
     return VideoPipelineSummary(**video_pipeline.model_dump(mode="json"))
 
-@router.post("/{video_pipeline_id}/outline/segments", name="add video pipeline outline segment", dependencies=[Depends(JWTBearer())])
+@router.post("/{video_pipeline_id}/outline/segments", name="add video pipeline outline segment", dependencies=[Depends(BetterAuthBearer())])
 @error_wrapper("add video pipeline outline segment")
 async def add_video_pipeline_outline_segment(video_pipeline_id: str,
-                                            segment: VideoPipelineSegment,
-                                            user_id: str = Depends(JWTBearer())) -> VideoPipelineSegment:
+                                            segment: VideoSegment,
+                                            user_id: str = Depends(BetterAuthBearer())) -> VideoSegment:
     user = await get_user_by_id(user_id)
     if not user:
         raise HTTPException(status_code=401, detail="Unauthorized")
@@ -390,7 +389,7 @@ async def add_video_pipeline_outline_segment(video_pipeline_id: str,
 @router.delete("/{video_pipeline_id}/outline/segments/{index}", name="delete video pipeline outline segment")
 @error_wrapper("delete video pipeline outline segment")
 async def delete_video_pipeline_outline_segment(video_pipeline_id: str, index: int,
-                                                user_id: str = Depends(JWTBearer())) -> VideoPipelineSegment:
+                                                user_id: str = Depends(BetterAuthBearer())) -> VideoSegment:
     user = await get_user_by_id(user_id)
     if not user:
         raise HTTPException(status_code=401, detail="Unauthorized")
@@ -411,7 +410,7 @@ async def delete_video_pipeline_outline_segment(video_pipeline_id: str, index: i
 @router.post("/{video_pipeline_id}/generate-scripts", name="generate video pipeline scripts")
 @error_wrapper("generate video pipeline scripts")
 async def generate_video_pipeline_scripts(video_pipeline_id: str, request: CreateVideoPipelineScriptRequest,
-                                          user_id: str = Depends(JWTBearer())) -> VideoPipeline:
+                                          user_id: str = Depends(BetterAuthBearer())) -> VideoPipeline:
     user = await get_user_by_id(user_id)
     if not user:
         raise HTTPException(status_code=401, detail="Unauthorized")
@@ -424,19 +423,18 @@ async def generate_video_pipeline_scripts(video_pipeline_id: str, request: Creat
     if await any_stage_is_processing(video_pipeline):
         raise HTTPException(status_code=409, detail="another pipeline stage is currently in progress, please wait until it completes.")
     # use modular operation to generate scripts
-    provider = request.provider
-    voice_id = request.voice_id
+    voice_str = request.voice
     # run script generation task in the background using Celery
     run_next_stages_task.delay(
                               video_pipeline.id, stage=VideoPipelineStage.SCRIPT_GENERATION, 
-                              provider=provider, voice_id=voice_id)
+                              voice=voice_str)
     # return pipeline summary
     return VideoPipelineSummary(**video_pipeline.model_dump(mode="json"))
 
-@router.post("/{video_pipeline_id}/generate", name="generate video pipeline output", dependencies=[Depends(JWTBearer())])
+@router.post("/{video_pipeline_id}/generate", name="generate video pipeline output", dependencies=[Depends(BetterAuthBearer())])
 @error_wrapper("generate video pipeline output")
 async def generate_video_pipeline_output(video_pipeline_id: str, request: GenerateVideoPipelineRequest,
-                                         user_id: str = Depends(JWTBearer())) -> VideoPipeline:
+                                         user_id: str = Depends(BetterAuthBearer())) -> VideoPipeline:
     user = await get_user_by_id(user_id)
     if not user:
         raise HTTPException(status_code=401, detail="Unauthorized")
@@ -447,28 +445,16 @@ async def generate_video_pipeline_output(video_pipeline_id: str, request: Genera
     # ensure no other stage is in progress
     if await any_stage_is_processing(video_pipeline):
         raise HTTPException(status_code=409, detail="another pipeline stage is currently in progress, please wait until it completes.")
-    # use modular operation to generate video
-    title = request.title
-    subtitle = request.subtitle
-    resolution = resolution_map[request.resolution]
-    fps = request.fps
-    title_duration = request.title_duration
-    end_duration = request.end_duration
-    transition_duration = request.transition_duration
-    background_type = request.background_type
     # run video generation task in the background
     run_next_stages_task.delay(
-                              video_pipeline.id, stage=VideoPipelineStage.VIDEO_GENERATION, 
-                              title=title, subtitle=subtitle, resolution=resolution, 
-                              fps=fps, title_duration=title_duration, end_duration=end_duration, 
-                              transition_duration=transition_duration, background_type=background_type)
+                              video_pipeline.id, stage=VideoPipelineStage.VIDEO_GENERATION)
     # return pipeline summary
     return VideoPipelineSummary(**video_pipeline.model_dump(mode="json"))
 
-@router.get("/{video_pipeline_id}/output/download", name="download video pipeline output", dependencies=[Depends(JWTBearer())])
+@router.get("/{video_pipeline_id}/output/download", name="download video pipeline output", dependencies=[Depends(BetterAuthBearer())])
 @error_wrapper("download video pipeline output")
 async def download_video_pipeline_output(video_pipeline_id: str,
-                                          user_id: str = Depends(JWTBearer())) -> FileResponse:
+                                          user_id: str = Depends(BetterAuthBearer())) -> FileResponse:
     user = await get_user_by_id(user_id)
     if not user:
         raise HTTPException(status_code=401, detail="Unauthorized")
@@ -495,11 +481,11 @@ def parse_range_header(range_header: str, file_size: int) -> Tuple[int, int]:
     return start, end
 
 @router.get("/{video_pipeline_id}/output/stream", name="stream video pipeline output", 
-            # dependencies=[Depends(JWTBearer())]
+            # dependencies=[Depends(BetterAuthBearer())]
             )
 @error_wrapper("stream video pipeline output")
 async def stream_video_pipeline_output(video_pipeline_id: str, request: Request,
-                                    #    user_id: str = Depends(JWTBearer())
+                                    #    user_id: str = Depends(BetterAuthBearer())
                                        ) -> StreamingResponse:
     # logger.info("received request to stream video")
     # user = await get_user_by_id(user_id)
@@ -547,10 +533,10 @@ async def stream_video_pipeline_output(video_pipeline_id: str, request: Request,
         }
     )
 
-@router.post("/{video_pipeline_id}/review", name="add video pipeline review", dependencies=[Depends(JWTBearer())])
+@router.post("/{video_pipeline_id}/review", name="add video pipeline review", dependencies=[Depends(BetterAuthBearer())])
 @error_wrapper("add video pipeline review")
 async def add_video_pipeline_review(video_pipeline_id: str, request: VideoPipelineReviewRequest,
-                                    user_id: str = Depends(JWTBearer())) -> VideoPipeline:
+                                    user_id: str = Depends(BetterAuthBearer())) -> VideoPipeline:
     user = await get_user_by_id(user_id)
     if not user:
         raise HTTPException(status_code=401, detail="Unauthorized")

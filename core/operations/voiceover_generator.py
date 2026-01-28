@@ -5,6 +5,7 @@ handles audio file creation and timing metadata.
 """
 
 import os
+from typing import Union
 from core.utils.logger import get_logger
 from pydub import AudioSegment
 from core.data import VideoOutline

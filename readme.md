@@ -23,10 +23,10 @@ cp env.example .env
 ```
 
 Edit `.env` and add your API keys:
-- `OPENAI_API_KEY` - Required for content analysis and script generation
+- `ANTHROPIC_API_KEY` - Required for content analysis and script generation
+- `REPLICATE_API_TOKEN` - Required for image and video generation
 - `ELEVENLABS_API_KEY` - Optional for high-quality voiceover (falls back to gTTS)
-- `UNSPLASH_ACCESS_KEY` - Optional for stock images
-- `PEXELS_API_KEY` - Optional for stock images
+- `PEXELS_API_KEY` - Optional for stock images and videos
 
 ### 3. Generate a Video
 
@@ -64,9 +64,10 @@ Edit `config.yaml` to customize:
 ## Tech Stack
 
 **AI Services:**
-- OpenAI (GPT-5, DALL-E)
+- Anthropic (Sonnet 4.5)
+- REPLICATE (Image and Video Generation)
 - ElevenLabs (Text-to-Speech)
-- Unsplash/Pexels (Stock images)
+- Pexels (Stock images and videos)
 
 **Python Libraries:**
 - Textual - Terminal UI
