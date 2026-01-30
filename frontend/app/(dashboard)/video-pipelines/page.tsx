@@ -26,12 +26,10 @@ export default function TasksPage() {
   const [isCreatingTask, setIsCreatingTask] = useState(false);
   const user = useSelector((state: RootState) => state.auth.user);
 
-
   const createTask = async (task: CreateVideoPipelineRequest) => {
 
     setIsCreatingTask(true);
     try {
-      console.log("creating video:", task);
       if (task.file) {
         await client.createVideoPipelineFromFile(task.name, task.instructions, task.voice, task.file);
       } else {

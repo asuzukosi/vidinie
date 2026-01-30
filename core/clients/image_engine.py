@@ -8,6 +8,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from core.utils.logger import get_logger
 from pydantic import BaseModel
 from dotenv import load_dotenv
+from retry import retry
 
 
 load_dotenv()
@@ -29,6 +30,7 @@ class ImageEngine:
         self.client = replicate.Client(api_token=api_key)
         self.model = "black-forest-labs/flux-schnell"
 
+     @retry(tries=5, delay=2, backoff=4)
     def _generate_image(self, prompt: ImagePrompt) -> str:
         """
         generate an image based on the prompt.
@@ -54,7 +56,7 @@ class ImageEngine:
         """run the synchronous blocking api call in a thread pool to enable parallelism"""
         return await asyncio.to_thread(self._generate_image, prompt)
 
-    async def async_generate_images(self, prompts: List[ImagePrompt]) -> List[str]:
+    async def generate_images(self, prompts: List[ImagePrompt]) -> List[str]:
         """
         image engine function takes a list of prompts and runs all in parallel
         then returns the list of output paths
@@ -62,25 +64,12 @@ class ImageEngine:
         tasks = [self._generate_image_async(prompt) for prompt in prompts]
         results = await asyncio.gather(*tasks)
         return results
-        
-    def generate_images(self, prompts: List[ImagePrompt]) -> List[str]:
-        return asyncio.run(self.async_generate_images(prompts))
 
 
-def generate_image(prompt: ImagePrompt) -> str:
-    """
-    generate an image based on the prompt.
-    """
+async def generate_images(prompts: List[ImagePrompt]) -> List[str]:
+    """async module-level function for generating images."""
     image_engine = ImageEngine()
-    return image_engine._generate_image(prompt)
-
-
-def generate_images(prompts: List[ImagePrompt]) -> List[str]:
-    """
-    generate multiple images in parallel based on the prompts.
-    """
-    image_engine = ImageEngine()
-    return image_engine.generate_images(prompts)
+    return await image_engine.generate_images(prompts)
 
 
 if __name__ == "__main__":
@@ -98,5 +87,6 @@ if __name__ == "__main__":
             output_path="test_image2.png"
         ),
     ]
-    output_paths = generate_images(prompts)
+    image_engine = ImageEngine()
+    output_paths = asyncio.run(image_engine.generate_images(prompts))
     print(f"images saved to output paths: {output_paths}")

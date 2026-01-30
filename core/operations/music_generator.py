@@ -25,7 +25,7 @@ class MusicGenerator:
         self.output_dir = output_dir
         os.makedirs(output_dir, exist_ok=True)
     
-    def generate_background_music(self, script_data: VideoOutline) -> VideoOutline:
+    async def generate_background_music(self, script_data: VideoOutline) -> VideoOutline:
         """
         generate background music if query is provided.
         args:
@@ -47,7 +47,7 @@ class MusicGenerator:
         )
         
         try:
-            results = generate_musics([music_prompt])
+            results = await generate_musics([music_prompt])
             if results and len(results) > 0:
                 script_data.background_music_path = results[0][0]
                 logger.info(f"Background music generated: {script_data.background_music_path}")

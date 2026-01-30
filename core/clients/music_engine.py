@@ -61,7 +61,7 @@ class MusicEngine:
         """run the synchronous blocking api call in a thread pool to enable parallelism"""
         return await asyncio.to_thread(self._generate_music, prompt)
 
-    async def async_generate_musics(self, prompts: List[MusicPrompt]) -> List[Tuple[str, float]]:
+    async def generate_musics(self, prompts: List[MusicPrompt]) -> List[Tuple[str, float]]:
         """
         music engine function takes a list of prompts and runs all in parallel
         then returns the list of (output_path, duration) tuples
@@ -69,19 +69,12 @@ class MusicEngine:
         tasks = [self._generate_music_async(prompt) for prompt in prompts]
         results = await asyncio.gather(*tasks)
         return results
-        
-    def generate_musics(self, prompts: List[MusicPrompt]) -> List[Tuple[str, float]]:
-        return asyncio.run(self.async_generate_musics(prompts))
 
 
-def generate_musics(prompts: List[MusicPrompt]) -> List[Tuple[str, float]]:
-    """
-    generate multiple music tracks in parallel based on the prompts.
-    returns:
-        list of tuples (output_path, duration)
-    """
+async def generate_musics(prompts: List[MusicPrompt]) -> List[Tuple[str, float]]:
+    """async module-level function for generating musics."""
     music_engine = MusicEngine()
-    return music_engine.generate_musics(prompts)
+    return await music_engine.generate_musics(prompts)
 
 
 if __name__ == "__main__":
@@ -95,5 +88,6 @@ if __name__ == "__main__":
             output_path="test_music2.mp3"
         ),
     ]
-    generate_musics(prompts)
+    music_engine = MusicEngine()
+    asyncio.run(music_engine.generate_musics(prompts))
 

@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import {
   SidebarFooter,
@@ -18,6 +20,8 @@ import { getInitials } from "@/lib/utils";
 
 import {
   LogOut,
+  Plus,
+  PlusCircle,
   Settings,
   User,
 } from "lucide-react";
@@ -83,23 +87,29 @@ export function NavFooter({
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-
             </div>
             <DropdownMenu>
-              {/* <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full">
-                  <PlusCircle size={16} />
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="rounded-full shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                  aria-label="Open edit menu"
+                >
+                  <Plus size={16} aria-hidden="true" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="m-2">
-                <DropdownMenuLabel>New</DropdownMenuLabel>
-                <DropdownMenuItem asChild>
-                  <Link href="/new-project" className="flex items-center">
-                    <Plus size={16} className="opacity-80 mr-2" aria-hidden="true" />
-                    Project
-                  </Link>
+              <DropdownMenuContent className="pb-2">
+                <DropdownMenuLabel>Add New</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => router.push("/video-pipelines?create=true")}>
+                  <PlusCircle
+                    size={16}
+                    className="mr-2 opacity-80"
+                    aria-hidden="true"
+                  />
+                  Create Video
                 </DropdownMenuItem>
-              </DropdownMenuContent> */}
+              </DropdownMenuContent>
             </DropdownMenu>
           </div>
         </SidebarMenuItem>

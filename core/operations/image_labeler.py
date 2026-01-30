@@ -34,7 +34,7 @@ class ImageLabeler:
             autoescape=select_autoescape(['html', 'xml'])
         )
 
-    def label_images_batch(self, images_metadata: List[ImageMetadata]) -> List[ImageMetadata]:
+    async def label_images_batch(self, images_metadata: List[ImageMetadata]) -> List[ImageMetadata]:
         """
         label multiple images from metadata list.
         args:
@@ -48,7 +48,7 @@ class ImageLabeler:
         )
         template = self.jinja_env.get_template('image_labeling_instruction.j2')
         prompts = [ReasoningPrompt(task=template.render(), images=[img_meta.filepath]) for img_meta in images_metadata]
-        results: List[ImageLabelOutput] = reason(system_prompt, prompts, schema=ImageLabelOutput)        
+        results: List[ImageLabelOutput] = await reason(system_prompt, prompts, schema=ImageLabelOutput)        
         for idx, result in enumerate(results):
             images_metadata[idx].label = result.label
             images_metadata[idx].description = result.description

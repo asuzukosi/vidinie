@@ -4,6 +4,7 @@ import "./globals.css";
 import { StoreProvider } from "@/lib/store/components/store-provider";
 import { Toaster } from "@/components/ui/sonner";
 import GoogleAnalytics from "@/components/utils/google-analytics";
+import { AuthLoader } from "@/components/utils/auth-loader";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,7 +35,9 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <GoogleAnalytics />
-        <StoreProvider>{children}</StoreProvider>
+        <StoreProvider>
+          <AuthLoader>{children}</AuthLoader>
+        </StoreProvider>
         <Toaster />
       </body>
     </html>

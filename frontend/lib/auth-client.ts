@@ -1,5 +1,6 @@
 import { createAuthClient } from "better-auth/react";
 import { stripeClient } from "@better-auth/stripe/client";
+import { jwtClient } from "better-auth/client/plugins";
 
 export const authClient = createAuthClient({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000",
@@ -7,6 +8,7 @@ export const authClient = createAuthClient({
     stripeClient({
       subscription: true, // enable subscription management
     }),
+    jwtClient(),
   ],
 });
 

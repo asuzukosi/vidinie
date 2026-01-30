@@ -17,7 +17,7 @@ from core.operations.video_generator import VideoGenerator, VideoResolution
 logger = get_logger("video_operations")
 
 
-def generate_video(
+async def generate_video(
     pipeline: VideoPipeline,
     resolution: Optional[VideoResolution] = VideoResolution.RESOLUTION_1080P
 ) -> VideoPipeline:
@@ -31,29 +31,24 @@ def generate_video(
     """
     temp_dir = config.output_temp_directory
     
-    pipeline.update_stage(VideoPipelineStage.VIDEO_GENERATION, VideoPipelineStatus.IN_PROGRESS)
-    
     if not pipeline.full_audio_path:
         logger.error("Full audio path not found in pipeline data")
-        pipeline.update_stage(VideoPipelineStage.VIDEO_GENERATION, VideoPipelineStatus.FAILED)
-        return pipeline
+        raise ValueError("Full audio path not found in pipeline data")
     
     if not pipeline.full_audio_duration:
         logger.error("Full audio duration not found in pipeline data")
-        pipeline.update_stage(VideoPipelineStage.VIDEO_GENERATION, VideoPipelineStatus.FAILED)
-        return pipeline
+        raise ValueError("Full audio duration not found in pipeline data")
     
     if not pipeline.script_data:
         logger.error("Script data not found in pipeline data")
-        pipeline.update_stage(VideoPipelineStage.VIDEO_GENERATION, VideoPipelineStatus.FAILED)
-        return pipeline
+        raise ValueError("Script data not found in pipeline data")
     
     try:
         script_data = pipeline.script_data
         logger.info(f"Using script data for {len(script_data.segments)} segments")
         
         # generate video
-        video_dir = os.path.join(temp_dir, pipeline.id, 'video')
+        video_dir = os.path.join(temp_dir, pipeline.id)
         os.makedirs(video_dir, exist_ok=True)
         
         video_gen = VideoGenerator(
@@ -61,7 +56,7 @@ def generate_video(
             user_instructions=pipeline.instructions
         )
         
-        generated_video_path = video_gen.generate_video(script_data, video_dir)
+        generated_video_path = await video_gen.generate_video(script_data, video_dir)
         pipeline.video_path = generated_video_path
         pipeline.output_path = generated_video_path
         
@@ -69,12 +64,10 @@ def generate_video(
         pipeline.rating = None
         pipeline.feedback = None
         
-        pipeline.update_stage(VideoPipelineStage.VIDEO_GENERATION, VideoPipelineStatus.COMPLETED)
         logger.info(f"video generated successfully: {generated_video_path}")
         return pipeline
         
     except Exception as e:
         logger.error(f"error during video generation: {str(e)}", exc_info=True)
-        pipeline.update_stage(VideoPipelineStage.VIDEO_GENERATION, VideoPipelineStatus.FAILED)
-        return pipeline
+        raise
 

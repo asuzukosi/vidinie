@@ -30,7 +30,7 @@ class ReasoningEngine:
         api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
         if not api_key:
             raise ValueError("anthropic API key is required")
-        logger.info(f"initializing reasoning engine with anthropic api key")
+        logger.info(f"initializing reasoning engine with anthropic")
         self.client = Anthropic(api_key=api_key)
 
     @staticmethod
@@ -101,7 +101,7 @@ class ReasoningEngine:
         response = self.client.beta.messages.parse(
             model="claude-sonnet-4-5",
             system=system_prompt,
-             max_tokens=1024,
+            max_tokens=16384,
             betas=["structured-outputs-2025-11-13"],
             messages=[{"role": "user", "content": content}],
             output_format=schema,
@@ -114,7 +114,7 @@ class ReasoningEngine:
         return await asyncio.to_thread(self._reason, system_prompt, prompt, schema=schema)
     
 
-    async def async_reason(self, system_prompt: str, prompts: List[ReasoningPrompt], 
+    async def reason(self, system_prompt: str, prompts: List[ReasoningPrompt], 
                *, schema: Any, combine_function: Callable[[List[Any]], Any] = None) -> Any:
         """
         reason engine function takes a list of prompts and a system prompt and runs all in parallel
@@ -122,14 +122,10 @@ class ReasoningEngine:
         """
         tasks = [self._reason_async(system_prompt, prompt, schema=schema) for prompt in prompts]
         results = await asyncio.gather(*tasks)
-        if combine_function:
-            return combine_function(results)
-        else:
-            return results
-        
-    def reason(self, system_prompt: str, prompts: List[ReasoningPrompt], *, schema: Any, combine_function: Callable[[List[Any]], Any] = None) -> Any:
-        return asyncio.run(self.async_reason(system_prompt, prompts, schema=schema, combine_function=combine_function))
-    
-def reason(system_prompt: str, prompts: List[ReasoningPrompt], *, schema: Any, combine_function: Callable[[List[Any]], Any] = None) -> Any:
+        return combine_function(results) if combine_function else results
+
+
+async def reason(system_prompt: str, prompts: List[ReasoningPrompt], *, schema: Any, combine_function: Callable[[List[Any]], Any] = None) -> Any:
+    """async module-level function for reasoning."""
     reasoning_engine = ReasoningEngine()
-    return reasoning_engine.reason(system_prompt, prompts, schema=schema, combine_function=combine_function)
+    return await reasoning_engine.reason(system_prompt, prompts, schema=schema, combine_function=combine_function)

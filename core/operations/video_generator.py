@@ -114,6 +114,10 @@ class VideoGenerator:
         audio_path = os.path.join(target_path, 'audio')
         if os.path.exists(audio_path):
             shutil.copytree(audio_path, os.path.join(composition_public_path, 'audio'))
+         # move music
+        music_path = os.path.join(target_path, 'music')
+        if os.path.exists(audio_path):
+            shutil.copytree(music_path, os.path.join(composition_public_path, 'music'))
         # move source
         source_path = os.path.join(target_path, 'source')
         if os.path.exists(source_path):
@@ -128,27 +132,27 @@ class VideoGenerator:
             shutil.copytree(video_clips_path, os.path.join(composition_public_path, 'video_clips'))
     
     def _render_video_in_target(self, target_path: str) -> str:
-        scale = 1
-        if self.resolution == VideoResolution.RESOLUTION_4K:
-            scale = 4
-        elif self.resolution == VideoResolution.RESOLUTION_1080P:
-            scale = 2
-        elif self.resolution == VideoResolution.RESOLUTION_720P:
-            scale = 1
-        elif self.resolution == VideoResolution.RESOLUTION_480P:
-            scale = 0.5
+        # scale = 1
+        # if self.resolution == VideoResolution.RESOLUTION_4K:
+        #     scale = 4
+        # elif self.resolution == VideoResolution.RESOLUTION_1080P:
+        #     scale = 2
+        # elif self.resolution == VideoResolution.RESOLUTION_720P:
+        #     scale = 1
+        # elif self.resolution == VideoResolution.RESOLUTION_480P:
+        #     scale = 0.5
         
         composition_path = os.path.join(target_path, 'composition')
         entry_file = 'src/index.ts'
         return subprocess.run(
-            ['npx', 'remotion', 'render', entry_file, '--scale', str(scale)],
+            ['npx', 'remotion', 'render', entry_file],
             cwd=composition_path,
             check=False
         )
     
     def _move_remotion_output_to_target_output(self, target_path: str) -> bool:
         """copy remotion output to the target output path."""
-        remotion_output_path = os.path.join(target_path, 'composition', 'out', 'MyComp.mp4')
+        remotion_output_path = os.path.join(target_path, 'composition', 'out', 'VidinieComposition.mp4')
         target_output_dir = os.path.join(target_path, 'result')
         target_output_path = os.path.join(target_output_dir, 'vidinie_video.mp4')
         if not os.path.exists(remotion_output_path):
@@ -205,9 +209,11 @@ class VideoGenerator:
         logger.info(f"total token usage: {total_token_usage}")
 
 
-    def generate_video(self, script_data: VideoOutline, target_path: str) -> str:
+    async def generate_video(self, script_data: VideoOutline, target_path: str) -> str:
         # copy reference content into provided output path
         self._copy_base_to_target(target_path)
+        # install dependencies in target path
+        self._move_assets_from_target_to_remotion_public(target_path)
         # install dependencies in target path
         self._install_dependencies_in_target(target_path)
         # convert video outline into json and store in task temp file
@@ -216,7 +222,7 @@ class VideoGenerator:
         if not self._check_remotion_tool():
             raise ValueError("remotion tool is not available")
         # initiate agent with context of the task and location of the remotion project, video outline data and media assets
-        asyncio.run(self._agentic_video_generation(xml_prompt_context, target_path))
+        await self._agentic_video_generation(xml_prompt_context, target_path)
         # render video in target path
         self._render_video_in_target(target_path)
         # move remotion output to target output path

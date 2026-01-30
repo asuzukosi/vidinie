@@ -1,11 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
-from api.helpers.user_helpers import (
-    get_user_by_id,
-    update_user_in_db,
-)
 from api.core.auth import BetterAuthBearer
 from core.utils.logger import get_logger
-from datetime import datetime
 import os
 from pathlib import Path
 from api.utils.error_wrapper import error_wrapper
@@ -19,9 +14,6 @@ async def upload_profile_picture(
     file: UploadFile = File(...),
     user_id: str = Depends(BetterAuthBearer())
 ) -> dict:
-    # get user using helper
-    user = await get_user_by_id(user_id)
-    
     # validate file type
     allowed_extensions = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
     file_ext = os.path.splitext(file.filename)[1].lower()
@@ -36,10 +28,9 @@ async def upload_profile_picture(
     user_dir = os.path.join(temp_dir, "users", user_id)
     Path(user_dir).mkdir(parents=True, exist_ok=True)
     
-    # delete old profile picture if it exists
-    old_profile_picture = user.profile_picture
-    if old_profile_picture:
-        old_file_path = os.path.join(temp_dir, old_profile_picture)
+    # try to delete old profile picture if it exists
+    for ext in [".png", ".jpg", ".jpeg", ".gif", ".webp"]:
+        old_file_path = os.path.join(user_dir, f"profile_picture{ext}")
         if os.path.exists(old_file_path):
             try:
                 os.remove(old_file_path)
@@ -55,11 +46,8 @@ async def upload_profile_picture(
         content = await file.read()
         f.write(content)
     
-    # update user in database
+    # profile picture path (frontend will handle database update)
     profile_picture_relative_path = os.path.join("users", user_id, profile_picture_filename)
-    user.profile_picture = profile_picture_relative_path
-    user.updated_at = datetime.now()
-    await update_user_in_db(user_id, user)
     
     logger.info(f"Profile picture uploaded for user {user_id}: {profile_picture_relative_path}")
     

@@ -54,7 +54,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
     email: user.email,
     avatar: getAvatarUrl() || null,
   } : {
-    email: "",
+    email: "unknown@user.com",
     avatar: null,
   };
 
@@ -63,11 +63,6 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
       <NavHeader navItems={navItems} />
       <SidebarContent>
         <NavMain items={navItems} />
-        {/* <NavCollapsible # TODO: add when needed
-          favorites={data.navCollapsible.favorites}
-          // teams={data.navCollapsible.teams}
-          // topics={data.navCollapsible.topics}
-        /> */}
       </SidebarContent>
       <NavFooter user={userData} />
     </Sidebar>

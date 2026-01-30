@@ -102,7 +102,7 @@ class AudioEngine:
         """run the synchronous blocking api call in a thread pool to enable parallelism"""
         return await asyncio.to_thread(self._generate_audio, prompt)
 
-    async def async_generate_audios(self, prompts: List[AudioPrompt]) -> List[Tuple[str, float]]:
+    async def generate_audios(self, prompts: List[AudioPrompt]) -> List[Tuple[str, float]]:
         """
         audio engine function takes a list of prompts and runs all in parallel
         then returns the list of (output_path, duration) tuples
@@ -110,19 +110,12 @@ class AudioEngine:
         tasks = [self._generate_audio_async(prompt) for prompt in prompts]
         results = await asyncio.gather(*tasks)
         return results
-        
-    def generate_audios(self, prompts: List[AudioPrompt]) -> List[Tuple[str, float]]:
-        return asyncio.run(self.async_generate_audios(prompts))
 
 
-def generate_audios(prompts: List[AudioPrompt]) -> List[Tuple[str, float]]:
-    """
-    generate multiple audios in parallel based on the prompts.
-    returns:
-        list of tuples (output_path, duration)
-    """
+async def generate_audios(prompts: List[AudioPrompt]) -> List[Tuple[str, float]]:
+    """async module-level function for generating audios."""
     audio_engine = AudioEngine()
-    return audio_engine.generate_audios(prompts)
+    return await audio_engine.generate_audios(prompts)
 
 if __name__ == "__main__":
     prompts = [
@@ -133,4 +126,5 @@ if __name__ == "__main__":
         AudioPrompt(text="Hello, how are you? This is a test for the vidinie audio engine.", voice=AudioVoiceString.SOOTHING_BRITISH_MALE, output_path="hello5.mp3"),
         AudioPrompt(text="Hello, how are you? This is a test for the vidinie audio engine.", voice=AudioVoiceString.EXPRESSIVE_PROFESSIONAL_MALE, output_path="hello6.mp3"),
     ]
-    generate_audios(prompts)
+    audio_engine = AudioEngine()
+    asyncio.run(audio_engine.generate_audios(prompts))

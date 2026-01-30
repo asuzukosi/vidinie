@@ -4,13 +4,10 @@ import { LoginForm } from "@/components/authentication/login-form";
 import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { useDispatch } from "react-redux";
-import { setUser } from "@/lib/store/slices/auth-slice";
 import { useEffect, useCallback } from "react";
 
 export default function SignInPage() {
   const router = useRouter();
-  const dispatch = useDispatch();
 
   useEffect(() => {
     // check if user is already authenticated via better-auth session
@@ -31,15 +28,6 @@ export default function SignInPage() {
       if (result.error) {
         throw new Error(result.error.message || "Invalid email or password");
       }
-      // get session to store user data
-      const session = await authClient.getSession();
-      if (session?.data && session.data.user) {
-        // store user data in redux store
-        const userData = { id: session.data.user.id, email: session.data.user.email, token: session.data.session?.token || "", created_at: session.data.user.createdAt.toISOString(), 
-                           updated_at: session.data.user.updatedAt.toISOString(), is_verified: session.data.user.emailVerified || false };
-        // dispatch user data to redux store
-        dispatch(setUser(userData));
-      }
       // show success toast
       toast.success("Login successful!");
       // navigate to the video pipelines page
@@ -59,26 +47,10 @@ export default function SignInPage() {
         provider: "google",
         callbackURL: "/video-pipelines",
       });
-
       // if there is an error, throw an error
       if (response.error) {
         throw new Error(response.error.message || "Google authentication failed");
       }
-
-      // get session after google authentication
-      const session = await authClient.getSession();
-      if (session?.data?.user) {
-        const userData = {
-          id: session.data.user.id,
-          email: session.data.user.email,
-          token: session.data.session?.token || "",
-          created_at: session.data.user.createdAt.toISOString(),
-          updated_at: session.data.user.updatedAt.toISOString(),
-          is_verified: session.data.user.emailVerified || false,
-        };
-        dispatch(setUser(userData));
-      }
-
       toast.success("Login successful!");
       router.push("/video-pipelines");
     } catch (error: any) {
@@ -86,7 +58,7 @@ export default function SignInPage() {
         description: error.message || "Please try again",
       });
     }
-  }, [dispatch, router]);
+  }, [router]);
 
   const handleForgotPassword = async () => {
     // navigate to forgot password page

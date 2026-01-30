@@ -5,7 +5,7 @@ generates ai video clips for segments using video engine.
 from typing import Optional, List
 from pathlib import Path
 import os
-from core.clients.video_engine import VideoPrompt, VideoEngine
+from core.clients.video_engine import VideoPrompt, generate_videos
 from core.utils.logger import get_logger
 from core.data import VideoSegment, VideoSource
 
@@ -21,9 +21,8 @@ class VideoClipGenerator:
         """
         self.output_dir = Path(output_dir)
         Path(output_dir).mkdir(parents=True, exist_ok=True)
-        self.video_engine = VideoEngine()
         
-    def _generate_for_segment(self, 
+    async def _generate_for_segment(self, 
                              index: int, 
                              output_dir: str,
                              segment: VideoSegment) -> VideoSegment:
@@ -34,6 +33,8 @@ class VideoClipGenerator:
             return segment
             
         # generate videos for all video clips in the segment
+        prompts = []
+        prompt_indices = []
         for idx, clip in enumerate(segment.video_clips):
             if clip.source == VideoSource.AI_GENERATED:
                 prompt = VideoPrompt(
@@ -42,12 +43,17 @@ class VideoClipGenerator:
                     exemptions=[],
                     output_path=os.path.join(output_dir, f"segment_{index}_video_{idx}.mp4")
                 )
-                output_path = self.video_engine._generate_video(prompt)
-                clip.path = output_path
-                clip.source = VideoSource.AI_GENERATED
+                prompts.append(prompt)
+                prompt_indices.append(idx)
+        
+        if prompts:
+            paths = await generate_videos(prompts)
+            for idx, path in zip(prompt_indices, paths):
+                segment.video_clips[idx].path = path
+                segment.video_clips[idx].source = VideoSource.AI_GENERATED
         return segment
     
-    def generate_for_segments(self, 
+    async def generate_for_segments(self, 
                               pipeline_id: Optional[str],
                               segments: List[VideoSegment]
                               ) -> List[VideoSegment]:
@@ -59,7 +65,7 @@ class VideoClipGenerator:
         
         try:
             for i, segment in enumerate(segments, 1):
-                segment = self._generate_for_segment(index=i, 
+                segment = await self._generate_for_segment(index=i, 
                                                      output_dir=output_dir, 
                                                      segment=segment)
             return segments

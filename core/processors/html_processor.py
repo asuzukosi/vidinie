@@ -23,7 +23,7 @@ from core.data import (
     ContentSection,
 )
 from core.operations.image_labeler import ImageLabeler
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 import random
 
 # setup the html processor logger
@@ -36,26 +36,33 @@ class HTMLProcessor(DocumentProcessor):
     """
     
     def __init__(self, html_content: str, 
+                 original_url: str,
                  images_output_dir: str = "temp/images", 
-                 original_url: Optional[str] = None,
                  user_instructions: str = ""):
         """
         initialize HTML processor.
         args:
             html_content: html content as string
-            images_output_dir: directory to save extracted images
             original_url: original url of the html document
+            images_output_dir: directory to save extracted images
             user_instructions: user instructions to guide AI operations
         """
         self.user_instructions = user_instructions
         if not html_content:
             raise ValueError("html_content must be provided")
+        if not original_url:
+            raise ValueError("original_url must be provided")
         
         self.html_content = html_content
         self.images_output_dir = images_output_dir
         self.soup = None
         self.images_metadata: List[ImageMetadata] = []
-        self.original_url = original_url
+        if original_url.startswith(('http://', 'https://')):
+            parsed_url = urlparse(original_url)
+            self.original_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
+            logger.info(f"extracted base URL from {original_url} -> {self.original_url}")
+        else:
+            self.original_url = original_url
 
         # create output directory for images
         Path(images_output_dir).mkdir(parents=True, exist_ok=True)
@@ -237,7 +244,6 @@ class HTMLProcessor(DocumentProcessor):
                     with Image.open(io.BytesIO(image_bytes)) as pil_img:
                         width, height = pil_img.size
                         format_name = pil_img.format
-                        mode = pil_img.mode
                 except Exception as e:
                     logger.warning(f"Could not read image metadata: {str(e)}")
                     continue
@@ -314,7 +320,7 @@ class HTMLProcessor(DocumentProcessor):
         # log saved metadata
         logger.info(f"Saved metadata to {metadata_path}")
         
-    def label_images(self):
+    async def label_images(self):
         logger.info("labeling images")
         images_metadata = self.extract_images()
         
@@ -323,7 +329,7 @@ class HTMLProcessor(DocumentProcessor):
             
         logger.info("labeling images")
         labeler = ImageLabeler(user_instructions=self.user_instructions)
-        labeled_metadata = labeler.label_images_batch(images_metadata)
+        labeled_metadata = await labeler.label_images_batch(images_metadata)
         self.images_metadata = labeled_metadata
         logger.info(f"labeled {len(labeled_metadata)} images")
 

@@ -4,9 +4,10 @@ vidinie image generator module
 from typing import Optional, List
 from pathlib import Path
 import os
-from core.clients.image_engine import ImagePrompt, generate_image
+from core.clients.image_engine import ImagePrompt, generate_images
 from core.utils.logger import get_logger
 from core.data import VideoSegment, ImageSource
+from retry import retry
 
 logger = get_logger("image_generator")
 
@@ -21,13 +22,16 @@ class ImageGenerator:
         self.output_dir = Path(output_dir)
         Path(output_dir).mkdir(parents=True, exist_ok=True)
         
-    def _generate_for_segment(self, 
+    @retry(tries=3, delay=1, backoff=2)
+    async def _generate_for_segment(self, 
                              index: int, 
                              output_dir: str,
                              segment: VideoSegment) -> VideoSegment:
         """
         generate an image for a segment.
         """
+        prompts = []
+        prompt_indices = []
         for idx, image in enumerate(segment.images):
             if image.source == ImageSource.AI_GENERATED:
                 prompt = ImagePrompt(
@@ -36,12 +40,17 @@ class ImageGenerator:
                     exemptions=[],
                     output_path=os.path.join(output_dir, f"segment_{index}_image_{idx}.png")
                 )
-                path = generate_image(prompt)
-                image.path = path
-                image.source = 'ai_generated'
+                prompts.append(prompt)
+                prompt_indices.append(idx)
+        
+        if prompts:
+            paths = await generate_images(prompts)
+            for idx, path in zip(prompt_indices, paths):
+                segment.images[idx].path = path
+                segment.images[idx].source = 'ai_generated'
         return segment
     
-    def generate_for_segments(self, 
+    async def generate_for_segments(self, 
                               pipeline_id: Optional[str],
                               segments: List[VideoSegment]
                               ) -> List[VideoSegment]:
@@ -53,7 +62,7 @@ class ImageGenerator:
         
         try:
             for i, segment in enumerate(segments, 1):
-                segment = self._generate_for_segment(index=i, 
+                segment = await self._generate_for_segment(index=i, 
                                                      output_dir=output_dir, 
                                                      segment=segment)
             return segments

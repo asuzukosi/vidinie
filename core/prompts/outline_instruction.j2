@@ -1,131 +1,49 @@
-Create an explainer video outline for the document: "{{ title }}"
+Create video outline: "{{ title }}"
+Target: {{ target_segments }} segments, ~{{ duration }}s each, total ~{{ target_segments * duration }}s
 
-<parameters>
-- Target segments: {{ target_segments }}
-- Segment duration: approximately {{ duration }} seconds each
-- Total estimated video duration: {{ target_segments * duration }} seconds
-</parameters>
-
-<document_content>
+<content>
 {{ content }}
-</document_content>
+</content>
 
-<available_images>
+<images>
 {% if has_images %}
 {{ images_text }}
 {% else %}
-No images available from the document.
+No images available.
 {% endif %}
-</available_images>
+</images>
 
-<visual_asset_selection_instructions>
-You must select visual assets for each segment using two separate fields: **images** and **video_clips**.
+<visuals>
+Images (required, ≥1 per segment):
+- document: when doc image directly relates to segment
+- stock: real-world visuals (2-3 keywords)
+- ai_generated: complex/abstract concepts (descriptive prompt)
 
-**IMAGES (required - at least one per segment):**
+Video clips (optional, 0-1 per segment, all 5s):
+- stock: real-world footage (2-3 keywords)
+- ai_generated: only when motion essential (extremely rare)
 
-When to use each image source:
-1. **"document"** - When available images from the document directly relate to and support the segment content
-2. **"stock"** - For straightforward, real-world visuals (people, places, objects, common scenarios)
-3. **"ai_generated"** - For visually complex concepts, imaginative ideas, abstract representations, or custom technical illustrations that stock images cannot adequately convey
+Fields: source, query (null for document), path (filepath for document, null otherwise), timing (start|middle|end|throughout)
+</visuals>
 
-Image field requirements:
-- Document: set "source": "document", "path": "<exact filepath>", "query": null, "timing": "start|middle|end|throughout"
-- Stock: set "source": "stock", "path": null, "query": "2-3 keywords", "timing": "start|middle|end|throughout"
-- AI image: set "source": "ai_generated", "path": null, "query": "descriptive prompt", "timing": "start|middle|end|throughout"
+<narrative>
+Arc: Hook → Development → Resolution
+Per segment: narrative_hook (specific), transition_from_previous (explicit connection), transition_to_next (anticipation), content (detailed).
+Use: question-answer bridges, problem-solution flows, cause-effect chains, contrast patterns.
+</narrative>
 
-**VIDEO_CLIPS (optional - use sparingly, all clips are 5 seconds):**
+<music>
+Optional. Include only when enhancing experience. Provide descriptive prompt for mood/tempo/style, or null.
+</music>
 
-When to use video clips:
-- Only when motion/animation enhances understanding significantly
-- For demonstrating processes, transformations, or dynamic systems
-- Most segments should have empty video_clips array: []
-- All video clips are automatically 5 seconds in duration
-
-When to use each video clip source:
-1. **"stock"** - For real-world footage, b-roll, demonstrations (preferred option for video). You can create queries for stock videos - these will be used to search for appropriate stock video footage.
-2. **"ai_generated"** - ONLY when custom animation is absolutely essential and stock footage cannot provide it (use extremely sparingly due to very high cost)
-
-Video clip field requirements:
-- Stock: set "source": "stock", "path": null, "query": "2-3 keywords describing the video footage needed", "timing": "start|middle|end|throughout"
-- AI video: set "source": "ai_generated", "path": null, "query": "detailed generation prompt", "timing": "start|middle|end|throughout"
-- Note: video_clips can NEVER have source "document" - only "stock" or "ai_generated"
-- Note: NO duration field needed - all clips are automatically 5 seconds
-- Note: Stock video queries should describe the type of footage needed (e.g., "business meeting", "technology workspace", "nature landscape")
-
-**Multiple visuals per segment:**
-- Images: 1-2 images typical; 2-3 for complex segments
-- Video clips: 0 most common; rarely 1; never more than 1 per segment
-- Specify "timing" for each: "start", "middle", "end", or "throughout"
-
-**Cost awareness:**
-- Prefer document images when relevant (free)
-- Use stock images for simple needs (low cost)
-- Use ai_generated images for complex/imaginative needs (moderate cost)
-- Use stock video clips when motion is needed (moderate cost)
-- Avoid ai_generated video clips unless absolutely necessary (very expensive)
-</visual_asset_selection_instructions>
-
-<narrative_requirements>
-Create a compelling narrative structure with smooth, continuous flow:
-
-**Overall Narrative Arc:**
-- Define the overarching story in the "narrative_arc" field
-- Ensure segments build toward a satisfying conclusion
-- Create clear beginning (hook) → middle (development) → end (resolution) structure
-
-**Per-Segment Requirements:**
-1. **narrative_hook**: Provide a specific, compelling element that maintains viewer interest for THIS segment (not generic)
-2. **transition_from_previous**: Explicitly explain how this segment connects to and builds upon the previous segment (except for first segment)
-3. **transition_to_next**: Create anticipation for the next segment by showing where the narrative is heading (except for last segment)
-4. **content**: Write detailed content that flows naturally from the transition, delivers on the hook, and sets up the next transition
-
-**Transition Quality:**
-- Transitions should feel inevitable, not arbitrary
-- Use techniques like: question-answer bridges, problem-solution flows, cause-effect chains, contrast patterns
-- Reference concepts from previous segments to maintain continuity
-- Foreshadow upcoming content to maintain forward momentum
-</narrative_requirements>
-
-<background_music_guidance>
-Background music is OPTIONAL and should only be included when it would enhance the video experience and is relevant to the pipeline task.
-
-**When to include background music:**
-- When the content would benefit from emotional enhancement (e.g., motivational, dramatic, educational)
-- When music would help maintain viewer engagement throughout longer videos
-- When the tone/mood of the content suggests music would be appropriate
-
-**When NOT to include background music:**
-- For purely technical or dry informational content where music might be distracting
-- When the content is very short or focused on specific data/statistics
-- When the user instructions or content nature suggests a minimalist approach
-
-**If including background music:**
-- Provide a descriptive prompt in "background_music_query" that captures the mood, tempo, and style needed
-- Examples: "calm ambient background with soft piano for educational content", "upbeat corporate music with subtle electronic elements", "dramatic orchestral piece with building tension"
-- The query should describe the emotional tone and musical characteristics needed
-- Set to null if background music is not needed
-
-**Format:**
-- Include: "background_music_query": "descriptive prompt for music generation"
-- Exclude: "background_music_query": null
-</background_music_guidance>
-
-<outline_requirements>
-1. Start with an engaging introduction segment that hooks the viewer with a compelling problem, question, or scenario
-2. Build logically from foundational concepts to advanced topics with each segment raising stakes or deepening understanding
-3. End with a summary, conclusion, or call-to-action segment that synthesizes insights and echoes the opening hook
-4. Each segment must be self-contained but flow naturally and inevitably to the next
-5. Generate 5 visual keywords per segment for potential visual representation
-6. Keep each segment focused on ONE main idea while maintaining narrative momentum
-7. Provide detailed content suitable for voiceover script development
-8. Select appropriate images (required) and video clips (optional, sparingly) that enhance understanding while being cost-effective
-9. Ensure every segment has a micro-hook that maintains engagement
-10. Create explicit connections between segments that make the flow feel seamless and purposeful
-11. Remember: images and video_clips are separate fields - most segments should have images but no video_clips
-12. All video clips are automatically 5 seconds - no duration field needed
-13. Consider whether background music would enhance the video - include "background_music_query" only when relevant
-</outline_requirements>
-
-<critical_instruction>
-Return ONLY valid JSON matching the specified structure. No markdown code blocks, no explanatory text, no preamble. Your entire response must be parsable by JSON.parse().
-</critical_instruction>
+<requirements>
+1. Engaging intro hook
+2. Logical progression building complexity
+3. Summary/conclusion segment
+4. Smooth transitions between segments
+5. 5 visual keywords per segment
+6. One main idea per segment
+7. Detailed content for voiceover
+8. Cost-effective visual selection
+9. JSON only, no markdown
+</requirements>

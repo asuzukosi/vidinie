@@ -121,13 +121,4 @@ class StockFetcher:
         # execute all segment tasks in parallel
         await asyncio.gather(*tasks, return_exceptions=True)
         return segments
-    
-    def fetch_for_segments(
-        self,
-        segments: List[VideoSegment],
-    ) -> List[VideoSegment]:
-        """
-        fetch stock images/videos for video segments.
-        """
-        return asyncio.run(self.fetch_for_segments_async(segments))
 

@@ -23,9 +23,9 @@ from core.operations.video_clip_generator import VideoClipGenerator
 logger = get_logger("content_operations")
 
 
-def process_content(
+async def process_content(
     pipeline: VideoPipeline,
-    target_segments: int = 5,
+    target_segments: int = 4,
     segment_duration: int = 40
 ) -> VideoPipeline:
     """
@@ -40,17 +40,13 @@ def process_content(
     anthropic_api_key = config.anthropic_api_key
     temp_dir = config.output_temp_directory
     
-    pipeline.update_stage(VideoPipelineStage.CONTENT_ANALYSIS, VideoPipelineStatus.IN_PROGRESS)
-    
     if not anthropic_api_key:
         logger.error("anthropic api key required")
-        pipeline.update_stage(VideoPipelineStage.CONTENT_ANALYSIS, VideoPipelineStatus.FAILED)
-        return pipeline
+        raise ValueError("anthropic api key required")
     
     if not pipeline.parsed_content:
         logger.error("parsed content not found in pipeline data")
-        pipeline.update_stage(VideoPipelineStage.CONTENT_ANALYSIS, VideoPipelineStatus.FAILED)
-        return pipeline
+        raise ValueError("parsed content not found in pipeline data")
     
     try:
         pdf_content = pipeline.parsed_content
@@ -73,7 +69,7 @@ def process_content(
             segment_duration=segment_duration,
             user_instructions=pipeline.instructions
         )
-        outline: VideoOutline = analyzer.analyze_content(
+        outline: VideoOutline = await analyzer.analyze_content(
             title=pdf_content.title or "",
             content=all_content,
             images_metadata=images_metadata
@@ -84,7 +80,7 @@ def process_content(
         stock_images_dir = os.path.join(temp_dir, pipeline.id, 'images', 'stock_images')
         try:
             fetcher = StockFetcher(output_dir=stock_images_dir)
-            outline.segments = fetcher.fetch_for_segments(outline.segments)
+            outline.segments = await fetcher.fetch_for_segments_async(outline.segments)
         except ValueError as e:
             logger.warning(f"stock fetcher not available: {str(e)}")
         
@@ -92,31 +88,29 @@ def process_content(
         logger.info("generating ai images")
         ai_images_dir = os.path.join(temp_dir, pipeline.id, 'images', 'ai_images')
         generator = ImageGenerator(output_dir=ai_images_dir)
-        outline.segments = generator.generate_for_segments(
+        outline.segments = await generator.generate_for_segments(
             pipeline_id=pipeline.id,
             segments=outline.segments
         )
         
         # generate ai video clips
         logger.info("generating ai video clips")
-        ai_videos_dir = os.path.join(temp_dir, pipeline.id, 'videos', 'ai_videos')
+        ai_videos_dir = os.path.join(temp_dir, pipeline.id, 'video_clips', 'ai_video_clips')
         video_clip_generator = VideoClipGenerator(output_dir=ai_videos_dir)
-        outline.segments = video_clip_generator.generate_for_segments(
+        outline.segments = await video_clip_generator.generate_for_segments(
             pipeline_id=pipeline.id,
             segments=outline.segments
         )
         
         # update pipeline data
         pipeline.video_outline = outline
-        pipeline.update_stage(VideoPipelineStage.CONTENT_ANALYSIS, VideoPipelineStatus.COMPLETED)
         
         logger.info(f"video outline created: {pipeline.id}")
         return pipeline
         
     except Exception as e:
         logger.error(f"error during content analysis: {str(e)}", exc_info=True)
-        pipeline.update_stage(VideoPipelineStage.CONTENT_ANALYSIS, VideoPipelineStatus.FAILED)
-        return pipeline
+        raise
 
 
 def _validate_parsed_content(video_pipeline: VideoPipeline) -> None:

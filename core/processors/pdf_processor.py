@@ -400,7 +400,7 @@ class PDFProcessor(DocumentProcessor):
         
         logger.info(f"saved metadata to {metadata_path}")
     
-    def label_images(self):
+    async def label_images(self):
         logger.info("extracting images from pdf")
         images_metadata = self.extract_images()
         
@@ -409,7 +409,7 @@ class PDFProcessor(DocumentProcessor):
             
             logger.info("labeling images")
             labeler = ImageLabeler(user_instructions=self.user_instructions)
-            labeled_metadata = labeler.label_images_batch(images_metadata)
+            labeled_metadata = await labeler.label_images_batch(images_metadata)
             self.images_metadata = labeled_metadata
             logger.info(f"labeled {len(labeled_metadata)} images")
         else:

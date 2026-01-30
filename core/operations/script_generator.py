@@ -43,7 +43,7 @@ class ScriptGenerator:
             autoescape=select_autoescape(['html', 'xml'])
         )
     
-    def generate_script(self, video_outline: VideoOutline) -> VideoOutline:
+    async def generate_script(self, video_outline: VideoOutline) -> VideoOutline:
         """
         generate complete voiceover script from video outline.
         """
@@ -58,7 +58,8 @@ class ScriptGenerator:
             segments=segment_json
         )
         reasoning_prompt = ReasoningPrompt(task=prompt)
-        result: ScriptResponse = reason(system_prompt, [reasoning_prompt], schema=ScriptResponse)
+        results: List[ScriptResponse] = await reason(system_prompt, [reasoning_prompt], schema=ScriptResponse)
+        result: ScriptResponse = results[0]
         if result.title != video_outline.title:
             video_outline.title = result.title
         for segment in result.segments:

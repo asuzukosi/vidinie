@@ -3,6 +3,7 @@ import { useState, useRef, useMemo, useEffect } from "react";
 import { IconX, IconUpload, IconFileText} from "@tabler/icons-react";
 import { Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { FieldGroup } from "@/components/ui/field";
 import { Field } from "@/components/ui/field";
 import { FieldLabel } from "@/components/ui/field";
@@ -102,7 +103,6 @@ export default function CreateVideoPipelineModal({
           setInstructions("");
           setVoice("Narrative Expressive Male");
         } catch (error) {
-          // Error handling is done in parent component
         } finally {
           setIsCreating(false);
         }
@@ -265,12 +265,13 @@ export default function CreateVideoPipelineModal({
                 <FieldLabel htmlFor="instructions">
                   Instructions
                 </FieldLabel>
-                <Input
+                <Textarea
                   id="instructions"
-                  placeholder="Enter instructions to guide the AI (e.g., focus on key concepts, emphasize practical examples)"
+                  placeholder="Enter instructions to guide the model (e.g., focus on key concepts, emphasize practical examples, use certain tone or imagery). The more detailed the instructions, the better the video will be."
                   required
                   value={instructions}
                   onChange={(e) => setInstructions(e.target.value)}
+                  rows={6}
                 />
               </Field>
               <Field>

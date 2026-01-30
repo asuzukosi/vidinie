@@ -44,14 +44,24 @@ services:
       - redis
     volumes:
       - ./temp:/app/temp
-  # mongodb:
-  #   image: mongo
-  #   networks:
-  #     - vidinie-network
-  #   # ports:
-  #   #   - "27017:27017"
-  #   volumes:
-  #     - mongodb-data:/data/db
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    command: mongod --replSet rs0 --bind_ip_all
+    
+  mongodb-setup:
+    image: mongo:latest
+    depends_on:
+      - mongodb
+    restart: "no"
+    entrypoint: >
+      bash -c "
+      sleep 2 &&
+      mongosh --host mongodb:27017 --eval 'rs.initiate()'
+      "
+
   redis:
     image: redis:7-alpine
     networks:

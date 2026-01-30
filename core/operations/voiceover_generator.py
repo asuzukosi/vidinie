@@ -30,7 +30,7 @@ class VoiceoverGenerator:
         self.output_dir = output_dir
         self.voice = voice
     
-    def generate_voiceovers(self,
+    async def generate_voiceovers(self,
                             script_data: VideoOutline) -> VideoOutline:
         """
         generate voiceover audio for all segments.
@@ -41,13 +41,13 @@ class VoiceoverGenerator:
         """
         logger.info(f"generating voiceovers for {len(script_data.segments)} segments")
         audio_prompts = [AudioPrompt(text=segment.script, voice=self.voice, output_path=os.path.join(self.output_dir, f"segment_{i:02d}_{segment.title}.mp3")) for i, segment in enumerate(script_data.segments)]
-        audio_paths = generate_audios(audio_prompts)
+        audio_paths = await generate_audios(audio_prompts)
         for i, segment in enumerate(script_data.segments):
             segment.audio_file = audio_paths[i][0]
             segment.audio_duration = audio_paths[i][1]
         return script_data
     
-    def generate_full_audio(self, script_data: VideoOutline, 
+    async def generate_full_audio(self, script_data: VideoOutline, 
                             output_path: str) -> float:
         """
         generate a single audio file combining all segments.

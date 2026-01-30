@@ -30,7 +30,7 @@ const sendPasswordResetEmail = async ({ user, url, token }: { user: { email: str
 
 export const auth = betterAuth({
     // mongodb database adapter
-  database: mongodbAdapter(db, {client}),
+  database: mongodbAdapter(db, {client, transaction: false}),
   // email verification
   emailVerification: {
     // send verification email on sign up
@@ -83,7 +83,7 @@ export const auth = betterAuth({
     // google authentication
     google: {
       clientId: process.env.NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID || "",
-      clientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET || "",
+      clientSecret: process.env.NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_SECRET || "",
     },
   },
   // plugins for authentication

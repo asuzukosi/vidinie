@@ -13,17 +13,13 @@ export class VidinieAPIClient {
     }
 
     private async getTokenFromSession(): Promise<string | null> {
-        try {
-            // get jwt token from better-auth session
-            const session = await authClient.getSession();
-            if (session?.data?.session?.token) {
-                return session.data.session.token;
-            }
-            return null;
-        } catch (error) {
+        // get jwt token from better-auth session
+        const { data, error} = await authClient.token();
+        if (error) {
             console.error("error getting token from better-auth session:", error);
             return null;
         }
+        return data?.token || null;
     }
 
     private async getAuthHeader(): Promise<string | null> {

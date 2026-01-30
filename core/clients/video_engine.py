@@ -1,6 +1,6 @@
 import replicate
 import os
-import time
+import asyncio
 from typing import List
 import sys
 from retry import retry
@@ -35,7 +35,7 @@ class VideoEngine:
         self.aspect_ratio = "16:9"
         self.camera_fixed = False
 
-    @retry(tries=5, delay=2, backoff=8)
+    @retry(tries=5, delay=2, backoff=4)
     def _generate_video(self, prompt: VideoPrompt) -> str:
         """
         generate a video based on the prompt.
@@ -62,31 +62,33 @@ class VideoEngine:
                 f.write(output.read())
             logger.info(f"video saved to output path: {prompt.output_path}")
         return prompt.output_path
+    
+    async def _generate_video_async(self, prompt: VideoPrompt) -> str:
+        """run the synchronous blocking api call in a thread pool to enable parallelism"""
+        return await asyncio.to_thread(self._generate_video, prompt)
         
-    def generate_videos(self, prompts: List[VideoPrompt]) -> List[str]:
+    async def generate_videos(self, prompts: List[VideoPrompt]) -> List[str]:
         """
         generate multiple videos sequentially with rate limiting.
         """
         results = []
         for i, prompt in enumerate(prompts, 1):
             logger.info(f"generating video {i}/{len(prompts)}")
-            output_path = self._generate_video(prompt)
+            output_path = await self._generate_video_async(prompt)
             results.append(output_path)
             
             # wait 10 seconds between requests to avoid rate limiting (except for the last one)
             if i < len(prompts):
                 logger.info(f"waiting 10 seconds before next video generation to avoid rate limiting...")
-                time.sleep(10)
+                await asyncio.sleep(10)
         
         return results
 
 
-def generate_videos(prompts: List[VideoPrompt]) -> List[str]:
-    """
-    generate multiple videos sequentially with rate limiting.
-    """
+async def generate_videos(prompts: List[VideoPrompt]) -> List[str]:
+    """async module-level function for generating videos."""
     video_engine = VideoEngine()
-    return video_engine.generate_videos(prompts)
+    return await video_engine.generate_videos(prompts)
 
 
 if __name__ == "__main__":
@@ -104,5 +106,6 @@ if __name__ == "__main__":
             output_path="test_video2.mp4"
         ),
     ]
-    output_paths = generate_videos(prompts)
+    video_engine = VideoEngine()
+    output_paths = asyncio.run(video_engine.generate_videos(prompts))
     print(f"videos saved to output paths: {output_paths}")

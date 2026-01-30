@@ -12,6 +12,7 @@ from core.utils.config_loader import config
 from core.data import (
     VideoOutline,
     ImageMetadata,
+    VideoSegment,
 )
 from core.data.image_models import SegmentImage, SegmentVideoClip
 
@@ -92,7 +93,7 @@ class ContentAnalyzer:
         """
         return clean_text_fn(text)
 
-    def iterative_summarization(self, 
+    async def iterative_summarization(self, 
                                 title: str,
                                 context: str, 
                                 split_by: str = '\n', 
@@ -127,12 +128,12 @@ class ContentAnalyzer:
             chunks: List[str] = self._split_context(context, split_by, chunk_length)
             prompts: List[str] = [jinja_env.get_template('bullet_summary_prompt.j2').render(context=chunk) for chunk in chunks]
             reasoning_prompts: List[ReasoningPrompt] = [ReasoningPrompt(task=prompt, images=[]) for prompt in prompts]
-            context: str = reason(system_prompt, reasoning_prompts, schema=GenerateSummary, combine_function=combine_summaries)
+            context: str = await reason(system_prompt, reasoning_prompts, schema=GenerateSummary, combine_function=combine_summaries)
         logger.info(f"successfully summarized context of length {len(context)}")
         return context
 
     
-    def analyze_content(self, title: str, 
+    async def analyze_content(self, title: str, 
                         content: str, 
                         images_metadata: List[ImageMetadata]) -> VideoOutline:
         """
@@ -140,11 +141,11 @@ class ContentAnalyzer:
         """
         logger.info("starting content analysis")
         # iteratively summarize the content
-        content = self.iterative_summarization(title, content, split_by='\n', 
+        content = await self.iterative_summarization(title, content, split_by='\n', 
                                                chunk_length=360000, max_size=480000)
         logger.info(f"successfully iteratively summarized content")
         # create video outline
-        outline = self._create_video_outline(title=title, content=content, images_metadata=images_metadata)
+        outline = await self._create_video_outline(title=title, content=content, images_metadata=images_metadata)
         logger.info(f"successfully created video outline")
         return outline
     
@@ -178,7 +179,7 @@ class ContentAnalyzer:
         images_text = "<images>\n" + "\n".join(images_list) + "\n</images>"
         return images_text
 
-    def _create_video_outline(self, title: str, 
+    async def _create_video_outline(self, title: str, 
                               content: str, 
                               images_metadata: List[ImageMetadata]) -> VideoOutline:
         """
@@ -205,11 +206,12 @@ class ContentAnalyzer:
             has_images=len(images_metadata) > 0
         )
         reasoning_prompt = ReasoningPrompt(task=prompt, images=[])
-        outline: ContentAnalyzerOutline = reason(system_prompt, reasoning_prompt, schema=ContentAnalyzerOutline)
+        outline: List[ContentAnalyzerOutline] = await reason(system_prompt, [reasoning_prompt], schema=ContentAnalyzerOutline)
+        outline: ContentAnalyzerOutline = outline[0]
         # convert content analyzer outline to video outline
         segments: List[ContentAnalyzerOutlineSegment] = []
         for segment in outline.segments:
-            segments.append(ContentAnalyzerOutlineSegment(
+            segments.append(VideoSegment(
                 title=segment.title,
                 purpose=segment.purpose,
                 key_points=segment.key_points,

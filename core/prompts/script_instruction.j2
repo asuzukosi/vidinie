@@ -1,34 +1,31 @@
-<!-- SCRIPT GENERATION TASK PROMPT -->
-Write creative, engaging voiceover scripts for each segment of: "{{ video_title }}"
+Write voiceover scripts: "{{ video_title }}"
 
-<narrative_arc>
+<arc>
 {{ narrative_arc }}
-</narrative_arc>
+</arc>
 
 <segments>
 {% for segment in segments %}
 Segment {{ loop.index }}: {{ segment.title }}
-- Duration: {{ segment.duration }}s (target ~{{ (segment.duration * 2.5) | round(0) | int }} words)
+- Duration: {{ segment.duration }}s (~{{ (segment.duration * 2.5) | round(0) | int }} words)
 - Purpose: {{ segment.purpose }}
 - Hook: {{ segment.narrative_hook }}
-{% if loop.index > 1 %}- Transition from previous: {{ segment.transition_from_previous }}{% endif %}
+{% if loop.index > 1 %}- From previous: {{ segment.transition_from_previous }}{% endif %}
 - Key points: {{ segment.key_points | join(', ') }}
-- Content guidance: {{ segment.content }}
-{% if loop.index < segments|length %}- Transition to next: {{ segment.transition_to_next }}{% endif %}
+- Content: {{ segment.content }}
+{% if loop.index < segments|length %}- To next: {{ segment.transition_to_next }}{% endif %}
 
 {% endfor %}
 </segments>
 
 <requirements>
-- Create a separate script for each segment in order
-- Each script should be self-contained yet connect smoothly via transitions
-- Honor each segment's hook, purpose, and transitions
-- Target word count per segment: segment_duration × 2.5 words
-- Write as natural, energetic speech with personality
-- Avoid forbidden phrases and generic language
-- **Be creative**: Use vivid metaphors, compelling analogies, memorable phrasing
-- **Be expressive**: Vary sentence structure, use strong verbs, create rhythm
-- **Be engaging**: Hook viewers, build tension, deliver satisfying insights
-- **Maintain continuity**: Each segment flows naturally from previous, leads into next
-- Output JSON with title and segments array (each with segment_number and script)
+- Separate script per segment in order
+- Self-contained yet connected via transitions
+- Honor hook, purpose, transitions
+- Target: duration × 2.5 words
+- Natural, energetic speech
+- Creative: vivid metaphors, compelling analogies, memorable phrasing
+- Expressive: varied structure, strong verbs, rhythm
+- Engaging: hooks, tension, insights
+- JSON: title + segments array (segment_number, script)
 </requirements>
