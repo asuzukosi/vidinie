@@ -106,8 +106,6 @@ export default function ProfilePage() {
         newPassword: "",
         confirmPassword: ""
       });
-      // show success toast
-      toast.success("Password changed successfully");
     } catch (error: any) {
       // show error toast
       toast.error("Failed to change password", {

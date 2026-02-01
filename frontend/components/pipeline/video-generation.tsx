@@ -20,7 +20,8 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { event } from "@/lib/gtag";
+import posthog from 'posthog-js';
+import { PostHogEvent } from "@/lib/utils";
 
 interface VideoGenerationProps {
     videoPipelineId: string;
@@ -69,22 +70,20 @@ export function VideoGeneration({
             setIsUpgradeModalOpen(true);
             return;
         }
-        event({
-            action: "video_download_requested_with_free_subscription",
+        posthog.capture(PostHogEvent.VIDEO_DOWNLOAD_REQUESTED_WITH_FREE_SUBSCRIPTION, {
             category: "video_pipeline",
             label: user?.email || "unknown",
             value: 1,
         });
         setIsDownloading(true);
-        event({
-            action: "video_download_started",
+        posthog.capture(PostHogEvent.VIDEO_DOWNLOAD_STARTED_WITH_PAID_SUBSCRIPTION, {
             category: "video_pipeline",
             label: user?.email || "unknown",
             value: 1,
         });
         try {
             const blob = await client.downloadVideoPipelineOutput(videoPipelineId);
-            // Create a blob URL and trigger download
+            // create a blob URL and trigger download
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -99,8 +98,7 @@ export function VideoGeneration({
             toast.error(error.message || "Failed to download video");
         } finally {
             setIsDownloading(false);
-            event({
-                action: "video_download_completed",
+            posthog.capture(PostHogEvent.VIDEO_DOWNLOAD_COMPLETED, {
                 category: "video_pipeline",
                 label: user?.email || "unknown",
                 value: 1,

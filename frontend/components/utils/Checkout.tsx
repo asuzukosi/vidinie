@@ -17,9 +17,9 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn, PostHogEvent } from "@/lib/utils";
 import { createOrUpgradeSubscription } from "@/lib/stripe";
-import { event } from "@/lib/gtag";
+import posthog from 'posthog-js';
 import { useSelector } from "react-redux";
 import type { RootState } from "@/lib/store/store";
 
@@ -55,8 +55,7 @@ export default function Checkout({
   const [loading, setLoading] = useState(false);
   const user = useSelector((state: RootState) => state.auth.user);
   const handleCheckout = async () => {
-    event({
-      action: "checkout_started",
+    posthog.capture(PostHogEvent.CHECKOUT_STARTED, {
       category: "checkout",
       label: user?.email || "unknown",
       value: 1,
@@ -81,6 +80,12 @@ export default function Checkout({
       if (!result.url) {
         throw new Error("link to checkout page not returned");
       }
+
+      posthog.capture(PostHogEvent.CHECKOUT_COMPLETED, {
+        category: "checkout",
+        label: user?.email || "unknown",
+        value: 1,
+      });
 
       if (onSuccess) {
         onSuccess();

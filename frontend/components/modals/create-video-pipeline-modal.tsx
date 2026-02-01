@@ -18,7 +18,8 @@ import { CreateVideoPipelineRequest, AudioVoice } from "@/lib/sdk/types";
 import { toast } from "sonner";
 import { useSelector } from "react-redux";
 import type { RootState } from "@/lib/store/store";
-import { event } from "@/lib/gtag";
+import posthog from 'posthog-js';
+import { PostHogEvent } from "@/lib/utils";
 
 const ALLOWED_FILE_TYPES = ".pdf";
 const ALLOWED_MIME_TYPES = ["application/pdf"];
@@ -64,8 +65,7 @@ export default function CreateVideoPipelineModal({
     }, [voice]);
 
     useEffect(() => {
-      event({
-        action: "create_video_pipeline_creation_started",
+      posthog.capture(PostHogEvent.CREATE_VIDEO_PIPELINE_CREATION_STARTED, {
         category: "video_pipeline",
         label: user?.email || "unknown",
         value: 1,

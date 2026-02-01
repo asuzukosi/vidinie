@@ -3,8 +3,15 @@ import { jwt } from "better-auth/plugins"
 import { stripe } from "@better-auth/stripe";
 import { MongoClient } from "mongodb";
 import { mongodbAdapter } from "better-auth/adapters/mongodb";
-
 import Stripe from "stripe";
+import {
+  sendVerificationEmail,
+  sendPasswordResetEmail,
+  sendWelcomeEmail,
+  sendSubscriptionActivatedEmail,
+  sendSubscriptionUpdatedEmail,
+  sendSubscriptionCanceledEmail,
+} from "@/lib/emails";
 
 // initialize stripe client for better-auth plugin
 const stripeClient = new Stripe(process.env.NEXT_PUBLIC_STRIPE_SECRET_KEY || "", {
@@ -15,18 +22,6 @@ const stripeClient = new Stripe(process.env.NEXT_PUBLIC_STRIPE_SECRET_KEY || "",
 const client = new MongoClient(process.env.MONGODB_URI || "mongodb://localhost:27017/database");
 const db = client.db(process.env.DB_NAME || "vidinie");
 
-// dummy email sending function for email verification
-const sendEmail = async ({ to, subject, text, token }: { to: string, subject: string, text: string, token: string }) => {
-    console.log(`Sending email to ${to} with subject ${subject} and text ${text}`);
-    console.log(`Verification token: ${token}`);
-};
-
-// separate email sending function for password reset
-const sendPasswordResetEmail = async ({ user, url, token }: { user: { email: string }, url: string, token: string }) => {
-    console.log(`Sending password reset email to ${user.email}`);
-    console.log(`Password reset URL: ${url}`);
-    console.log(`Reset token: ${token}`);
-};
 
 export const auth = betterAuth({
     // mongodb database adapter
@@ -39,16 +34,16 @@ export const auth = betterAuth({
     autoSignIn: true,
     // send verification email on sign up function
     sendVerificationEmail: async ({ user, url, token }) => {
-        void sendEmail({
-          to: user.email,
-          subject: "Verify your email address",
-          text: `Click the link to verify your email: ${url}`,
-          token,    // verification token
+        void sendVerificationEmail(user.email, url).catch((error) => {
+          console.error('Failed to send verification email:', error);
         });
       },
     // after email verification function
     async afterEmailVerification(user, request) {
-        // custom logic here, e.g., grant access to premium features
+        // send welcome email after email verification
+        void sendWelcomeEmail(user.email, user.name || undefined).catch((error) => {
+          console.error('Failed to send welcome email:', error);
+        });
         console.log(`${user.email} has been successfully verified! request: ${request}`);
     },
   },
@@ -66,10 +61,8 @@ export const auth = betterAuth({
   forgotPassword: {
     // send password reset email function
     sendPasswordResetEmail: async ({ user, url, token }: { user: { email: string }, url: string, token: string }) => {
-      void sendPasswordResetEmail({
-        user,
-        url,
-        token,
+      void sendPasswordResetEmail(user.email, url).catch((error) => {
+        console.error('Failed to send password reset email:', error);
       });
     },
     // after password reset callback
@@ -123,22 +116,90 @@ export const auth = betterAuth({
         onSubscriptionComplete: async ({ event, subscription, stripeSubscription, plan }) => {
             // called when a subscription is successfully created via checkout
             console.log(`Subscription ${subscription.id} completed for plan ${plan.name} with stripe subscription ${stripeSubscription.id} and event ${event}`);
+            
+            // get user email from subscription using referenceId (which is the userId)
+            const sub = subscription as any;
+            const userId = sub.userId || sub.referenceId;
+            if (userId) {
+              const user = await db.collection('users').findOne({ id: userId });
+              if (user?.email) {
+                void sendSubscriptionActivatedEmail(user.email, plan.name).catch((error) => {
+                  console.error('Failed to send subscription activated email:', error);
+                });
+              }
+            }
         },
         onSubscriptionCreated: async ({ event, subscription, stripeSubscription, plan }) => {
             // called when a subscription is created outside the checkout flow (e.g. Stripe dashboard)
             console.log(`Subscription ${subscription.id} created for plan ${plan.name} with stripe subscription ${stripeSubscription.id} and event ${event}`);
+            
+            // get user email from subscription using referenceId (which is the userId)
+            const sub = subscription as any;
+            const userId = sub.userId || sub.referenceId;
+            if (userId) {
+              const user = await db.collection('users').findOne({ id: userId });
+              if (user?.email) {
+                void sendSubscriptionActivatedEmail(user.email, plan.name).catch((error) => {
+                  console.error('Failed to send subscription created email:', error);
+                });
+              }
+            }
         },
         onSubscriptionUpdate: async ({ event, subscription }) => {
             // called when a subscription is updated
             console.log(`Subscription ${subscription.id} updated with event ${event}`);
+            
+            // get user email and plan from subscription
+            const sub = subscription as any;
+            const userId = sub.userId || sub.referenceId;
+            const planName = sub.plan;
+            if (userId && planName) {
+              const user = await db.collection('users').findOne({ id: userId });
+              if (user?.email) {
+                void sendSubscriptionUpdatedEmail(user.email, planName).catch((error) => {
+                  console.error('Failed to send subscription updated email:', error);
+                });
+              }
+            }
         },
         onSubscriptionCancel: async ({ event, subscription, stripeSubscription, cancellationDetails }) => {
             // called when a subscription is canceled
             console.log(`Subscription ${subscription.id} canceled with stripe subscription ${stripeSubscription.id} and cancellation details ${cancellationDetails} and event ${event}`);
+            
+            // get user email and plan from subscription
+            const sub = subscription as any;
+            const userId = sub.userId || sub.referenceId;
+            const planName = sub.plan;
+            const cancelDetails = cancellationDetails as any;
+            const cancelAt = cancelDetails?.cancelAt ? new Date(cancelDetails.cancelAt * 1000).toLocaleDateString() : 
+                           cancelDetails?.cancel_at ? new Date(cancelDetails.cancel_at * 1000).toLocaleDateString() : undefined;
+            
+            if (userId && planName) {
+              const user = await db.collection('users').findOne({ id: userId });
+              if (user?.email) {
+                void sendSubscriptionCanceledEmail(user.email, planName, cancelAt).catch((error) => {
+                  console.error('Failed to send subscription canceled email:', error);
+                });
+              }
+            }
         },
         onSubscriptionDeleted: async ({ event, subscription, stripeSubscription }) => {
             // called when a subscription is deleted
             console.log(`Subscription ${subscription.id} deleted with stripe subscription ${stripeSubscription.id} and event ${event}`);
+            
+            // get user email and plan from subscription
+            const sub = subscription as any;
+            const userId = sub.userId || sub.referenceId;
+            const planName = sub.plan;
+            
+            if (userId && planName) {
+              const user = await db.collection('users').findOne({ id: userId });
+              if (user?.email) {
+                void sendSubscriptionCanceledEmail(user.email, planName).catch((error) => {
+                  console.error('Failed to send subscription deleted email:', error);
+                });
+              }
+            }
         }
       },
     }),

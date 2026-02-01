@@ -13,8 +13,9 @@ import type { VideoPipelineTableItem } from "@/components/pipeline/video-pipelin
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { event } from "@/lib/gtag";
+import posthog from 'posthog-js';
 import { useSelector } from "react-redux";
+import { PostHogEvent } from "@/lib/utils";
 import type { RootState } from "@/lib/store/store";
 
 export default function TasksPage() {
@@ -41,8 +42,7 @@ export default function TasksPage() {
       toast.error((error as Error).message.replace("Error: ", ""));
     } finally {
       setIsCreatingTask(false);
-      event({
-        action: "create_video_pipeline_creation_completed",
+      posthog.capture(PostHogEvent.CREATE_VIDEO_PIPELINE_CREATION_COMPLETED, {
         category: "video_pipeline",
         label: user?.email || "unknown",
         value: 1,
@@ -72,15 +72,57 @@ export default function TasksPage() {
   const handleDeleteVideoPipeline = async (videoPipeline: VideoPipelineTableItem) => {
     try {
       await client.deleteVideoPipeline(videoPipeline.id);
-      await fetchVideoPipelines();
     } catch (error) {
       console.error("Error deleting video pipeline:", error);
       throw error;
     }
   };
+
   useEffect(() => {
     fetchVideoPipelines().catch(console.error);
   }, []);
+
+  // websocket connection for real-time pipeline updates
+  useEffect(() => {
+    if (!user?.id) {
+      console.log(`user id not found, skipping websocket connection on user object ${user}`);
+      return;
+    }
+
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const baseWsUrl = baseUrl.replace('http', 'ws').replace('https', 'wss');
+    const wsUrl = `${baseWsUrl}/users/${user.id}/video-pipelines/ws`;
+    const socket = new WebSocket(wsUrl);
+
+    socket.onopen = () => {
+      console.log("connected to user pipeline state socket");
+    };
+
+    socket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log("received pipeline update:", data);
+        fetchVideoPipelines().catch(console.error);
+      } catch (error) {
+        console.error("Error parsing WebSocket message:", error);
+      }
+    };
+
+    socket.onerror = (error) => {
+      console.error("websocket error:", error);
+    };
+
+    socket.onclose = () => {
+      console.log("websocket closed");
+    };
+
+    // cleanup function to close the websocket connection when the component unmounts
+    return () => {
+      if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+        socket.close();
+      }
+    };
+  }, [user?.id]);
 
   // check for create query parameter and open modal
   useEffect(() => {
