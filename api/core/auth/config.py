@@ -12,7 +12,7 @@ logger = get_logger("auth.config")
 
 # better-auth jwt secret
 BETTER_AUTH_SECRET = os.getenv("BETTER_AUTH_SECRET")
-JWT_ALGORITHM = JWTAlgorithm(os.getenv("JWT_ALGORITHM", JWTAlgorithm.HS256.value))
+JWT_ALGORITHM = JWTAlgorithm(os.getenv("JWT_ALGORITHM", JWTAlgorithm.HS256))
 BETTER_AUTH_URL = os.getenv("BETTER_AUTH_URL", "http://localhost:3000")
 
 if not BETTER_AUTH_SECRET:

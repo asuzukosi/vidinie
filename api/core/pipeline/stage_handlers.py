@@ -2,7 +2,7 @@ from core.data import VideoPipeline, VideoPipelineStage, VideoPipelineStatus, So
 from core.utils.logger import get_logger
 from api.helpers.pipeline_helpers import update_pipeline_in_db
 from api.core.pipeline.status import update_stage_status
-from api.core.signals import broadcast_message
+from api.core.signals import broadcast_message, PipelineBroadcastMessageType, PipelineBroadcastStatus
 from api.operations.document_operations import process_pdf_document, process_html_document
 from api.operations.content_operations import process_content
 from api.operations.script_operations import generate_scripts
@@ -22,16 +22,18 @@ async def execute_document_processing_stage(
     execute the document processing stage.
     """
     logger.info(f"executing document processing for pipeline: {pipeline.id}")
-    await broadcast_message(
-        f"pipeline-tasks-{pipeline.id}",
-        {"type": "document_processing", "pipeline_id": pipeline.id, "status": VideoPipelineStatus.IN_PROGRESS}
-    )
+    await broadcast_message({
+        "type": PipelineBroadcastMessageType.DOCUMENT_PROCESSING,
+        "pipeline_id": pipeline.id,
+        "user_id": pipeline.user_id or "",
+        "status": PipelineBroadcastStatus.IN_PROGRESS
+    })
     
     await update_stage_status(
         pipeline,
         VideoPipelineStage.DOCUMENT_PROCESSING,
         VideoPipelineStatus.IN_PROGRESS,
-        "document_processing"
+        PipelineBroadcastMessageType.DOCUMENT_PROCESSING
     )
     
     try:
@@ -65,7 +67,7 @@ async def execute_document_processing_stage(
             pipeline,
             VideoPipelineStage.DOCUMENT_PROCESSING,
             VideoPipelineStatus.COMPLETED,
-            "document_processed"
+            PipelineBroadcastMessageType.DOCUMENT_PROCESSING
         )
         logger.info(f"document processing completed for pipeline: {pipeline.id}")
         return pipeline
@@ -76,7 +78,7 @@ async def execute_document_processing_stage(
             pipeline,
             VideoPipelineStage.DOCUMENT_PROCESSING,
             VideoPipelineStatus.FAILED,
-            "document_processing_failed"
+            PipelineBroadcastMessageType.DOCUMENT_PROCESSING
         )
         raise
 
@@ -90,16 +92,18 @@ async def execute_content_analysis_stage(
     execute the content analysis stage.
     """
     logger.info(f"executing content analysis for pipeline: {pipeline.id}")
-    await broadcast_message(
-        f"pipeline-tasks-{pipeline.id}",
-        {"type": "content_analysis", "pipeline_id": pipeline.id, "status": VideoPipelineStatus.IN_PROGRESS}
-    )
+    await broadcast_message({
+        "type": PipelineBroadcastMessageType.CONTENT_ANALYSIS,
+        "pipeline_id": pipeline.id,
+        "user_id": pipeline.user_id or "",
+        "status": PipelineBroadcastStatus.IN_PROGRESS
+    })
     
     await update_stage_status(
         pipeline,
         VideoPipelineStage.CONTENT_ANALYSIS,
         VideoPipelineStatus.IN_PROGRESS,
-        "content_analysis"
+        PipelineBroadcastMessageType.CONTENT_ANALYSIS
     )
     
     try:
@@ -113,7 +117,7 @@ async def execute_content_analysis_stage(
             pipeline,
             VideoPipelineStage.CONTENT_ANALYSIS,
             VideoPipelineStatus.COMPLETED,
-            "content_processed"
+            PipelineBroadcastMessageType.CONTENT_ANALYSIS
         )
         logger.info(f"content analysis completed for pipeline: {pipeline.id}")
         return pipeline
@@ -124,7 +128,7 @@ async def execute_content_analysis_stage(
             pipeline,
             VideoPipelineStage.CONTENT_ANALYSIS,
             VideoPipelineStatus.FAILED,
-            "content_analysis_failed"
+            PipelineBroadcastMessageType.CONTENT_ANALYSIS
         )
         raise
 
@@ -143,16 +147,18 @@ async def execute_script_generation_stage(
         pipeline.voice = voice
         await update_pipeline_in_db(pipeline.id, pipeline)
     
-    await broadcast_message(
-        f"pipeline-tasks-{pipeline.id}",
-        {"type": "script_generation", "pipeline_id": pipeline.id, "status": VideoPipelineStatus.IN_PROGRESS}
-    )
+    await broadcast_message({
+        "type": PipelineBroadcastMessageType.SCRIPT_GENERATION,
+        "pipeline_id": pipeline.id,
+        "user_id": pipeline.user_id or "",
+        "status": PipelineBroadcastStatus.IN_PROGRESS
+    })
     
     await update_stage_status(
         pipeline,
         VideoPipelineStage.SCRIPT_GENERATION,
         VideoPipelineStatus.IN_PROGRESS,
-        "script_generation"
+        PipelineBroadcastMessageType.SCRIPT_GENERATION
     )
     
     try:
@@ -162,7 +168,7 @@ async def execute_script_generation_stage(
             pipeline,
             VideoPipelineStage.SCRIPT_GENERATION,
             VideoPipelineStatus.COMPLETED,
-            "scripts_generated"
+            PipelineBroadcastMessageType.SCRIPT_GENERATION
         )
         logger.info(f"script generation completed for pipeline: {pipeline.id}")
         return pipeline
@@ -173,7 +179,7 @@ async def execute_script_generation_stage(
             pipeline,
             VideoPipelineStage.SCRIPT_GENERATION,
             VideoPipelineStatus.FAILED,
-            "script_generation_failed"
+            PipelineBroadcastMessageType.SCRIPT_GENERATION
         )
         raise
 
@@ -183,16 +189,18 @@ async def execute_video_generation_stage(pipeline: VideoPipeline) -> VideoPipeli
     execute the video generation stage.
     """
     logger.info(f"executing video generation for pipeline: {pipeline.id}")
-    await broadcast_message(
-        f"pipeline-tasks-{pipeline.id}",
-        {"type": "video_generation", "pipeline_id": pipeline.id, "status": VideoPipelineStatus.IN_PROGRESS}
-    )
+    await broadcast_message({
+        "type": PipelineBroadcastMessageType.VIDEO_GENERATION,
+        "pipeline_id": pipeline.id,
+        "user_id": pipeline.user_id or "",
+        "status": PipelineBroadcastStatus.IN_PROGRESS
+    })
     
     await update_stage_status(
         pipeline,
         VideoPipelineStage.VIDEO_GENERATION,
         VideoPipelineStatus.IN_PROGRESS,
-        "video_generation"
+        PipelineBroadcastMessageType.VIDEO_GENERATION
     )
     
     try:
@@ -202,7 +210,7 @@ async def execute_video_generation_stage(pipeline: VideoPipeline) -> VideoPipeli
             pipeline,
             VideoPipelineStage.VIDEO_GENERATION,
             VideoPipelineStatus.COMPLETED,
-            "video_generated"
+            PipelineBroadcastMessageType.VIDEO_GENERATION
         )
         logger.info(f"video generation completed for pipeline: {pipeline.id}")
         return pipeline
@@ -213,7 +221,7 @@ async def execute_video_generation_stage(pipeline: VideoPipeline) -> VideoPipeli
             pipeline,
             VideoPipelineStage.VIDEO_GENERATION,
             VideoPipelineStatus.FAILED,
-            "video_generation_failed"
+            PipelineBroadcastMessageType.VIDEO_GENERATION
         )
         raise
 

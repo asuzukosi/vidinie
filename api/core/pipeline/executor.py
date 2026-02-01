@@ -6,7 +6,7 @@ Coordinates the execution of multiple pipeline stages in sequence.
 from core.data import VideoPipeline, VideoPipelineStage, VideoPipelineStatus
 from core.utils.logger import get_logger
 from api.helpers.pipeline_helpers import get_pipeline_by_id
-from api.core.signals import broadcast_message
+from api.core.signals import broadcast_message, PipelineBroadcastMessageType, PipelineBroadcastStatus
 from api.core.pipeline.stage_handlers import (
     execute_document_processing_stage,
     execute_content_analysis_stage,
@@ -130,14 +130,12 @@ async def _finalize_pipeline_execution(pipeline: VideoPipeline) -> VideoPipeline
     """
     pipeline = await get_pipeline_by_id(pipeline.id)
     logger.info(f"All pipeline stages completed for pipeline: {pipeline.id}")
-    await broadcast_message(
-        f"pipeline-tasks-{pipeline.id}",
-        {
-            "type": "pipeline_completed",
-            "pipeline_id": pipeline.id,
-            "status": VideoPipelineStatus.COMPLETED
-        }
-    )
+    await broadcast_message({
+        "type": PipelineBroadcastMessageType.PIPELINE,
+        "pipeline_id": pipeline.id,
+        "user_id": pipeline.user_id or "",
+        "status": PipelineBroadcastStatus.COMPLETED
+    })
     logger.info(f"Pipeline execution completed for pipeline: {pipeline.id}")
     return pipeline
 

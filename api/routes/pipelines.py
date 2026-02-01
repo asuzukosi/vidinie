@@ -45,7 +45,7 @@ from typing import Optional, Tuple, List
 import shutil
 import requests
 from api.utils.error_wrapper import error_wrapper
-from api.core.signals import broadcast_message, listen_for_messages
+from api.core.signals import broadcast_message, listen_for_messages, PipelineBroadcastMessageType, PipelineBroadcastStatus
 from api.core.celery import execute_pipeline_task
 
 # setup logging
@@ -69,7 +69,13 @@ async def write_content_to_file_for_pipeline(video_pipeline: VideoPipeline,
         f.write(file_content)
     video_pipeline.source_path = file_path
     await update_pipeline_in_db(video_pipeline.id, video_pipeline)
-    broadcast_message(f"pipeline-tasks-{video_pipeline.id}", {"type": "pipeline_file_written", "pipeline_id": video_pipeline.id, "file_path": file_path})
+    await broadcast_message({
+        "type": PipelineBroadcastMessageType.PIPELINE,
+        "pipeline_id": video_pipeline.id,
+        "user_id": video_pipeline.user_id or "",
+        "status": PipelineBroadcastStatus.IN_PROGRESS,
+        "file_path": file_path
+    })
     logger.info(f"pipeline data saved to database with id: {video_pipeline.id}, file saved to: {file_path}")
 
 # special utility function to delete pipeline temp directory
@@ -125,7 +131,12 @@ async def create_video_pipeline_from_file(
     )
     logger.info("pipeline data object created")
     video_pipeline = await create_pipeline_in_db(video_pipeline)
-    await broadcast_message(f"pipeline-tasks-{video_pipeline.id}", {"type": "pipeline_created", "pipeline_id": video_pipeline.id})
+    await broadcast_message({
+        "type": PipelineBroadcastMessageType.PIPELINE.value,
+        "pipeline_id": video_pipeline.id,
+        "user_id": video_pipeline.user_id or "",
+        "status": PipelineBroadcastStatus.PENDING.value
+    })
     background_tasks.add_task(write_content_to_file_for_pipeline, video_pipeline, file.filename, file_content)
     execute_pipeline_task.delay(video_pipeline.id, start_from_stage=VideoPipelineStage.DOCUMENT_PROCESSING, pdf_content=file_content)
     # return pipeline summary
@@ -166,7 +177,12 @@ async def create_video_pipeline_from_url(request: CreateVideoPipelineRequest,
     # save pipeline data to database first
     logger.info("saving pipeline data to database")
     video_pipeline = await create_pipeline_in_db(video_pipeline)
-    await broadcast_message(f"pipeline-tasks-{video_pipeline.id}", {"type": "pipeline_created", "pipeline_id": video_pipeline.id})
+    await broadcast_message({
+        "type": PipelineBroadcastMessageType.PIPELINE.value,
+        "pipeline_id": video_pipeline.id,
+        "user_id": video_pipeline.user_id or "",
+        "status": PipelineBroadcastStatus.PENDING.value
+    })
     background_tasks.add_task(write_content_to_file_for_pipeline, video_pipeline, 'data.html', response.content)
     # run all the stages sequentially in the background
     execute_pipeline_task.delay(video_pipeline.id, start_from_stage=VideoPipelineStage.DOCUMENT_PROCESSING, html_content=response.text, original_url=request.url)
@@ -206,7 +222,12 @@ async def delete_video_pipeline(video_pipeline_id: str,
     # delete temp directory in background
     background_tasks.add_task(delete_pipeline_temp_directory, video_pipeline)
     # broadcast deletion message
-    await broadcast_message(f"pipeline-tasks-{video_pipeline_id}", {"type": "pipeline_deleted", "pipeline_id": video_pipeline_id})
+    await broadcast_message({
+        "type": PipelineBroadcastMessageType.PIPELINE,
+        "pipeline_id": video_pipeline_id,
+        "user_id": video_pipeline.user_id or "",
+        "status": PipelineBroadcastStatus.DELETED
+    })
     return DeleteVideoPipelineResponse(video_pipeline_id=video_pipeline_id, message="Pipeline deleted successfully")
 
 @router.post("/{video_pipeline_id}/images", name="add video pipeline image", 
@@ -222,9 +243,21 @@ async def add_video_pipeline_image(video_pipeline_id: str, image: UploadFile,
     await verify_pipeline_ownership(video_pipeline, user_id)
     try:
         # use reusable function to add image
-        await broadcast_message(f"pipeline-tasks-{video_pipeline_id}", {"type": "image_adding", "pipeline_id": video_pipeline_id, "image_filename": image.filename})
+        await broadcast_message({
+            "type": PipelineBroadcastMessageType.IMAGE,
+            "pipeline_id": video_pipeline_id,
+            "user_id": video_pipeline.user_id or "",
+            "status": PipelineBroadcastStatus.IN_PROGRESS,
+            "image_filename": image.filename or ""
+        })
         image_metadata = add_image_to_pipeline(video_pipeline, image, label=label or False)
-        await broadcast_message(f"pipeline-tasks-{video_pipeline_id}", {"type": "image_added", "pipeline_id": video_pipeline_id, "image_metadata": image_metadata.model_dump(mode="json")})
+        await broadcast_message({
+            "type": PipelineBroadcastMessageType.IMAGE,
+            "pipeline_id": video_pipeline_id,
+            "user_id": video_pipeline.user_id or "",
+            "status": PipelineBroadcastStatus.COMPLETED,
+            "image_metadata": image_metadata.model_dump(mode="json")
+        })
         return ImageMetadata(**image_metadata.model_dump(mode="json"))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -488,41 +521,28 @@ async def receive_pipeline_ws_messages(websocket: WebSocket, pipeline: VideoPipe
     logger.info(f"received request to receive pipeline ws messages for pipeline {pipeline.name} and user {user_id}")
     try:
         while True:
-            try:
-                # wait for updates to the pipeline data
-                data = await websocket.receive_json()
-                logger.info(f"received message from pipeline {pipeline.name} and user {user_id}: {data}")
-            except WebSocketDisconnect:
-                logger.info(f"websocket disconnected for pipeline {pipeline.name} and user {user_id}")
-                break
-            except Exception as e:
-                logger.error(f"error receiving pipeline ws messages for pipeline {pipeline.name} and user {user_id}: {e}")
-                break
-    except Exception as e:
-        logger.error(f"error in receive_pipeline_ws_messages for pipeline {pipeline.name} and user {user_id}: {e}")
-    finally:
-        logger.info(f"stopped receiving pipeline ws messages for pipeline {pipeline.name} and user {user_id}")
+            data = await websocket.receive_json()
+            logger.info(f"received message from pipeline {pipeline.name} and user {user_id}: {data}")
+    except (WebSocketDisconnect, Exception) as e:
+        logger.info(f"stopped receiving pipeline ws messages for pipeline {pipeline.name} and user {user_id}: {type(e).__name__}")
 
 async def send_pipeline_ws_messages(websocket: WebSocket, pipeline: VideoPipeline, user_id: str) -> None:
     logger.info(f"received request to send pipeline ws messages for pipeline {pipeline.name} and user {user_id}")
-    channel = f"pipeline-tasks-{pipeline.id}"
     listener_name = f"pipeline-ws-listener-{pipeline.id}-{user_id}"
     try:
-        async for message in listen_for_messages(channel, listener_name):
-            try:
+        async for message in listen_for_messages(listener_name):
+            # filter messages for this specific pipeline and user
+            message_pipeline_id = message.get("pipeline_id")
+            message_user_id = message.get("user_id")
+            
+            if message_pipeline_id == pipeline.id and message_user_id == user_id:
                 logger.info(f"received message from pipeline {pipeline.name} and user {user_id}: {message}")
                 await websocket.send_json(message)
                 logger.info(f"sent message to pipeline {pipeline.name} for user {user_id}")
-            except WebSocketDisconnect:
-                logger.info(f"websocket disconnected while sending for pipeline {pipeline.name} and user {user_id}")
-                break
-            except Exception as e:
-                logger.error(f"error sending message to pipeline {pipeline.name} for user {user_id}: {e}")
-                break
-    except Exception as e:
-        logger.error(f"error in send_pipeline_ws_messages for pipeline {pipeline.name} and user {user_id}: {e}")
-    finally:
-        logger.info(f"stopped sending pipeline ws messages for pipeline {pipeline.name} and user {user_id}")
+            else:
+                logger.debug(f"filtered out message for pipeline {pipeline.name}: pipeline_id={message_pipeline_id}, user_id={message_user_id}")
+    except (WebSocketDisconnect, Exception) as e:
+        logger.info(f"stopped sending pipeline ws messages for pipeline {pipeline.name} and user {user_id}: {type(e).__name__}")
 
 @router.websocket("/{video_pipeline_id}/ws", name="video pipeline state socket")
 async def video_pipeline_state_socket(
@@ -560,33 +580,23 @@ async def video_pipeline_state_socket(
         logger.info(f"websocket accepted for pipeline {video_pipeline.name} and user {user_id}")
         
         # send initial status message
-        try:
-            await websocket.send_json({
-                "type": "pipeline_status", 
-                "status": video_pipeline.status,
-                "pipeline_id": video_pipeline.id
-            })
-            logger.info(f"sent initial status message to pipeline {video_pipeline.name}: {video_pipeline.status}")
-        except Exception as e:
-            logger.error(f"error sending initial status message: {e}")
+        await websocket.send_json({
+            "type": PipelineBroadcastMessageType.PIPELINE,
+            "status": video_pipeline.status.value if hasattr(video_pipeline.status, 'value') else str(video_pipeline.status),
+            "pipeline_id": video_pipeline.id,
+            "user_id": video_pipeline.user_id or ""
+        })
+        logger.info(f"sent initial status message to pipeline {video_pipeline.name}: {video_pipeline.status}")
         
         # run both receive and send tasks concurrently
-        try:
-            await asyncio.gather(
-                receive_pipeline_ws_messages(websocket, video_pipeline, user_id),
-                send_pipeline_ws_messages(websocket, video_pipeline, user_id),
-                return_exceptions=True
-            )
-        except Exception as e:
-            logger.error(f"error in asyncio.gather for pipeline {video_pipeline.name} and user {user_id}: {e}")
+        await asyncio.gather(
+            receive_pipeline_ws_messages(websocket, video_pipeline, user_id),
+            send_pipeline_ws_messages(websocket, video_pipeline, user_id),
+            return_exceptions=True
+        )
             
-    except WebSocketDisconnect:
-        logger.info(f"connection to pipeline state socket for pipeline {video_pipeline_id} disconnected by client")
-    except asyncio.CancelledError:
-        logger.info(f"connection to pipeline state socket for pipeline {video_pipeline_id} cancelled")
+    except (WebSocketDisconnect, asyncio.CancelledError) as e:
+        logger.info(f"connection to pipeline state socket for pipeline {video_pipeline_id} {type(e).__name__.lower()}")
     except Exception as e:
         logger.error(f"error connecting to pipeline state socket for pipeline {video_pipeline_id}: {e}")
-        try:
-            await websocket.close(code=1011, reason="Internal server error")
-        except:
-            pass
+        await websocket.close(code=1011, reason="Internal server error")
