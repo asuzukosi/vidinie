@@ -14,7 +14,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-// import { MultiSelect } from "@/components/ui/multi-select";
 import { CreateVideoPipelineRequest, AudioVoice } from "@/lib/sdk/types";
 import { toast } from "sonner";
 import { useSelector } from "react-redux";
@@ -48,7 +47,21 @@ export default function CreateVideoPipelineModal({
     const [dragActive, setDragActive] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const audioRef = useRef<HTMLAudioElement>(null);
     const user = useSelector((state: RootState) => state.auth.user);
+
+    // convert voice name to file path (e.g., "Narrative Expressive Male" -> "narrative_expressive_male.mp3")
+    const getVoiceSamplePath = (voiceName: AudioVoice): string => {
+      const fileName = voiceName.toLowerCase().replace(/\s+/g, "_") + ".mp3";
+      return `/voice_samples/${fileName}`;
+    };
+
+    // update audio source when voice changes
+    useEffect(() => {
+      if (audioRef.current) {
+        audioRef.current.load();
+      }
+    }, [voice]);
 
     useEffect(() => {
       event({
@@ -291,6 +304,14 @@ export default function CreateVideoPipelineModal({
                     <SelectItem value="Expressive Professional Male">Expressive Professional Male</SelectItem>
                   </SelectContent>
                 </Select>
+                <div className="mt-2">
+                  <audio
+                    ref={audioRef}
+                    src={getVoiceSamplePath(voice)}
+                    controls
+                    className="w-full"
+                  />
+                </div>
               </Field>
             </FieldGroup>
             </div>
