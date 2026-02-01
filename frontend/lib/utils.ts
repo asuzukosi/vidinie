@@ -66,4 +66,5 @@ export enum PostHogEvent {
   CHECKOUT_COMPLETED = "checkout-completed",
   CREATE_VIDEO_PIPELINE_CREATION_STARTED = "create-video-pipeline-creation-started",
   CREATE_VIDEO_PIPELINE_CREATION_COMPLETED = "create-video-pipeline-creation-completed",
+  SHARE_VIDEO_PAGE_VIEWED = "share-video-page-viewed",
 }

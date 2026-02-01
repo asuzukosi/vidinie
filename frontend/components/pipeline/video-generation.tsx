@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { VideoPlayer } from "@/components/utils/video-player";
 import { GenerateVideoPipelineRequest, VideoPipelineReviewRequest } from "@/lib/sdk/types";
 import { Button } from "@/components/ui/button";
-import { IconPlus, IconDownload } from "@tabler/icons-react";
+import { IconPlus, IconDownload, IconShare } from "@tabler/icons-react";
 import { Loader2 } from "lucide-react";
 import { VideoGenerationModal } from "@/components/modals/video-generation-modal";
 import { ReviewAndFeedback } from "@/components/pipeline/review-and-feedback";
@@ -111,6 +111,15 @@ export function VideoGeneration({
         router.push("/settings");
     };
 
+    const handleShare = () => {
+        const shareUrl = `${window.location.origin}/share-video/${videoPipelineId}`;
+        navigator.clipboard.writeText(shareUrl).then(() => {
+            toast.success("Share link copied to clipboard!");
+        }).catch(() => {
+            toast.error("Failed to copy share link");
+        });
+    };
+
     if (!videoPath) {
         return (
             <>
@@ -151,7 +160,16 @@ export function VideoGeneration({
                     <div className="space-y-4">
                         <h3 className="font-semibold text-sm">Generated Video</h3>
                         <VideoPlayer videoPipelineId={videoPipelineId} />
-                        <div className="flex justify-end">
+                        <div className="flex justify-end gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleShare}
+                                className="flex items-center gap-2"
+                            >
+                                <IconShare className="size-4" />
+                                Share
+                            </Button>
                             <Button
                                 variant="secondary"
                                 size="sm"
