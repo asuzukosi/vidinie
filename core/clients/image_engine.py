@@ -30,7 +30,7 @@ class ImageEngine:
         self.client = replicate.Client(api_token=api_key)
         self.model = "black-forest-labs/flux-schnell"
 
-     @retry(tries=5, delay=2, backoff=4)
+    @retry(tries=5, delay=2, backoff=4)
     def _generate_image(self, prompt: ImagePrompt) -> str:
         """
         generate an image based on the prompt.

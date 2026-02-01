@@ -50,7 +50,7 @@ def get_audio_voice_from_string(voice_string: AudioVoiceString) -> AudioVoices:
     elif voice_string == AudioVoiceString.EXPRESSIVE_PROFESSIONAL_MALE:
         return AudioVoices.EXPRESSIVE_PROFESSIONAL_MALE
     else:
-        return None
+        raise ValueError(f"invalid voice: {voice_string}")
 
 class AudioPrompt(BaseModel):
     """audio prompt with text and voice."""
@@ -77,13 +77,11 @@ class AudioEngine:
         self.model_id = "eleven_turbo_v2_5" # best for speed and performance
         logger.info("initialized elevenlabs audio engine client")
 
-    @retry(tries=5, delay=2, backoff=2)
+    @retry(tries=5, delay=2, backoff=4)
     def _generate_audio(self, prompt: AudioPrompt) -> Tuple[str, float]:
         """generate audio using elevenlabs."""
         assert prompt.output_path.endswith(".mp3"), "output path must end with .mp3"
         voice_id = get_audio_voice_from_string(prompt.voice)
-        if not voice_id:
-            raise ValueError(f"invalid voice: {prompt.voice}")
         logger.info(f"generating audio using elevenlabs voice: {prompt.voice}")
         audio = self.client.text_to_speech.convert(
             voice_id=voice_id,
@@ -119,12 +117,12 @@ async def generate_audios(prompts: List[AudioPrompt]) -> List[Tuple[str, float]]
 
 if __name__ == "__main__":
     prompts = [
-        AudioPrompt(text="Hello, how are you? This is a test for the vidinie audio engine.", voice=AudioVoiceString.NARRATIVE_EXPRESSIVE_MALE, output_path="hello1.mp3"),
-        AudioPrompt(text="Hello, how are you? This is a test for the vidinie audio engine.", voice=AudioVoiceString.FUN_VIBRANT_FEMALE, output_path="hello2.mp3"),
-        AudioPrompt(text="Hello, how are you? This is a test for the vidinie audio engine.", voice=AudioVoiceString.CALM_NARRATIVE_MALE, output_path="hello3.mp3"),
-        AudioPrompt(text="Hello, how are you? This is a test for the vidinie audio engine.", voice=AudioVoiceString.CALM_SOOTHING_FEMALE, output_path="hello4.mp3"),
-        AudioPrompt(text="Hello, how are you? This is a test for the vidinie audio engine.", voice=AudioVoiceString.SOOTHING_BRITISH_MALE, output_path="hello5.mp3"),
-        AudioPrompt(text="Hello, how are you? This is a test for the vidinie audio engine.", voice=AudioVoiceString.EXPRESSIVE_PROFESSIONAL_MALE, output_path="hello6.mp3"),
+        AudioPrompt(text="Hey! Welcome to Vidinie! Excited to see what you create! She sells seashells by the seashore. Peter Piper picked a peck of pickled peppers.", voice=AudioVoiceString.NARRATIVE_EXPRESSIVE_MALE, output_path="narrative_expressive_male.mp3"),
+        AudioPrompt(text="Hey! Welcome to Vidinie! Excited to see what you create! She sells seashells by the seashore. Peter Piper picked a peck of pickled peppers.", voice=AudioVoiceString.FUN_VIBRANT_FEMALE, output_path="fun_vibrant_female.mp3"),
+        AudioPrompt(text="Hey! Welcome to Vidinie! Excited to see what you create! She sells seashells by the seashore. Peter Piper picked a peck of pickled peppers.", voice=AudioVoiceString.CALM_NARRATIVE_MALE, output_path="calm_narrative_male.mp3"),
+        AudioPrompt(text="Hey! Welcome to Vidinie! Excited to see what you create! She sells seashells by the seashore. Peter Piper picked a peck of pickled peppers.", voice=AudioVoiceString.CALM_SOOTHING_FEMALE, output_path="calm_soothing_female.mp3"),
+        AudioPrompt(text="Hey! Welcome to Vidinie! Excited to see what you create! She sells seashells by the seashore. Peter Piper picked a peck of pickled peppers.", voice=AudioVoiceString.SOOTHING_BRITISH_MALE, output_path="soothing_british_male.mp3"),
+        AudioPrompt(text="Hey! Welcome to Vidinie! Excited to see what you create! She sells seashells by the seashore. Peter Piper picked a peck of pickled peppers.", voice=AudioVoiceString.EXPRESSIVE_PROFESSIONAL_MALE, output_path="expressive_professional_male.mp3"),
     ]
     audio_engine = AudioEngine()
     asyncio.run(audio_engine.generate_audios(prompts))

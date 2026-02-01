@@ -34,7 +34,7 @@ class MusicEngine:
         self.client = ElevenLabs(api_key=api_key)
         logger.info("initialized elevenlabs music engine client")
 
-    @retry(tries=5, delay=2, backoff=2)
+    @retry(tries=5, delay=2, backoff=4)
     def _generate_music(self, prompt: MusicPrompt) -> Tuple[str, float]:
         """generate music using elevenlabs."""
         assert prompt.output_path.endswith(".mp3"), "output path must end with .mp3"

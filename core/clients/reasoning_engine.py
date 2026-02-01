@@ -81,7 +81,7 @@ class ReasoningEngine:
             '.webp': 'image/webp'
         }.get(ext, 'image/jpeg')
 
-    @retry(tries=5, delay=2, backoff=2)
+    @retry(tries=5, delay=2, backoff=4)
     def _reason(self, system_prompt: str, prompt: ReasoningPrompt, *, schema: Any) -> str:
         logger.info("reasoning task started")
         content =[]

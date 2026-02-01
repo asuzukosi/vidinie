@@ -187,26 +187,46 @@ class VideoGenerator:
         message_usages = []
         result = None
         async for message in query(prompt=prompt,options=options):
-            # print human-readable agent and tool interactions
+            # process assistant message
+            logger.info("*** ASSISTANT MESSAGE ***\n")
             if isinstance(message, AssistantMessage):
                 for block in message.content:
                     if hasattr(block, "text"):
-                        logger.info(f"agent reasoning: {block.text}")              # agent reasoning
-                    elif hasattr(block, "name"):
-                        logger.info(f"executed tool: {block.name}")   # tool being called
+                        logger.info(f"*** AGENT REASONING: {block.text} ***\n")# agent reasoning
+                    if hasattr(block, "tool_use_id"):
+                        logger.info(f"*** AGENT TOOL USE ID: {block.tool_use_id} ***\n")   # tool use id
+                    if hasattr(block, "id"):
+                        logger.info(f"*** AGENT ID: {block.id} ***\n")   # agent id
+                    if hasattr(block, "is_error"):
+                        logger.info(f"*** AGENT ERROR: {block.is_error} ***\n")   # agent error
+                    if hasattr(block, "signature"):
+                        logger.info(f"*** AGENT SIGNATURE: {block.signature} ***\n")   # agent signature
+                    if hasattr(block, "name"):
+                        logger.info(f"*** EXECUTED TOOL: {block.name} ***\n")   # tool being called
+                    if hasattr(block, "thinking"):
+                        logger.info(f"*** AGENT THINKING: {block.thinking} ***\n")   # agent thinking
+                    if hasattr(block, "input"):
+                        logger.info(f"*** AGENT INPUT: {block.input} ***\n")   # agent input
+                    if hasattr(block, "content"):
+                        logger.info(f"*** AGENT CONTENT: {block.content} ***\n")   # agent content
+                logger.info("--------------------------------------------------\n")
+            # process result message
             elif isinstance(message, ResultMessage) and message.structured_output:
+                logger.info("*** FINAL RESULT MESSAGE ***\n")
                 result = VideoGenerationResult.model_validate(message.structured_output)
                 logger.info(f"video generation result summary: {result.summary}")
                 logger.info(f"video generation result changes made: {result.changes_made}")
                 logger.info(f"video generation result issues found: {result.issues_found}")
-            
+                logger.info("--------------------------------------------------\n")
             # calculate message token usage
             if hasattr(message, "usage"):
                 message_usages.append(message.usage["output_tokens"])
         
         # calculate total token usage
         total_token_usage = sum(message_usages)
-        logger.info(f"total token usage: {total_token_usage}")
+        logger.info("--------------------------------------------------\n")
+        logger.info(f"TOTAL TOKEN USAGE: {total_token_usage}\n")
+        logger.info("--------------------------------------------------\n")
 
 
     async def generate_video(self, script_data: VideoOutline, target_path: str) -> str:
