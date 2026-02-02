@@ -8,6 +8,7 @@ import os
 from core.clients.video_engine import VideoPrompt, generate_videos
 from core.utils.logger import get_logger
 from core.data import VideoSegment, VideoSource
+from core.utils.video_utils import convert_mp4_to_webm_and_delete_original
 
 logger = get_logger("video_clip_generator")
 
@@ -49,6 +50,7 @@ class VideoClipGenerator:
         if prompts:
             paths = await generate_videos(prompts)
             for idx, path in zip(prompt_indices, paths):
+                path = await convert_mp4_to_webm_and_delete_original(path)
                 segment.video_clips[idx].path = path
                 segment.video_clips[idx].source = VideoSource.AI_GENERATED
         return segment

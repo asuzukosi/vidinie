@@ -5,7 +5,6 @@ creates presentation-style explainer videos with the remotion engine using a cla
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from pydantic import BaseModel
 from typing import List
 import shutil
 import subprocess
@@ -13,7 +12,6 @@ from enum import Enum
 from typing import Optional
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from core.utils.config_loader import config
-import asyncio
 from core.data import (
     VideoOutline, 
 )
@@ -26,21 +24,20 @@ from claude_agent_sdk.types import ResultMessage # class for the result of the a
 from core.utils.logger import get_logger
 logger = get_logger("video_generator")
 
-
+def recursive_listdir(path: str, full_list: List[str] = []) -> List[str]:
+    for file in os.listdir(path):
+        if os.path.isfile(os.path.join(path, file)):
+            full_list.append(os.path.join(path, file))
+        else:
+            recursive_listdir(os.path.join(path, file), full_list)
+    return full_list
 
 class VideoResolution(str, Enum):
     """video resolution."""
-    RESOLUTION_4K = "4K"
     RESOLUTION_1080P = "1080P"
     RESOLUTION_720P = "720P"
     RESOLUTION_480P = "480P"
 
-
-class VideoGenerationResult(BaseModel):
-    """result from video generation."""
-    summary: str
-    changes_made: List[str]
-    issues_found: List[str]
 
 class VideoGenerator:
     """agentic video generator using the remotion engine."""
@@ -75,6 +72,18 @@ class VideoGenerator:
         else:
             logger.info(f"remotion tool is available at {self.remotion_tool_path}")
         return available
+    
+    def _check_composition_assets(self, target_path: str) -> bool:
+        """check if the composition assets are available."""
+        logger.info(f"checking if composition assets are available at {target_path}")
+        available = os.path.exists(os.path.join(target_path, 'composition', 'public'))
+        if not available:
+            logger.error(f"composition assets are not available at {target_path}")
+            return []
+        else:
+            logger.info(f"composition assets are available at {target_path}")
+        return recursive_listdir(os.path.join(target_path, 'composition', 'public'))
+
     
     def _check_base_project(self) -> bool:
         """check if the base project is available."""
@@ -132,16 +141,6 @@ class VideoGenerator:
             shutil.copytree(video_clips_path, os.path.join(composition_public_path, 'video_clips'))
     
     def _render_video_in_target(self, target_path: str) -> str:
-        # scale = 1
-        # if self.resolution == VideoResolution.RESOLUTION_4K:
-        #     scale = 4
-        # elif self.resolution == VideoResolution.RESOLUTION_1080P:
-        #     scale = 2
-        # elif self.resolution == VideoResolution.RESOLUTION_720P:
-        #     scale = 1
-        # elif self.resolution == VideoResolution.RESOLUTION_480P:
-        #     scale = 0.5
-        
         composition_path = os.path.join(target_path, 'composition')
         entry_file = 'src/index.ts'
         return subprocess.run(
@@ -170,25 +169,23 @@ class VideoGenerator:
         system_prompt = self.jinja_env.get_template('video_generation_system.j2').render(
             user_instructions=self.user_instructions if self.user_instructions else None
         )
-        prompt = self.jinja_env.get_template('video_generation_instruction.j2').render(video_outline=xml_prompt_context)
-        if target_path.endswith("/"):
-            target_path = target_path[:-1]
-        prompt = prompt.replace(f'{target_path}', "public")
+        composition_assets = self._check_composition_assets(target_path)
+        composition_assets_string: str = "\n".join(composition_assets)
+        composition_assets_string: str = composition_assets_string.replace(os.path.join(target_path, "composition", "public"), "public")
+        xml_prompt_context: str = xml_prompt_context.replace(target_path, "public")
+        prompt = self.jinja_env.get_template('video_generation_instruction.j2').render(video_outline=xml_prompt_context, 
+                                                                                       composition_assets=composition_assets_string)
         options = ClaudeAgentOptions(
             system_prompt=system_prompt,
             setting_sources=["project"],  # load skills from the project file system
-            allowed_tools=["Skill", "Read", "Write", "Bash"], # allow tools to read, write and bash commands (only use bash for read operations)
+            allowed_tools=["Skill", "Read", "Write"], # allow tools to read and write files only - NO bash commands
             permission_mode="acceptEdits",  # allow file edits
-            output_format={
-                "type": "json_schema",
-                "schema": VideoGenerationResult.model_json_schema()
-            }
+            cwd=os.path.join(target_path, "composition") # limit the scope of the agent to the composition directory
+
         )
         message_usages = []
-        result = None
         async for message in query(prompt=prompt,options=options):
             # process assistant message
-            logger.info("*** ASSISTANT MESSAGE ***\n")
             if isinstance(message, AssistantMessage):
                 for block in message.content:
                     if hasattr(block, "text"):
@@ -211,12 +208,9 @@ class VideoGenerator:
                         logger.info(f"*** AGENT CONTENT: {block.content} ***\n")   # agent content
                 logger.info("--------------------------------------------------\n")
             # process result message
-            elif isinstance(message, ResultMessage) and message.structured_output:
+            elif isinstance(message, ResultMessage):
                 logger.info("*** FINAL RESULT MESSAGE ***\n")
-                result = VideoGenerationResult.model_validate(message.structured_output)
-                logger.info(f"video generation result summary: {result.summary}")
-                logger.info(f"video generation result changes made: {result.changes_made}")
-                logger.info(f"video generation result issues found: {result.issues_found}")
+                logger.info(f"*** RESULT MESSAGE: {message.result} ***\n")
                 logger.info("--------------------------------------------------\n")
             # calculate message token usage
             if hasattr(message, "usage"):

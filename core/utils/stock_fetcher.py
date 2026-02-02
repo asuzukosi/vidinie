@@ -13,6 +13,7 @@ from retry import retry
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from core.utils.logger import get_logger
+from core.utils.video_utils import convert_mp4_to_webm_and_delete_original
 
 logger = get_logger(__name__)
 
@@ -175,10 +176,23 @@ async def _fetch_video_from_pexels_async(
                 async for chunk in video_response.aiter_bytes(chunk_size=8192):
                     f.write(chunk)
         
-        logger.info(f"downloaded pexels video for '{query}': {filename}")
+        # validate video file after download
+        file_size = os.path.getsize(filepath)
+        if file_size == 0:
+            logger.error(f"downloaded video file is empty: {filename}")
+            os.remove(filepath)
+            return None
         
+        # check if file is too small
+        if file_size < 1024:  # less than 1KB is suspicious
+            logger.warning(f"downloaded video file is very small ({file_size} bytes): {filename}, may be corrupted")
+            os.remove(filepath)
+            return None
+        
+        logger.info(f"downloaded pexels video for '{query}': {filename} ({file_size} bytes)")
+        webm_path = await convert_mp4_to_webm_and_delete_original(filepath)
         return StockVideoResult(
-            filename=filename,
-            filepath=filepath,
+            filename=os.path.basename(webm_path),
+            filepath=webm_path,
             query=query
         )

@@ -23,27 +23,40 @@ class StockFetcher:
     """fetch stock images and videos from pexels api."""
     def __init__(
         self,
-        output_dir: str = "temp/stock_images"
+        output_dir: str = "temp/stock_images",
+        video_output_dir: str = None
     ):
         """
         initialize stock fetcher.
+        output_dir: directory for stock images
+        video_output_dir: directory for stock videos (if None, uses output_dir)
         """
         self.pexels_key = os.getenv("PEXELS_API_KEY")
         if not self.pexels_key:
             raise ValueError("Pexels API key is not set")
         self.output_dir = output_dir
-        # create output directory
+        self.video_output_dir = video_output_dir
+        # create output directories
         Path(output_dir).mkdir(parents=True, exist_ok=True)
+        if video_output_dir:
+            Path(video_output_dir).mkdir(parents=True, exist_ok=True)
 
     def _generate_file_path(self, query: str, 
                             media_item: Union[SegmentImage, SegmentVideoClip], 
-                            index: int) -> str:
+                            index: int,
+                            video_output_dir: str = None) -> str:
         """
         generate a file path for stock media based on the media item type.
+        Videos go to video_clips/stock_videos, images go to images/stock_images.
         """
         query_hash = hashlib.md5(query.encode()).hexdigest()[:8]
         extension = ".jpg" if isinstance(media_item, SegmentImage) else ".mp4"
         filename = f"pexels_{query_hash}_{index}{extension}"
+        
+        # Use separate directory for videos if provided
+        if isinstance(media_item, SegmentVideoClip) and video_output_dir:
+            return os.path.join(video_output_dir, filename)
+        
         return os.path.join(self.output_dir, filename)
     
     async def _fetch_and_update_path(
@@ -97,8 +110,8 @@ class StockFetcher:
                 if (video_clip.source == VideoSource.STOCK and 
                     video_clip.query and 
                     not video_clip.path):
-                    # generate path before fetching
-                    output_path = self._generate_file_path(video_clip.query, video_clip, clip_idx)
+                    # generate path before fetching (videos go to video_output_dir)
+                    output_path = self._generate_file_path(video_clip.query, video_clip, clip_idx, self.video_output_dir)
                     tasks.append(self._fetch_and_update_path(
                         video_clip.query, output_path, video_clip
                     ))
