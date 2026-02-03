@@ -1,22 +1,31 @@
-Write a {{ segment.duration }}-second voiceover script for an explainer video segment.
+Write voiceover scripts: "{{ video_title }}"
 
-Video Title: {{ video_title }}
-Segment {{ segment_num }}/{{ total_segments }}: {{ segment.title }}
-Purpose: {{ segment.purpose | default('Explain this topic') }}
+<arc>
+{{ narrative_arc }}
+</arc>
 
-Key Points to Cover:
-{% if key_points_text %}
-{{ key_points_text }}
-{% else %}
-- {{ segment.purpose | default('Main concept') }}
-{% endif %}
+<segments>
+{% for segment in segments %}
+Segment {{ loop.index }}: {{ segment.title }}
+- Duration: {{ segment.duration }}s (~{{ (segment.duration * 2.5) | round(0) | int }} words)
+- Purpose: {{ segment.purpose }}
+- Hook: {{ segment.narrative_hook }}
+{% if loop.index > 1 %}- From previous: {{ segment.transition_from_previous }}{% endif %}
+- Key points: {{ segment.key_points | join(', ') }}
+- Content: {{ segment.content }}
+{% if loop.index < segments|length %}- To next: {{ segment.transition_to_next }}{% endif %}
 
-Guidelines:
-1. Write in a conversational tone
-2. Aim for approximately {{ (segment.duration * 2.5) | round(0) | int }} words (based on ~150 words/minute speaking rate)
-3. Start naturally - {% if is_intro %}introduce the topic{% else %}discuss the topic based on the segment's purpose and key points{% endif %}
-4. {% if is_conclusion %}End with a strong conclusion or call-to-action{% else %}End by closing the points made in the segment{% endif %}
-5. Use simple, clear language
-6. Make it engaging and memorable
+{% endfor %}
+</segments>
 
-Write the script now:
+<requirements>
+- Separate script per segment in order
+- Self-contained yet connected via transitions
+- Honor hook, purpose, transitions
+- Target: duration × 2.5 words
+- Natural, energetic speech
+- Creative: vivid metaphors, compelling analogies, memorable phrasing
+- Expressive: varied structure, strong verbs, rhythm
+- Engaging: hooks, tension, insights
+- JSON: title + segments array (segment_number, script)
+</requirements>

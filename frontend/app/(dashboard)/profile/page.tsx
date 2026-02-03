@@ -8,10 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import client from "@/lib/sdk/client";
+import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
-import { LoadingPage } from "@/components/utils/LoadingPage";
+import { LoadingPage } from "@/components/utils/loading-page";
 import type { RootState } from "@/lib/store/store";
-import { setUser } from "@/lib/store/slices/authSlice";
+import { setEmail } from "@/lib/store/slices/auth-slice";
+import { Loader2 } from "lucide-react";
 
 export default function ProfilePage() {
   const user = useSelector((state: RootState) => state.auth.user);
@@ -46,21 +48,17 @@ export default function ProfilePage() {
 
     setIsSaving(true);
     try {
-      const updatedUser = await client.updateUser({
-        email: formData.email !== user?.email ? formData.email : undefined,
+      // use better-auth to update user email
+      const result = await authClient.changeEmail({
+        newEmail: formData.email,
+        callbackURL: `${window.location.origin}/profile`, 
       });
+      if (result?.error) {
+        throw new Error(result.error.message || "Failed to update profile");
+      }
 
       // update Redux state with the updated user data
-      dispatch(setUser({
-        id: updatedUser.id,
-        email: updatedUser.email,
-        token: user?.token || "",
-        created_at: updatedUser.created_at,
-        updated_at: updatedUser.updated_at,
-        is_verified: updatedUser.is_verified,
-        current_subscription: updatedUser.current_subscription,
-        profile_picture: updatedUser.profile_picture,
-      }));
+      dispatch(setEmail(formData.email));
 
       toast.success("Profile updated successfully");
     } catch (error: any) {
@@ -91,14 +89,25 @@ export default function ProfilePage() {
 
     setIsChangingPassword(true);
     try {
-      await client.changePassword(passwordData.currentPassword, passwordData.newPassword);
+      // use better-auth to change password
+      const result = await authClient.changePassword({
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+      });
+      // if there is an error, throw an error
+      if (result?.error) {
+        throw new Error(result.error.message || "Failed to change password");
+      }
+      // show success toast
       toast.success("Password changed successfully");
+      // reset password data
       setPasswordData({
         currentPassword: "",
         newPassword: "",
-        confirmPassword: "",
+        confirmPassword: ""
       });
     } catch (error: any) {
+      // show error toast
       toast.error("Failed to change password", {
         description: error.message,
       });
@@ -291,7 +300,14 @@ export default function ProfilePage() {
 
               <Field>
                 <Button type="submit" disabled={isChangingPassword}>
-                  {isChangingPassword ? "Changing Password..." : "Change Password"}
+                  {isChangingPassword ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Changing Password...
+                    </>
+                  ) : (
+                    "Change Password"
+                  )}
                 </Button>
               </Field>
             </FieldGroup>

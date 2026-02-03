@@ -1,99 +1,55 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import client from '@/lib/sdk/client';
-import { useAppDispatch, useAppSelector } from '@/lib/store/hooks';
-import { SubscriptionType } from '@/lib/sdk/types';
-import { updateSubscription } from '@/lib/store/slices/authSlice';
-
-// Map Stripe price IDs to subscription types
-const PRICE_TO_SUBSCRIPTION: Record<string, string> = {
-    [process.env.NEXT_PUBLIC_STARTER_PLAN_PRICE_ID!]: "starter", // $19.99 starter plan
-    [process.env.NEXT_PUBLIC_PROFESSIONAL_PLAN_PRICE_ID!]: "professional", // $49.99 professional plan
-};
+import { useRouter } from 'next/navigation';
+import { getCurrentSubscription } from '@/lib/stripe';
 
 export default function SuccessPage() {
-    const searchParams = useSearchParams();
     const router = useRouter();
-    const dispatch = useAppDispatch();
     const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
     const [message, setMessage] = useState<string>('Processing your payment...');
-    const user = useAppSelector((state) => state.auth.user);
 
     useEffect(() => {
-        const processCheckout = async () => {
-            const sessionId = searchParams.get('session_id');
-            
-            if (!sessionId) {
-                setStatus('error');
-                setMessage('No session ID found. Please contact support if you completed a payment.');
-                return;
-            }
-
-            if (!user?.token) {
-                setStatus('error');
-                setMessage('Please log in to complete your subscription setup.');
-                setTimeout(() => {
-                    router.push('/signin');
-                }, 2000);
-                return;
-            }
-
+        const verifySubscription = async () => {
             try {
-                // set token on client if not already set
-                client.setToken(user.token);
 
-                // retrieve checkout session from checkout API route
-                const sessionResponse = await fetch(`/api/checkout?session_id=${sessionId}`);
+                await new Promise(resolve => setTimeout(resolve, 1500));
                 
-                if (!sessionResponse.ok) {
-                    throw new Error('Failed to retrieve checkout session');
-                }
-
-                const { session } = await sessionResponse.json();
-
-                // extract subscription type from price ID
-                // line_items can be either a Stripe list object or an array
-                const lineItemsData = session.line_items?.data || 
-                                     (Array.isArray(session.line_items) ? session.line_items : []);
-                let subscriptionType: string | null = null;
+                // verify subscription was created by checking better-auth
+                const subscription = await getCurrentSubscription();
                 
-                if (lineItemsData.length > 0) {
-                    const priceId = lineItemsData[0].price?.id || 
-                                   (typeof lineItemsData[0].price === 'string' ? lineItemsData[0].price : null);
-                    subscriptionType = priceId ? (PRICE_TO_SUBSCRIPTION[priceId] || null) : null;
+                if (subscription) {
+                    setStatus('success');
+                    setMessage('Your subscription has been successfully activated!');
+                    
+                    // redirect to dashboard after a short delay
+                    setTimeout(() => {
+                        router.push('/video-pipelines');
+                    }, 2000);
+                } else {
+                    // subscription might still be processing via webhook
+                    // better-auth webhooks will handle it automatically
+                    setStatus('success');
+                    setMessage('Your payment was successful! Your subscription is being activated...');
+                    
+                    // redirect to dashboard
+                    setTimeout(() => {
+                        router.push('/video-pipelines');
+                    }, 2000);
                 }
-
-                // map to backend subscription enum value
-                const backendSubscription = subscriptionType 
-                    ? subscriptionType
-                    : null;
-
-                if (!backendSubscription) {
-                    throw new Error('Could not determine subscription type from checkout session');
-                }
-
-                // update subscription on backend
-                await client.updateSubscription(backendSubscription);
-                dispatch(updateSubscription(backendSubscription as SubscriptionType));
-
+            } catch (error: any) {
+                console.error('error verifying subscription:', error);
                 setStatus('success');
-                setMessage('Your subscription has been successfully activated!');
+                setMessage('Your payment was successful! Your subscription is being activated...');
                 
-                // redirect to dashboard after a short delay
                 setTimeout(() => {
                     router.push('/video-pipelines');
                 }, 2000);
-            } catch (error: any) {
-                console.error('Error processing checkout:', error);
-                setStatus('error');
-                setMessage(error.message || 'An error occurred while processing your payment. Please contact support.');
             }
         };
 
-        processCheckout();
-    }, [searchParams, user, router]);
+        verifySubscription();
+    }, [router]);
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen">

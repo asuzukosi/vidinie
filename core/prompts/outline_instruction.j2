@@ -1,54 +1,49 @@
-Create an explainer video outline for the document: "{{ title }}"
+Create video outline: "{{ title }}"
+Target: {{ target_segments }} segments, ~{{ duration }}s each, total ~{{ target_segments * duration }}s
 
-Target: {{ target_segments }} video segments, each approximately {{ duration }} seconds long.
+<content>
+{{ content }}
+</content>
 
-Document chunks:
-{{ chunks_text }}
+<images>
 {% if has_images %}
-
-Available PDF Images:
 {{ images_text }}
+{% else %}
+No images available.
+{% endif %}
+</images>
 
-For each segment, you should select the most appropriate image from the available PDF images if one matches well, OR specify a stock image query if no PDF image is suitable.{% endif %}
+<visuals>
+Images (required, ≥1 per segment):
+- document: when doc image directly relates to segment
+- stock: real-world visuals (2-3 keywords)
+- ai_generated: complex/abstract concepts (descriptive prompt)
 
-You must respond with a valid JSON object only. Use the following structure:
+Video clips (optional, 0-1 per segment, all 5s):
+- stock: real-world footage (2-3 keywords)
+- ai_generated: only when motion essential (extremely rare)
 
-{
-  "title": "{{ title }}",
-  "total_segments": {{ target_segments }},
-  "estimated_duration": <total estimated duration in seconds>,
-  "segments": [
-    {
-      "title": "Segment title",
-      "purpose": "What this segment explains",
-      "key_points": ["Point 1", "Point 2", "Point 3"],
-      "content": "Content to be discussed in this segment",
-      "visual_keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"],
-      "duration": <estimated seconds>,
-      "image": {
-        "source": "pdf" or "stock" or "ai_generated",
-        "query": "<search keywords if stock, prompt description if ai_generated, null if pdf>",
-        "path": "<filepath from available images if pdf, null if stock or ai_generated>"
-      }
-    }
-  ]
-}
+Fields: source, query (null for document), path (filepath for document, null otherwise), timing (start|middle|end|throughout)
+</visuals>
 
-Image Selection Guidelines:
-- If a PDF image matches the segment well (based on label, description, key elements, and relevance), use "source": "pdf" and set "path" to the image's filepath
-- If no PDF image is suitable and stock images are available, use "source": "stock" and set "query" to 2-3 search keywords (combine from visual_keywords)
-- If you need a custom illustration that better represents abstract concepts or specific visualizations, use "source": "ai_generated" and set "query" to a descriptive prompt (e.g., "modern illustration of data visualization with charts")
-- Set "query" to null for PDF images, set "path" to null for stock and ai_generated images
-- Only one image per segment
-- Choose images that enhance understanding of the segment content
-- Prefer PDF images when available and relevant, then stock images, then ai_generated for custom illustrations
+<narrative>
+Arc: Hook → Development → Resolution
+Per segment: narrative_hook (specific), transition_from_previous (explicit connection), transition_to_next (anticipation), content (detailed).
+Use: question-answer bridges, problem-solution flows, cause-effect chains, contrast patterns.
+</narrative>
 
-Guidelines:
-1. Start with an engaging introduction segment
-2. Build logically from basics to advanced concepts
-3. End with a summary or call-to-action segment
-4. Each segment should be self-contained but flow naturally
-5. Identify 3-5 visual keywords per segment that would make good images/graphics
-6. Keep each segment focused on one main idea
-7. Return ONLY valid JSON, no markdown code blocks or additional text
+<music>
+Optional. Include only when enhancing experience. Provide descriptive prompt for mood/tempo/style, or null.
+</music>
 
+<requirements>
+1. Engaging intro hook
+2. Logical progression building complexity
+3. Summary/conclusion segment
+4. Smooth transitions between segments
+5. 5 visual keywords per segment
+6. One main idea per segment
+7. Detailed content for voiceover
+8. Cost-effective visual selection
+9. JSON only, no markdown
+</requirements>

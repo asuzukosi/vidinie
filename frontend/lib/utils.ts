@@ -56,3 +56,15 @@ export function formatDate(dateString?: string): string {
     return dateString;
   }
 }
+
+// PostHog event types enum - all event names use dashes instead of underscores
+export enum PostHogEvent {
+  VIDEO_DOWNLOAD_REQUESTED_WITH_FREE_SUBSCRIPTION = "video-download-requested-with-free-subscription",
+  VIDEO_DOWNLOAD_STARTED_WITH_PAID_SUBSCRIPTION = "video-download-started-with-paid-subscription",
+  VIDEO_DOWNLOAD_COMPLETED = "video-download-completed",
+  CHECKOUT_STARTED = "checkout-started",
+  CHECKOUT_COMPLETED = "checkout-completed",
+  CREATE_VIDEO_PIPELINE_CREATION_STARTED = "create-video-pipeline-creation-started",
+  CREATE_VIDEO_PIPELINE_CREATION_COMPLETED = "create-video-pipeline-creation-completed",
+  SHARE_VIDEO_PAGE_VIEWED = "share-video-page-viewed",
+}

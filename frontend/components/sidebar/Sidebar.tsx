@@ -3,7 +3,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/sidebar/AppSidebar";
+import { AppSidebar } from "@/components/sidebar/app-sidebar";
 
 export default function Sidebar({ children }: { children?: React.ReactNode }) {
   return (
@@ -22,4 +22,3 @@ export default function Sidebar({ children }: { children?: React.ReactNode }) {
     </SidebarProvider>
   );
 }
-  

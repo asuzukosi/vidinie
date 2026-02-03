@@ -1,12 +1,11 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List, Tuple, Dict
 from datetime import datetime
-from core.data import SourceType, BackgroundType, VideoPipelineContentMetadata
+from core.data import SourceType, BackgroundType, ContentMetadata
 from enum import Enum
 
 class VideoResolution(str, Enum):
     """video resolution."""
-    RESOLUTION_4K = "4K"
     RESOLUTION_1080P = "1080P"
     RESOLUTION_720P = "720P"
     RESOLUTION_480P = "480P"
@@ -14,17 +13,15 @@ class VideoResolution(str, Enum):
 class CreateVideoPipelineRequest(BaseModel):
     url: str
     name: str
-    description: str
-    tags: Optional[List[str]] = None
-    projects: Optional[List[str]] = None
+    instructions: str
+    voice: str
 
 class VideoPipelineSummary(BaseModel):
     # identification
     id: str
     name: str = Field(default="")
-    description: str = Field(default="")
-    tags: List[str] = Field(default_factory=list, nullable=True)  # tags of the video pipeline
-    projects: List[str] = Field(default_factory=list, nullable=True)  # projects of the video pipeline
+    instructions: str  # required
+    voice: str  # required
 
     # timing information
     updated_at: str = Field(default_factory=lambda: datetime.now().isoformat())
@@ -46,18 +43,15 @@ class VideoPipelineStageDetails(BaseModel):
     status: str
     next_stage: str
     previous_stage: str
-    stage_statuses: Optional[Dict[str, str]] = None
 
 class UpdateVideoPipelineImageRequest(BaseModel):
     index: int
     filename: Optional[str] = None
-    text_context: Optional[str] = None
     label: Optional[bool] = False
     description: Optional[str] = None
-    relevance_score: Optional[float] = None
     image_type: Optional[str] = None
     key_elements: Optional[List[str]] = None
-    ai_relevance: Optional[str] = None
+    relevance: Optional[str] = None
 
 class DeleteVideoPipelineImageResponse(BaseModel):
     video_pipeline_id: str
@@ -68,7 +62,7 @@ class VideoPipelineContentMinimal(BaseModel):
     title: Optional[str] = None
     total_pages: Optional[int] = None
     num_sections: Optional[int] = None
-    metadata: Optional[VideoPipelineContentMetadata] = None
+    metadata: Optional[ContentMetadata] = None
 
 class DeleteVideoPipelineSectionResponse(BaseModel):
     video_pipeline_id: str
@@ -76,30 +70,22 @@ class DeleteVideoPipelineSectionResponse(BaseModel):
     message: str
     title: Optional[str] = None
 
-class CreateVideoPipelineOutlineRequest(BaseModel):
-    skip_stock: bool = False
-    target_segments: int = 5
+class CreateVideoOutlineRequest(BaseModel):
+    target_segments: int = 4
     segment_duration: int = 40
 
 class CreateVideoPipelineScriptRequest(BaseModel):
     provider: str = "elevenlabs"
-    voice_id: Optional[str] = None
+    voice: Optional[str] = None  # AudioVoiceString enum value as string
 
 class GenerateVideoPipelineRequest(BaseModel):
     title: Optional[str] = None
     subtitle: Optional[str] = None
     resolution: Optional[VideoResolution] = VideoResolution.RESOLUTION_720P
-    fps: Optional[int] = 30
+    fps: Optional[int] = Field(default=15, ge=10, le=30)
     title_duration: Optional[float] = 3.0
     end_duration: Optional[float] = 3.0
     transition_duration: Optional[float] = 0.5
-    background_type: Optional[BackgroundType] = BackgroundType.GRADIENT
-
-
-class VideoPipelineSegmentBackground(BaseModel):
-    colors: Optional[List[Tuple[int, int, int]]] = None
-    type: Optional[BackgroundType] = BackgroundType.GRADIENT
-    image_path: Optional[str] = None
 
 class VideoPipelineReviewRequest(BaseModel):
     rating: Optional[int] = None
@@ -108,17 +94,14 @@ class VideoPipelineReviewRequest(BaseModel):
 class RunVideoPipelineOperationsRequest(BaseModel):
     url: str
     name: str
-    description: str
-    tags: Optional[List[str]] = None
-    projects: Optional[List[str]] = None
-    target_segments: int = 5
+    instructions: str
+    target_segments: int = 4
     segment_duration: int = 40
     provider: str = "elevenlabs"
     title: Optional[str] = None
     subtitle: Optional[str] = None
     resolution: Optional[VideoResolution] = VideoResolution.RESOLUTION_720P
-    fps: Optional[int] = 30
+    fps: Optional[int] = Field(default=15, ge=10, le=30)
     title_duration: Optional[float] = 3.0
     end_duration: Optional[float] = 3.0
     transition_duration: Optional[float] = 0.5
-    background_type: Optional[BackgroundType] = BackgroundType.GRADIENT

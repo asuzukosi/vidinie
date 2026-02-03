@@ -4,18 +4,21 @@ import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { IconPlus } from "@tabler/icons-react";
 import { Loader2 } from "lucide-react";
-import CreateTaskModal from "@/components/modals/CreateVideoPipelineModal";
+import CreateTaskModal from "@/components/modals/create-video-pipeline-modal";
 import {CreateVideoPipelineRequest, VideoPipelineSummary } from "@/lib/sdk/types";
-import VideoPipelineTable from "@/components/pipeline/VideoPipelineTable";
-import { LoadingPage } from "@/components/utils/LoadingPage";
+import VideoPipelineTable from "@/components/pipeline/video-pipeline-table";
+import { LoadingPage } from "@/components/utils/loading-page";
 import client from "@/lib/sdk/client";
-import type { VideoPipelineTableItem } from "@/components/pipeline/VideoPipelineTable";
+import type { VideoPipelineTableItem } from "@/components/pipeline/video-pipeline-table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { event } from "@/lib/gtag";
-import { useSelector } from "react-redux";
+import posthog from 'posthog-js';
+import { useSelector, useDispatch } from "react-redux";
+import { PostHogEvent } from "@/lib/utils";
 import type { RootState } from "@/lib/store/store";
+import { updateVideosRemaining, updateVideosGenerated } from "@/lib/store/slices/auth-slice";
+import { authClient } from "@/lib/auth-client";
 
 export default function TasksPage() {
   const searchParams = useSearchParams();
@@ -25,27 +28,46 @@ export default function TasksPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isCreatingTask, setIsCreatingTask] = useState(false);
   const user = useSelector((state: RootState) => state.auth.user);
-
+  const dispatch = useDispatch();
 
   const createTask = async (task: CreateVideoPipelineRequest) => {
 
     setIsCreatingTask(true);
     try {
-      console.log("creating video:", task);
       if (task.file) {
-        const result: VideoPipelineSummary = await client.createVideoPipelineFromFile(task.name, task.description, 
-          [], [], task.file);
+        await client.createVideoPipelineFromFile(task.name, task.instructions, task.voice, task.file);
       } else {
         task.file = undefined;
-        const result: VideoPipelineSummary = await client.createVideoPipelineFromUrl(task);
+        await client.createVideoPipelineFromUrl(task);
+      }
+      
+      // update video counts after successful pipeline creation using Better Auth
+      const newVideosRemaining = (user?.videos_remaining || 0) - 1;
+      const newVideosGenerated = (user?.videos_generated || 0) + 1;
+      
+      try {
+        // update user fields using Better Auth client SDK
+        const result = await (authClient as any).updateUser({
+          videos_remaining: newVideosRemaining,
+          vidoes_generated: newVideosGenerated, // Note: typo in Better Auth field name
+        });
+        
+        if (result?.error) {
+          throw new Error(result.error.message || "Failed to update video counts");
+        }
+        
+        // update Redux state
+        dispatch(updateVideosRemaining(newVideosRemaining));
+        dispatch(updateVideosGenerated(newVideosGenerated));
+      } catch (error) {
+        console.error("Error updating video counts:", error);
       }
     } catch (error) {
       console.error("Error creating task:", error);
       toast.error((error as Error).message.replace("Error: ", ""));
     } finally {
       setIsCreatingTask(false);
-      event({
-        action: "create_video_pipeline_creation_completed",
+      posthog.capture(PostHogEvent.CREATE_VIDEO_PIPELINE_CREATION_COMPLETED, {
         category: "video_pipeline",
         label: user?.email || "unknown",
         value: 1,
@@ -75,15 +97,80 @@ export default function TasksPage() {
   const handleDeleteVideoPipeline = async (videoPipeline: VideoPipelineTableItem) => {
     try {
       await client.deleteVideoPipeline(videoPipeline.id);
-      await fetchVideoPipelines();
     } catch (error) {
       console.error("Error deleting video pipeline:", error);
       throw error;
     }
   };
+
   useEffect(() => {
     fetchVideoPipelines().catch(console.error);
   }, []);
+
+  // websocket connection for real-time pipeline updates
+  useEffect(() => {
+    if (!user?.id) {
+      return;
+    }
+
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const baseWsUrl = baseUrl.replace('http', 'ws').replace('https', 'wss');
+    const wsUrl = `${baseWsUrl}/users/${user.id}/video-pipelines/ws`;
+    let socket: WebSocket | null = null;
+    let isCleaningUp = false;
+
+    try {
+      socket = new WebSocket(wsUrl);
+
+      socket.onopen = () => {
+        if (!isCleaningUp) {
+          console.log("connected to user pipeline state socket");
+        }
+      };
+
+      socket.onmessage = (event) => {
+        if (!isCleaningUp) {
+          try {
+            const data = JSON.parse(event.data);
+            console.log("received pipeline update:", data);
+            fetchVideoPipelines().catch(console.error);
+          } catch (error) {
+            console.error("Error parsing WebSocket message:", error);
+          }
+        }
+      };
+
+      socket.onerror = (error) => {
+        // only log errors if not cleaning up (to avoid noise from React Strict Mode)
+        if (!isCleaningUp && socket?.readyState !== WebSocket.CLOSING && socket?.readyState !== WebSocket.CLOSED) {
+          console.error("websocket error:", error);
+        }
+      };
+
+      socket.onclose = (event) => {
+        // only log if it wasn't a normal closure during cleanup
+        if (!isCleaningUp && event.code !== 1000) {
+          console.log("websocket closed:", event.code, event.reason);
+        }
+      };
+    } catch (error) {
+      console.error("Failed to create WebSocket:", error);
+    }
+
+    // cleanup function to close the websocket connection when the component unmounts
+    return () => {
+      isCleaningUp = true;
+      if (socket) {
+        try {
+          if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+            socket.close(1000, 'Component unmounting');
+          }
+        } catch (error) {
+          // ignore errors during cleanup
+        }
+      }
+    };
+  }, [user?.id]);
 
   // check for create query parameter and open modal
   useEffect(() => {

@@ -1,0 +1,304 @@
+<task>
+Generate Remotion video from provided video outline. Modify src/ files only. No commands.
+
+PRIMARY GOAL: Visual aesthetics, beauty, and enjoyability - create a visually stunning, pleasant viewing experience.
+
+Focus on creating a beautiful, enjoyable video that users will love watching.
+Keep code concise and to the point.
+No need to provide a summary when you are done. Just do the job and exit.
+</task>
+
+<outline>
+{{video_outline}}
+</outline>
+
+<assets>
+❌❌ CRITICAL: This is a CONFIRMED list of existing assets. ONLY use files from this list.
+❌❌ DO NOT use any file paths that are NOT in this list - they do NOT exist
+❌❌ DO NOT assume files exist outside this list - only use files explicitly listed here
+✅ All files in this list have been verified to exist and are available for use
+✅ If you need an asset that's not in this list, it doesn't exist - use an alternative from this list or skip it
+
+CONFIRMED AVAILABLE ASSETS:
+{{composition_assets}}
+</assets>
+
+<structure>
+- public/ (assets - DO NOT modify) | src/ (code - modify here)
+- package.json (READ to verify packages before importing - DO NOT modify)
+</structure>
+
+<deliverables>
+1. src/Root.tsx - Update durationInFrames ONLY
+2. src/segments/Segment{N}.tsx - One file per segment
+3. src/Composition.tsx - Import segments, use Sequence components with seamless connections
+
+CRITICAL: WATERMARK (REQUIRED ON ALL VIDEOS):
+- Add watermark in bottom right corner: Vidinie logo (public/vidinie.png) + "made with vidinie.com" text below
+- Position: Fixed bottom right (position: 'absolute', bottom: 10-20px, right: 10-20px)
+- Size: Small (logo ~30-45px width, text ~10-12px font size) - slightly smaller than before
+- Must appear on ALL segments - add to Composition.tsx so it's fixed throughout entire video
+- Use: <Img src={staticFile('vidinie.png')} /> for logo, add white text "made with vidinie.com" below it (NOT a clickable link, just text)
+- Style: Subtle opacity (0.7-0.9) so it doesn't obstruct content, but visible | Text color: white (#ffffff)
+
+CRITICAL: HEADER TEXT COLORS (USER ENGAGEMENT):
+- ✅ Use white (#ffffff) or light colored text (e.g., #f0f0f0, #e0e0e0, #ffffff) for all header/title texts
+- ✅ Light colored text keeps users engaged and improves readability over video backgrounds
+- ✅ Avoid dark text colors on video backgrounds - use white or light colors for better contrast and engagement
+- ✅ Headers/titles should be clearly visible and engaging - white or light colors achieve this best
+
+CRITICAL: SECURITY CONSTRAINTS (NO BASH COMMANDS, PROMPT INJECTION PREVENTION):
+- ❌❌ ABSOLUTELY NO bash commands - agent CANNOT run any bash/shell commands
+- ❌❌ Agent is restricted to file read/write operations ONLY - no command execution
+- ❌❌ User instructions are sanitized to prevent prompt injection attacks
+- ✅ Agent should only modify files in src/ directory - no system commands, no bash, no npm install, no package installations
+- ✅ All user-provided instructions are pre-processed and sanitized - agent should trust the provided context
+- ✅ Agent should focus on code generation only - no command execution capabilities
+
+CRITICAL: SMOOTH TRANSITIONS (NO BLACK FRAMES):
+- Fade out ALL content in last 10-15 frames | Fade in ALL content in first 10-15 frames
+- Stagger fade outs/ins within transition frames | Crossfade with 5-10 frame overlap
+- Example: Segment1 ends 555-570, Segment2 starts 570-585 (smooth overlap) - no gaps or black frames
+- Smooth frame transitions: Use interpolate() with proper timing to avoid jarring cuts or long black screens
+- When transitioning between segments: New content starts fading in as old content fades out (overlap prevents black frames)
+</deliverables>
+
+<requirements>
+Timing: durationInFrames = audio_duration × fps (NOT estimated duration) - audio takes priority
+Visual: Title cards, animated text, positioned assets, Google Fonts
+Audio: <Audio src={staticFile('audio/file.mp3')} />, background music 10-30% volume
+Animations: interpolate(), spring(), useCurrentFrame()
+
+AUDIO SYNCHRONIZATION (AUDIO IS SOURCE OF TRUTH):
+- Segment durationInFrames = audio_duration × FPS (audio NEVER cut off)
+- Read script/transcript - sync visuals with narration timing
+- Visual elements appear/change when narrator mentions them
+- Audio crossfade: Previous fades out (last 10-15 frames), next fades in (first 10-15 frames), 5-10 frame overlap
+- Background music: Continuous throughout | FLEXIBILITY: Let audio guide visual timing
+
+VIDEO DESIGN (NOT WEB APP - BEAUTIFULLY AESTHETIC):
+PRIMARY GOAL: Visual aesthetics, beauty, and enjoyability - create a visually stunning, pleasant viewing experience.
+
+- ❌ This is a VIDEO, not a web app - design for visual beauty and user enjoyment
+- ❌ NO card backgrounds or solid boxes as default - this makes videos unenjoyable
+- ✅ Colored div backgrounds ONLY if needed for aesthetic purposes (e.g., subtle overlays, creative effects)
+- ✅ Prefer transparent overlays/gradients | Background should be video/image when possible
+- ✅ Content flows cinematically - elements fade/slide/transform beautifully, don't sit in static boxes
+- ✅ Text floats with contrast (shadows/outlines) | Think cinematic motion, not web UI cards
+- ✅ Every design decision should prioritize: Is this beautiful? Is this enjoyable to watch?
+
+SCREEN REAL ESTATE & VISUAL STRUCTURE:
+- ✅ Use full 854×480px efficiently - distribute content across screen, not stacked in one area
+- ✅ Spatial distribution: Use different screen areas for text and images - left, right, top, bottom, center
+- ✅ Avoid layer stacking: ❌ DON'T overlay multiple text/images on top of each other
+- ✅ When video/image is background: Place text/images in empty areas (sides, corners) - avoid overlaying on busy areas
+- ✅ Visual hierarchy: Primary content prominent, secondary supports without obstructing
+- ✅ Layering: Background → Images/Videos → Overlays → Text (minimal layers, avoid stacking)
+- ✅ Spacing: 15-30px between elements | Multiple elements positioned in different screen areas
+- ✅ Visual theme: Consistent colors, fonts, style throughout | Clean structure, no clutter, no excessive layering
+
+ASSET USAGE FLEXIBILITY:
+- ❌❌ CRITICAL: ONLY use assets from the CONFIRMED assets list above
+- ❌❌ NEVER use file paths that are NOT in the assets list - they do NOT exist and will cause errors
+- ✅ You do NOT need to use all assets provided - use only what enhances the video
+- ✅ You do NOT need to use assets in exact order specified - restructure if better for visual flow
+- ✅ Prioritize visual clarity and spatial distribution over using every asset
+- ✅ Better to use fewer assets well-distributed than many assets stacked on top of each other
+- ✅ Before using any file, verify it exists in the assets list - if not listed, it doesn't exist
+
+ANIMATION COORDINATION (PREVENT OVERLAPS & SAME-AREA CONTENT):
+- ❌ NEVER animate multiple elements simultaneously if they occupy same screen space
+- ❌❌ CRITICAL: NEVER overlay text on top of each other - this makes videos DIFFICULT TO FOLLOW
+- ❌❌ Text must NEVER overlap - one text must completely fade out (opacity 0) BEFORE next text fades in
+- ❌❌ If multiple text elements are visible, they must be in DIFFERENT screen areas (left, right, top, bottom, center)
+- ❌❌ CRITICAL: Avoid multiple content above each other at the same time - if showing new content in same area, remove old content first
+- ✅ When replacing content in same screen area: Fade out old content completely (opacity 0) BEFORE new content fades in
+- ✅ Same-area replacement pattern: Old content [start, mid, end-10, end] → New content [end-5, end+5, ...] (old must be 0 before new starts)
+- ✅ Stagger animations: If segment ends at X, fade out at X-20, X-15, X-10, X-5 (not all at X)
+- ✅ Add 5-10 frame gap between text transitions | Fade out in reverse order of appearance
+- ✅ Pattern: [start, end-15, end-10, end] for each element | Clean: One out completely before next in
+- ✅ Spatial separation: Place text in different screen areas to prevent any overlap
+
+RESOLUTION (480p - 854×480px):
+- Fonts: Headings 24-32px, Body 14-18px | Spacing: 15-30px
+- ✅ Headers/titles: Use white (#ffffff) or light colored text for better engagement and readability
+- All content fits within frame | Images/videos scaled appropriately
+
+CRITICAL PACKAGE USAGE:
+- ONLY from package.json - check before importing | Prefer 'remotion' for Audio/Video/Img
+- Available: remotion, @remotion/google-fonts, @remotion/media, @remotion/tailwind-v4, @remotion/transitions, react, react-dom, tailwindcss
+
+CRITICAL FONT USAGE:
+- Safe fonts ONLY: Poppins, Montserrat, Roboto, Raleway, OpenSans, Lato, Inter, RobotoSlab, PlayfairDisplay, Lobster, BebasNeue, Oswald, Nunito, WorkSans
+- ❌ NO SourceSansPro | Format: import { loadFont } from '@remotion/google-fonts/FontName' (exact case)
+- ALWAYS: loadFont("normal", { weights: ["400", "700"], subsets: ["latin"] }) - prevents excessive network requests
+</requirements>
+
+<workflow>
+1. Read package.json FIRST to see what packages are available - ONLY use packages listed in dependencies
+2. Read the CONFIRMED assets list above - ONLY use files from this list, never use files not in the list
+3. Read the remotion skill to understand how to make video compositions in Remotion
+4. Parse video outline to understand the video structure and content provided
+   - CRITICAL: Read each segment's script/transcript to understand narration timing
+   - CRITICAL: Use audio_duration (not estimated duration) for segment timing - audio is source of truth
+   - CRITICAL: Note audio_file path and audio_duration for each segment
+4. Calculate durationInFrames
+5. Write segment components in their respective files with relevant skills and knowledge to create the video i.e Segment1.tsx, Segment2.tsx, etc.
+   
+   SEGMENT COMPONENT STRUCTURE:
+   - ❌❌ CRITICAL: Before using any file, verify it exists in the CONFIRMED assets list above
+   - ❌❌ NEVER use file paths that are NOT in the assets list - they do NOT exist and will cause errors
+   - Import: AbsoluteFill, Audio, Img, Video, interpolate, useCurrentFrame, staticFile from 'remotion'
+   - Import font: import { loadFont } from '@remotion/google-fonts/FontName' (safe fonts only)
+   - ALWAYS: const { fontFamily } = loadFont("normal", { weights: ["400", "700"], subsets: ["latin"] })
+   - Use useCurrentFrame() to get current frame number
+   - Calculate: const segmentDuration = audio_duration × FPS (NOT estimated duration)
+   - Create opacity animations using interpolate() for fade in/out
+   - CRITICAL VIDEO ERROR HANDLING: Always add onError prop to Video components
+     Example: <Video src={staticFile('video.mp4')} onError={(e) => { console.error('Video error:', e); }} />
+     If video fails (corrupted/unsupported), use fallback: image, colored background, or skip video entirely
+   
+   OPACITY ANIMATION PATTERN (staggered fade outs, smooth transitions):
+   - Fade in ALL content in first 10-15 frames: interpolate(frame, [0, 15, ...], [0, 1, ...])
+   - Fade out ALL content in last 10-15 frames (staggered): [..., end-20, end-15], [..., end-10, end-5]
+   - Example: titleOpacity = interpolate(frame, [0, 20, segmentDuration-15, segmentDuration], [0, 1, 1, 0], { extrapolateRight: 'clamp' })
+   - Example staggered: text1 [0, 80, segmentDuration-20, segmentDuration-15], text2 [0, 170, segmentDuration-10, segmentDuration-5]
+   - If segment ends at X, fade out at X-20, X-15, X-10, X-5 (not all at X) - prevents overlap
+   - SMOOTH TRANSITIONS: When replacing content in same area, old must fade to 0 before new fades in (prevents overlap and black frames)
+   - Example same-area replacement: oldContent [0, 100, 200, 210], newContent [205, 215, ...] (old at 0 when new starts)
+   
+   AUDIO:
+   - Use audio_duration × FPS for durationInFrames | Include <Audio> component, let it play fully
+   - Read script/transcript - sync visuals with narration timing | Show visuals when narrator mentions them
+   - FLEXIBILITY - Let audio guide visual timing, extend visuals to match audio if needed
+   
+   PRIMARY GOAL: Visual aesthetics, beauty, and enjoyability - every decision should enhance visual appeal
+   
+   DESIGN:
+   - This is VIDEO, not web app - create beautifully aesthetic, enjoyable viewing experience
+   - ❌ NO card backgrounds or colored divs as default - only use if needed for aesthetic purposes
+   - Prefer transparent overlays/gradients | Background should be video/image when possible
+   - 480p (854×480px) - ALL content fits | Distribute content across screen (left, right, top, bottom, center)
+   - ❌ Avoid layer stacking - DON'T overlay multiple text/images on top of each other
+   - When video/image background: Place text/images in empty areas (sides, corners), avoid overlaying on busy areas
+   - Visual hierarchy & minimal layering | Visual theme consistency | Clean structure, no clutter
+   - Every design choice should answer: Does this make the video more beautiful? More enjoyable to watch?
+   
+   ASSETS:
+   - ❌❌ CRITICAL: ONLY use files from the CONFIRMED assets list - never use files not in the list
+   - ❌❌ If a file is not in the assets list, it does NOT exist - do NOT use it
+   - You do NOT need to use all assets - use only what enhances | You can restructure asset order if better
+   - Before using any file path, verify it exists in the assets list provided above
+   PACKAGES & FONTS:
+   - BEFORE importing any package, verify it exists in package.json
+   - Use 'remotion' package for Audio, Video, Img components (preferred) | Only use '@remotion/media' if needed
+   - FONTS: ONLY safe fonts: Poppins, Montserrat, Roboto, Raleway, OpenSans, Lato, Inter, RobotoSlab, PlayfairDisplay, Lobster, BebasNeue, Oswald, Nunito, WorkSans
+   - FONTS: ❌ NO SourceSansPro | Format: import { loadFont } from '@remotion/google-fonts/FontName' (exact case)
+   - FONTS: ALWAYS: loadFont("normal", { weights: ["400", "700"], subsets: ["latin"] }) | Only load weights/subsets you use
+   
+   ANIMATIONS:
+   - NO simultaneous animations in same screen space | Stagger by 10-15 frames
+   - ❌❌ CRITICAL - NEVER overlay text on top of each other - makes videos DIFFICULT TO FOLLOW
+   - ❌❌ CRITICAL - Avoid multiple content above each other at same time - if showing new content in same area, remove old first
+   - Text transitions - one fades out (opacity 0) BEFORE next fades in | 5-10 frame gap
+   - Same-area content replacement: Old content must fade to 0 BEFORE new content fades in (prevents overlap)
+   - Multiple text elements must be in DIFFERENT screen areas (left, right, top, bottom, center) - NO overlap
+   - Staggered fade outs: [start, end-15, end-10, end] pattern | If segment ends at X, fade out at X-20, X-15, X-10, X-5
+   - Clean coordination - one element out completely before next in | Spatial separation prevents overlaps
+   - Smooth transitions: Use proper timing to avoid long black frames between content changes
+   
+   LAYOUT:
+   - Transparent overlays/gradients (no solid divs) | Proper spacing (15-30px) | Elements sized appropriately
+   - Spatial distribution - use different screen areas (left, right, top, bottom, center) for different content
+   - ❌ Avoid stacking layers - distribute text/images across screen, not on top of each other
+   - When background is video/image: Place additional content in empty areas, avoid overlaying on busy areas
+   - Visual hierarchy & minimal layering | Multiple elements positioned in different areas to avoid obstruction
+   - Test all elements visible within 854×480px | Cinematic motion, not static cards
+6. Update Composition.tsx - import segments, use Sequence with seamless connections
+   - CRITICAL: Each segment's Sequence durationInFrames = audio_duration × FPS (not estimated)
+   - CRITICAL: Segments connect end-to-end based on audio durations
+   - CRITICAL: Smooth transitions - segments overlap slightly (5-10 frames) to prevent black frames between segments
+   - CRITICAL: Audio transitions: fade out previous segment audio over last 10-15 frames, fade in next over first 10-15 frames
+   - CRITICAL: Audio crossfade overlap: 5-10 frames to prevent silence or abrupt cuts
+   - CRITICAL: Background music plays continuously throughout entire video
+   - CRITICAL: Visual transitions must be smooth - new segment content starts fading in as old fades out (no black frames)
+   - CRITICAL: WATERMARK - Add Vidinie logo (public/vidinie.png) + white text "made with vidinie.com" in bottom right corner
+   - CRITICAL: Watermark must be fixed (position: absolute, bottom: 10-20px, right: 10-20px), small size (logo ~30-45px, text ~10-12px) - slightly smaller
+   - CRITICAL: Watermark text is white (#ffffff), NOT a clickable link - just plain text below logo
+   - CRITICAL: Watermark opacity 0.7-0.9, appears on ALL segments throughout entire video
+   - CRITICAL: HEADER TEXT COLORS - Use white (#ffffff) or light colored text for all header/title texts to keep users engaged
+7. Update Root.tsx - durationInFrames ONLY (sum of all segment audio durations × FPS)
+8. Verify: 
+   - ❌❌ CRITICAL: ALL file paths used are in the CONFIRMED assets list - no files outside the list
+   - imports from package.json | content fits 854×480 | smooth transitions | no text overlap
+   - Audio plays fully for each segment - no cutoffs
+   - Visual content syncs with narration/script timing
+   - Audio transitions are smooth with crossfading
+   - Background music continues without interruption
+   - All assets referenced exist in the assets list provided
+</workflow>
+
+<success_criteria>
+✓ Valid TypeScript
+✓ Installed deps only - ALL imports must be from packages in package.json
+✓ NO imports from packages not in package.json
+✓ Duration matches audio_duration (not estimated) - audio plays fully, no cutoffs
+✓ Audio synced with visuals - visual content matches narration timing from script
+✓ Correct asset paths
+✓ Smooth transitions with audio crossfading (10-15 frame fade out/in, 5-10 frame overlap)
+✓ NO long black frames between segments - smooth crossfade prevents gaps
+✓ Audio plays fully from start to finish - never cut short
+✓ Visual content aligns with script/narration - elements appear when mentioned
+✓ When replacing content in same area: Old content fades to 0 before new content fades in (no overlap)
+✓ NO multiple content above each other at same time - old content removed before new content shown
+✓ Renders without errors
+✓ All imports verified against package.json dependencies
+✓ ALL content fits within 480p frame (854x480px) - nothing cut off
+✓ PRIMARY GOAL: Visual aesthetics, beauty, and enjoyability - visually stunning, pleasant viewing experience
+✓ This is VIDEO, not web app - beautifully aesthetic and enjoyable viewing experience
+✓ NO card backgrounds or colored divs as default - only use if needed for aesthetic purposes
+✓ Content flows cinematically - elements fade/slide/transform beautifully, not static boxes
+✓ Every design decision prioritizes: Is this beautiful? Is this enjoyable to watch?
+✓ Video is visually engaging and pleasant to watch - aesthetic beauty and viewing pleasure are the primary goals
+✓ Text is readable and properly sized for 480p resolution
+✓ Images/videos are scaled to fit within frame bounds
+✓ Layout has proper spacing - not squashed together, not too spread out
+✓ Multiple elements fit together with appropriate spacing - not overlapping or cut off
+✓ Background content is visible - no solid colored divs blocking it
+✓ Design is cinematic and dynamic - elements flow and transition, not static cards
+✓ ❌❌ NO text overlays - text NEVER overlaid on top of each other (makes videos DIFFICULT TO FOLLOW)
+✓ Text elements in DIFFERENT screen areas (left, right, top, bottom, center) - NO overlap
+✓ One text fades out (opacity 0) BEFORE next fades in | 5-10 frame gap between transitions
+✓ NO simultaneous animations in same screen space - staggered by 10-15 frames
+✓ Staggered fade outs: Elements fade out at X-20, X-15, X-10, X-5 (not all at X) | Reverse order of appearance
+✓ Clean animation coordination - one element out completely before next in | Spatial separation prevents overlaps
+✓ Screen real estate used efficiently - content distributed across screen (not stacked in one area)
+✓ Spatial distribution - text/images use different screen areas (left, right, top, bottom, center)
+✓ NO excessive layer stacking - multiple text/images not overlaid on top of each other
+✓ When video/image background: Additional content placed in empty areas, not overlaid on busy areas
+✓ Visual hierarchy & minimal layering | Visual theme consistent | Clean structure, no clutter
+✓ ONLY assets from the CONFIRMED assets list were used - no files outside the list
+✓ Assets used selectively - only what enhances video | Asset order restructured if better for visual flow
+✓ All file paths used were verified to exist in the assets list
+✓ ONLY fonts from safe list are used (Poppins, Montserrat, Roboto, Raleway, OpenSans, Lato, Inter, RobotoSlab, PlayfairDisplay, Lobster, BebasNeue, Oswald, Nunito, WorkSans)
+✓ NO fonts like SourceSansPro or other unsupported fonts
+✓ Font imports use correct format: '@remotion/google-fonts/FontName' with exact case
+✓ loadFont() is called with weights and subsets specified to reduce network requests
+✓ Only necessary font weights are loaded (typically ["400"] or ["400", "700"])
+✓ Only necessary subsets are loaded (typically ["latin"])
+✓ Segment durations use audio_duration × FPS (not estimated duration) - audio timing is authoritative
+✓ Audio plays fully for each segment - no cutoffs or premature stops
+✓ Visual content is synchronized with script/narration timing
+✓ Audio transitions use smooth crossfading (fade out 10-15 frames, fade in 10-15 frames, 5-10 frame overlap)
+✓ Background music continues smoothly across all segments without interruption
+✓ Visual elements appear/change when narrator mentions them in the script
+✓ Audio completion takes priority over strict visual timing - audio should not be cut off
+✓ Visual timing follows audio timing flexibly - not rigid frame-based rules
+✓ Audio timing is the source of truth - visuals adapt to audio flow, not vice versa
+✓ Watermark present: Vidinie logo (public/vidinie.png) + white text "made with vidinie.com" in bottom right corner
+✓ Watermark text is white (#ffffff), NOT a clickable link - just plain text below logo
+✓ Watermark is fixed, small size (logo ~30-45px, text ~10-12px), subtle opacity (0.7-0.9), appears on all segments
+✓ Header/title texts use white (#ffffff) or light colored text for better engagement and readability
+✓ NO bash commands executed - agent only performs file read/write operations
+✓ User instructions are sanitized - no prompt injection attacks possible
+</success_criteria>

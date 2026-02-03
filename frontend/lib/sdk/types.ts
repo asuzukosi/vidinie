@@ -1,10 +1,17 @@
+export type AudioVoice = 
+    | "Narrative Expressive Male"
+    | "Fun Vibrant Female"
+    | "Calm Narrative Male"
+    | "Calm Soothing Female"
+    | "Soothing British Male"
+    | "Expressive Professional Male";
+
 export interface CreateVideoPipelineRequest {
     url?: string;
     file?: File;
     name: string;
-    description: string;
-    tags: string[];
-    projects: string[];
+    instructions: string;
+    voice: AudioVoice;
 }
 
 export enum SourceType {
@@ -14,9 +21,8 @@ export enum SourceType {
 export interface VideoPipelineSummary {
     id: string;
     name: string;
-    description: string;
-    tags: string[];
-    projects: string[];
+    instructions: string;
+    voice: string;
     updated_at: string;
     created_at: string;
     source_path: string;
@@ -28,13 +34,13 @@ export interface DeleteVideoPipelineResponse {
     message: string;
 }
 
-export interface VideoPipelineContentSection {
+export interface ContentSection {
     title: string;
     content: string;
     level: number;
 }
 
-export interface VideoPipelineContentMetadata {
+export interface ContentMetadata {
     title: string;
     creator: string;
     producer: string;
@@ -42,14 +48,14 @@ export interface VideoPipelineContentMetadata {
     modification_date: string;
 }
 
-export interface VideoPipelineParsedContent {
+export interface ParsedContent {
     title: string;
     total_pages: number;
-    sections: VideoPipelineContentSection[];
-    metadata: VideoPipelineContentMetadata;
+    sections: ContentSection[];
+    metadata: ContentMetadata;
 }
 
-export interface VideoPipelineImageMetadata {
+export interface ImageMetadata {
     filename: string;
     filepath: string;
     page_number?: number;
@@ -63,15 +69,9 @@ export interface VideoPipelineImageMetadata {
     index_on_page?: number;
     label?: string;
     description?: string;
-    relevance_score?: number;
     image_type?: string;
     key_elements?: string[];
-    ai_relevance?: string;
-}
-
-export interface VideoPipelineContextChunk {
-    chunk: string;
-    summary: string;
+    relevance?: string;
 }
 
 export enum BackgroundType {
@@ -87,13 +87,13 @@ export enum ImageSource {
     USER_UPLOADED = 'user_uploaded',
 }
 
-export interface VideoPipelineSegmentImage {
+export interface SegmentImage {
     source: ImageSource;
     query: string;
     path: string;
 }
 
-export interface VideoPipelineSegment {
+export interface VideoSegment {
     title: string;
     purpose: string;
     content: string;
@@ -102,28 +102,24 @@ export interface VideoPipelineSegment {
     script: string;
     word_count: number;
     duration: number;
-    image: VideoPipelineSegmentImage;
+    image: SegmentImage;
     transition_to: string;
     transition_type: string;
     audio_file: string;
     audio_duration: number;
-    voiceover_provider: string;
-    background_colors: string[];
-    background_type: BackgroundType;
-    background_image_path: string;
 }
 
-export interface VideoPipelineOutline {
+export interface VideoOutline {
     title: string;
     total_segments: number;
     estimated_duration: number;
-    segments: VideoPipelineSegment[];
+    segments: VideoSegment[];
 }
 
 export interface VideoPipelineScript {
     title: string;
     total_segments: number;
-    segments: VideoPipelineSegment[];
+    segments: VideoSegment[];
     full_script: string;
 }
 
@@ -160,31 +156,19 @@ export interface VideoPipelineStageStatisticsManager {
     [VideoPipelineStage.VIDEO_GENERATION]?: VideoPipelineStageStatistics;
 }
 
-// stage status tracking
-export interface VideoPipelineStageStatuses {
-    [VideoPipelineStage.INITIALIZED]?: VideoPipelineStatus;
-    [VideoPipelineStage.DOCUMENT_PROCESSING]?: VideoPipelineStatus;
-    [VideoPipelineStage.IMAGE_PROCESSING]?: VideoPipelineStatus;
-    [VideoPipelineStage.CONTENT_ANALYSIS]?: VideoPipelineStatus;
-    [VideoPipelineStage.SCRIPT_GENERATION]?: VideoPipelineStatus;
-    [VideoPipelineStage.VIDEO_GENERATION]?: VideoPipelineStatus;
-    [VideoPipelineStage.REVIEW_AND_FEEDBACK]?: VideoPipelineStatus;
-}
-
 export interface VideoPipeline {
     id: string;
     name: string;
-    description: string;
-    tags: string[];
-    projects: string[];
+    instructions: string;
+    voice: string;
     updated_at: string;
     created_at: string;
     source_path: string;
     source_type: SourceType;
-    parsed_content?: VideoPipelineParsedContent;
-    images_metadata?: VideoPipelineImageMetadata[];
-    chunks?: VideoPipelineContextChunk[];
-    video_outline?: VideoPipelineOutline;
+    parsed_content?: ParsedContent;
+    images_metadata?: ImageMetadata[];
+    content?: string;
+    video_outline?: VideoOutline;
     script_data?: VideoPipelineScript;
     full_audio_path?: string;
     full_audio_duration?: number;
@@ -192,7 +176,13 @@ export interface VideoPipeline {
     output_path?: string;
     current_stage?: VideoPipelineStage;
     status?: VideoPipelineStatus;
-    stage_statuses?: VideoPipelineStageStatuses;
+    // flat status fields for each stage
+    initialized_status?: VideoPipelineStatus;
+    document_processing_status?: VideoPipelineStatus;
+    image_processing_status?: VideoPipelineStatus;
+    content_analysis_status?: VideoPipelineStatus;
+    script_generation_status?: VideoPipelineStatus;
+    video_generation_status?: VideoPipelineStatus;
     rating?: number;
     feedback?: string;
     stage_statistics?: VideoPipelineStageStatisticsManager;
@@ -203,7 +193,6 @@ export interface VideoPipelineStageDetails {
     status: VideoPipelineStatus;
     next_stage: VideoPipelineStage;
     previous_stage: VideoPipelineStage;
-    stage_statistics: VideoPipelineStageStatistics;
 }
 
 export interface UpdateVideoPipelineImageRequest {
@@ -212,10 +201,9 @@ export interface UpdateVideoPipelineImageRequest {
     text_context: string;
     label: boolean;
     description: string;
-    relevance_score: number;
     image_type: string;
     key_elements: string[];
-    ai_relevance: string;
+    relevance: string;
 }
 
 export interface DeleteVideoPipelineImageResponse {
@@ -228,7 +216,7 @@ export interface VideoPipelineContentMinimal {
     title: string;
     total_pages?: number;
     num_sections?: number;
-    metadata?: VideoPipelineContentMetadata;
+    metadata?: ContentMetadata;
 }
 
 export interface DeleteVideoPipelineSectionResponse {
@@ -238,14 +226,13 @@ export interface DeleteVideoPipelineSectionResponse {
     title?: string;
 }
 
-export interface CreateVideoPipelineOutlineRequest {
+export interface CreateVideoOutlineRequest {
     skip_stock: boolean;
     target_segments: number;
     segment_duration: number;
 }
 
 export enum VideoResolution {
-    RESOLUTION_4K = '4K',
     RESOLUTION_1080P = '1080P',
     RESOLUTION_720P = '720P',
     RESOLUTION_480P = '480P',
@@ -259,13 +246,6 @@ export interface GenerateVideoPipelineRequest {
     title_duration: number;
     end_duration: number;
     transition_duration: number;
-    background_type: BackgroundType;
-}
-
-export interface VideoPipelineSegmentBackground {
-    colors: string[];
-    type: BackgroundType;
-    image_path: string;
 }
 
 export interface VideoPipelineReviewRequest {
@@ -283,69 +263,4 @@ export interface VideoPipelineProcessingStage {
     start_time?: string;
     end_time?: string;
     duration?: number;
-}
-
-// authentication types
-export interface LoginResponse {
-    id: string;
-    email: string;
-    token: string;
-    created_at: string;
-    updated_at: string;
-    is_verified: boolean;
-    current_subscription?: string;
-    profile_picture?: string | null;
-    stripe_customer_id?: string | null;
-}
-
-export interface RegisterResponse {
-    id: string;
-    email: string;
-    created_at: string;
-    updated_at: string;
-    is_verified: boolean;
-    current_subscription?: string;
-}
-
-export interface User {
-    id: string;
-    email: string;
-    created_at: string;
-    updated_at: string;
-    is_verified: boolean;
-    current_subscription?: string;
-    profile_picture?: string | null;
-    stripe_customer_id?: string | null;
-}
-
-// subscription types
-export enum SubscriptionType {
-    FREE = "free",
-    PRO = "starter",
-    ENTERPRISE = "professional"
-}
-
-export enum SubscriptionStatus {
-    ACTIVE = "active",
-    CANCELED = "canceled",
-    PAST_DUE = "past_due",
-    UNPAID = "unpaid",
-    TRIALING = "trialing",
-    INCOMPLETE = "incomplete",
-    INCOMPLETE_EXPIRED = "incomplete_expired"
-}
-
-export interface Subscription {
-    id: string;
-    user_id: string;
-    stripe_subscription_id?: string | null;
-    stripe_price_id?: string | null;
-    subscription_type: SubscriptionType;
-    status: SubscriptionStatus;
-    current_period_start?: string | null;
-    current_period_end?: string | null;
-    cancel_at_period_end: boolean;
-    canceled_at?: string | null;
-    created_at: string;
-    updated_at: string;
 }

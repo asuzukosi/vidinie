@@ -9,35 +9,29 @@ from .enums import (
     VideoPipelineStatus,
     VideoPipelineStage,
     ImageSource,
+    VideoSource,
     BackgroundType,
 )
 
 # content models
 from .content_models import (
-    VideoPipelineContentSection,
-    VideoPipelineContentMetadata,
-    VideoPipelineParsedContent,
-    VideoPipelineContextChunk,
-    VideoPipelineContextProcessor,
+    ContentSection,
+    ContentMetadata,
+    ParsedContent,
 )
 
 # image models
 from .image_models import (
-    VideoPipelineImageMetadata,
-    VideoPipelineSegmentImage,
-    VideoPipelineImageStats,
+    ImageMetadata,
+    SegmentImage,
 )
 
 # segment models
 from .segment_models import (
-    VideoPipelineSegment,
-    VideoPipelineOutline,
+    VideoSegment,
+    VideoOutline,
 )
 
-# script models
-from .script_models import (
-    VideoPipelineScript,
-)
 
 # statistics models
 from .statistics_models import (
@@ -62,22 +56,18 @@ __all__ = [
     "VideoPipelineStatus",
     "VideoPipelineStage",
     "ImageSource",
+    "VideoSource",
     "BackgroundType",
     # content models
-    "VideoPipelineContentSection",
-    "VideoPipelineContentMetadata",
-    "VideoPipelineParsedContent",
-    "VideoPipelineContextChunk",
-    "VideoPipelineContextProcessor",
+    "ContentSection",
+    "ContentMetadata",
+    "ParsedContent",
     # image model
-    "VideoPipelineImageMetadata",
-    "VideoPipelineSegmentImage",
-    "VideoPipelineImageStats",
+    "ImageMetadata",
+    "SegmentImage",
     # segment models
-    "VideoPipelineSegment",
-    "VideoPipelineOutline",
-    # script model
-    "VideoPipelineScript",
+    "VideoSegment",
+    "VideoOutline",
     # statistics model
     "VideoPipelineStageStatistics",
     # stage utilities

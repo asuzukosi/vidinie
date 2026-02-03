@@ -9,10 +9,10 @@ import {
     VideoGeneration,
 } from "@/components/pipeline";
 import client from "@/lib/sdk/client";
-import { VideoPipeline, VideoPipelineStage, GenerateVideoPipelineRequest, CreateVideoPipelineOutlineRequest, VideoPipelineReviewRequest, VideoPipelineStatus } from "@/lib/sdk/types";
-import { LoadingPage } from "@/components/utils/LoadingPage";
-import { VideoPipelineStagesManager } from "@/components/pipeline/VideoPipelineStagesManager";
-import { VideoPipelineDetails } from "@/components/pipeline/VideoPipelineDetails";
+import { VideoPipeline, VideoPipelineStage, GenerateVideoPipelineRequest, CreateVideoOutlineRequest, VideoPipelineReviewRequest, VideoPipelineStatus } from "@/lib/sdk/types";
+import { LoadingPage } from "@/components/utils/loading-page";
+import { VideoPipelineStagesManager } from "@/components/pipeline/video-pipeline-stages-manager";
+import { VideoPipelineDetails } from "@/components/pipeline/video-pipeline-details";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,29 +33,36 @@ export default function TaskDetailPage() {
     const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
     const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
-    // helper function to find the last completed stage
-    const getLastCompletedStage = (stageStatuses?: VideoPipeline['stage_statuses']): VideoPipelineStage => {
-        if (!stageStatuses) {
-            return VideoPipelineStage.DOCUMENT_PROCESSING;
-        }
-
-        // define stages in order
-        const stagesInOrder = [
-            VideoPipelineStage.DOCUMENT_PROCESSING,
-            VideoPipelineStage.CONTENT_ANALYSIS,
-            VideoPipelineStage.SCRIPT_GENERATION,
-            VideoPipelineStage.VIDEO_GENERATION,
+    // helper function to find the last in-progress stage, or fall back to last completed stage
+    const getLastInProgressStage = (pipeline: VideoPipeline): VideoPipelineStage => {
+        // define stages in order with their corresponding status fields
+        const stagesInOrder: Array<{ stage: VideoPipelineStage; status: VideoPipelineStatus | undefined }> = [
+            { stage: VideoPipelineStage.DOCUMENT_PROCESSING, status: pipeline.document_processing_status },
+            { stage: VideoPipelineStage.CONTENT_ANALYSIS, status: pipeline.content_analysis_status },
+            { stage: VideoPipelineStage.SCRIPT_GENERATION, status: pipeline.script_generation_status },
+            { stage: VideoPipelineStage.VIDEO_GENERATION, status: pipeline.video_generation_status },
         ];
 
-        // find the last completed stage
-        let lastCompletedStage = VideoPipelineStage.DOCUMENT_PROCESSING;
-        for (const stage of stagesInOrder) {
-            if (stageStatuses[stage] === VideoPipelineStatus.COMPLETED) {
-                lastCompletedStage = stage;
+        // find the last in-progress stage
+        let lastInProgressStage: VideoPipelineStage | null = null;
+        for (const { stage, status } of stagesInOrder) {
+            if (status === VideoPipelineStatus.IN_PROGRESS) {
+                lastInProgressStage = stage;
             }
         }
 
-        return lastCompletedStage;
+        // if no stage is in progress, fall back to the last completed stage
+        if (lastInProgressStage === null) {
+            let lastCompletedStage = VideoPipelineStage.DOCUMENT_PROCESSING;
+            for (const { stage, status } of stagesInOrder) {
+                if (status === VideoPipelineStatus.COMPLETED) {
+                    lastCompletedStage = stage;
+                }
+            }
+            return lastCompletedStage;
+        }
+
+        return lastInProgressStage;
     };
 
     const fetchVideoPipeline = async () => {
@@ -63,13 +70,13 @@ export default function TaskDetailPage() {
         try {
             const result: VideoPipeline = await client.getVideoPipelineDetails(taskId);
             setVideoPipeline(result);
-            setIsProcessingDocument(result.stage_statuses?.[VideoPipelineStage.DOCUMENT_PROCESSING] === VideoPipelineStatus.IN_PROGRESS);
-            setIsProcessingContent(result.stage_statuses?.[VideoPipelineStage.CONTENT_ANALYSIS] === VideoPipelineStatus.IN_PROGRESS);
-            setIsGeneratingScripts(result.stage_statuses?.[VideoPipelineStage.SCRIPT_GENERATION] === VideoPipelineStatus.IN_PROGRESS);
-            setIsGeneratingVideo(result.stage_statuses?.[VideoPipelineStage.VIDEO_GENERATION] === VideoPipelineStatus.IN_PROGRESS);
-            // set the selected stage to the last completed stage
-            const lastCompletedStage = getLastCompletedStage(result.stage_statuses);
-            setSelectedStage(lastCompletedStage);
+            setIsProcessingDocument(result.document_processing_status === VideoPipelineStatus.IN_PROGRESS);
+            setIsProcessingContent(result.content_analysis_status === VideoPipelineStatus.IN_PROGRESS);
+            setIsGeneratingScripts(result.script_generation_status === VideoPipelineStatus.IN_PROGRESS);
+            setIsGeneratingVideo(result.video_generation_status === VideoPipelineStatus.IN_PROGRESS);
+            // set the selected stage to the last in-progress stage (or last completed if none in progress)
+            const lastInProgressStage = getLastInProgressStage(result);
+            setSelectedStage(lastInProgressStage);
         } catch (error) {
             console.error("Error fetching video pipeline:", error);
             toast.error(`Failed to retrieve video pipeline with id: ${taskId}`);
@@ -91,38 +98,62 @@ export default function TaskDetailPage() {
         const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
         const baseWsUrl = `${baseUrl.replace('http', 'ws').replace('https', 'wss')}`;
         const wsUrl = `${baseWsUrl}/video-pipelines/${taskId}/ws?user_id=${user.id}`;
-        const socket = new WebSocket(wsUrl);
+        let socket: WebSocket | null = null;
+        let isCleaningUp = false;
 
-        socket.onopen = () => {
-            console.log("onopen: connected to pipeline state socket");
-        };
+        try {
+            socket = new WebSocket(wsUrl);
 
-        socket.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-                fetchVideoPipeline();
-            } catch (error) {
-                console.error("Error parsing WebSocket message:", error);
-            }
-        };
+            socket.onopen = () => {
+                if (!isCleaningUp) {
+                    console.log("onopen: connected to pipeline state socket");
+                }
+            };
 
-        socket.onerror = (error) => {
-            console.log("onerror: websocket error:", error);
-        };
+            socket.onmessage = (event) => {
+                if (!isCleaningUp) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        fetchVideoPipeline();
+                    } catch (error) {
+                        console.error("Error parsing WebSocket message:", error);
+                    }
+                }
+            };
 
-        socket.onclose = () => {
-            console.log("onclose: websocket closed");
-        };
+            socket.onerror = (error) => {
+                // only log errors if not cleaning up (to avoid noise from React Strict Mode)
+                if (!isCleaningUp && socket?.readyState !== WebSocket.CLOSING && socket?.readyState !== WebSocket.CLOSED) {
+                    console.log("onerror: websocket error:", error);
+                }
+            };
+
+            socket.onclose = (event) => {
+                // only log if it wasn't a normal closure during cleanup
+                if (!isCleaningUp && event.code !== 1000) {
+                    console.log("onclose: websocket closed:", event.code, event.reason);
+                }
+            };
+        } catch (error) {
+            console.error("Failed to create WebSocket:", error);
+        }
 
         // cleanup function to close the websocket connection when the component unmounts
         return () => {
-            if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
-                socket.close();
+            isCleaningUp = true;
+            if (socket) {
+                try {
+                    if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+                        socket.close(1000, 'Component unmounting');
+                    }
+                } catch (error) {
+                    // ignore errors during cleanup
+                }
             }
         };
     }, [taskId, user?.id]);
 
-    const generateOutlineContent = async (data: CreateVideoPipelineOutlineRequest) => {
+    const generateOutlineContent = async (data: CreateVideoOutlineRequest) => {
         setIsProcessingContent(true);
         try {
             await client.processVideoPipelineContent(taskId, data);
@@ -216,14 +247,14 @@ export default function TaskDetailPage() {
             <div className="flex flex-col md:flex-row gap-6 mx-auto">
                 <div className="w-full md:w-1/3 flex flex-col gap-4 order-1 md:order-1">
                     <VideoPipelineStagesManager 
-                        pipelineStageStatuses={videoPipeline.stage_statuses || {}} 
+                        videoPipeline={videoPipeline} 
                         onGenerateOutlineContent={generateOutlineContent} 
                         onScriptAndAudioGeneration={scriptAndAudioGeneration} 
                         onVideoGeneration={videoGeneration} 
                         onStageSelect={(stage) => setSelectedStage(stage)}
                         selectedStage={selectedStage}
                         defaultVideoTitle={videoPipeline.name}
-                        defaultVideoSubtitle={videoPipeline.description}
+                        defaultVideoSubtitle={videoPipeline.instructions}
                         isProcessingContent={isProcessingContent}
                         isGeneratingScripts={isGeneratingScripts}
                         isGeneratingVideo={isGeneratingVideo}
@@ -293,7 +324,7 @@ export default function TaskDetailPage() {
                                     isGeneratingVideo={isGeneratingVideo}
                                     isSubmittingReview={isSubmittingReview}
                                     defaultVideoTitle={videoPipeline.name}
-                                    defaultVideoSubtitle={videoPipeline.description}
+                                    defaultVideoSubtitle={videoPipeline.instructions}
                                 />
                             </CardContent>
                         </Card>
@@ -302,9 +333,7 @@ export default function TaskDetailPage() {
                 <div className="w-full md:w-1/3 flex flex-col gap-4 order-3 md:order-3">
                     <VideoPipelineDetails 
                         name={videoPipeline.name} 
-                        description={videoPipeline.description} 
-                        tags={videoPipeline.tags} 
-                        projects={videoPipeline.projects}
+                        instructions={videoPipeline.instructions} 
                         created_at={videoPipeline.created_at}
                         current_stage={videoPipeline.current_stage}
                         status={videoPipeline.status}

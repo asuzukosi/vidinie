@@ -30,7 +30,7 @@ class FontLoader:
         
     def _get_fonts_directory(self) -> Path:
         """get fonts directory path."""
-        fonts_dir = self.config.get('fonts.fonts_directory', 'fonts')
+        fonts_dir = self.config.fonts_fonts_directory
         
         # if relative path, make it relative to project root
         if not os.path.isabs(fonts_dir):
@@ -259,7 +259,7 @@ class FontLoader:
         returns:
             PIL ImageFont object
         """
-        font_path = self.config.get('fonts.default_font')
+        font_path = self.config.fonts_default_font
         return self.load_font(font_path, size)
     
     def _try_load_font(self, font_path: Optional[str], size: int) -> Optional[ImageFont.FreeTypeFont]:
