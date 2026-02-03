@@ -1,5 +1,5 @@
 "use client";
-import { AppSidebar } from "@/components/sidebar/app-sidebar";
+import { Sidebar } from "@/components/sidebar/sidebar";
 import { LoadingPage } from "@/components/utils/loading-page";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -10,9 +10,9 @@ export default function Home() {
   }, [router]);
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-        <AppSidebar>
+        <Sidebar>
             <LoadingPage />
-        </AppSidebar>
+        </Sidebar>
     </div>
   );
 }
