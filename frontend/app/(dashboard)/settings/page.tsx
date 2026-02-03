@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { LoadingPage } from "@/components/utils/loading-page";
 import { Badge } from "@/components/ui/badge";
-import Checkout from "@/components/utils/checkout";
+import { Checkout } from "@/components/utils/checkout";
 import type { RootState } from "@/lib/store/store";
 import { getCurrentSubscription, getAllSubscriptions, createCustomerPortalSession } from "@/lib/stripe";
 import type { SubscriptionInfo } from "@/lib/stripe";
