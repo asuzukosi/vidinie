@@ -82,8 +82,8 @@ export function OutlineContentModal({
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      target_segments: parseInt(e.target.value) || 10,
-                    })
+                      target_segments: parseInt(e.target.value),
+                    })  
                   }
                   required
                 />
@@ -104,7 +104,7 @@ export function OutlineContentModal({
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      segment_duration: parseInt(e.target.value) || 10,
+                      segment_duration: parseInt(e.target.value),
                     })
                   }
                   required

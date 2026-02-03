@@ -1,6 +1,6 @@
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY || '');
+const resend = new Resend(process.env.NEXT_PUBLIC_RESEND_API_KEY || '');
 
 interface EmailOptions {
   to: string;
@@ -191,6 +191,81 @@ P.S. We hope to see you back soon! 🙌`;
   return sendEmail({
     to: email,
     subject: 'Subscription canceled',
+    body,
+  });
+}
+
+/**
+ * send invoice payment succeeded email
+ */
+export async function sendPaymentSucceededEmail(
+  email: string,
+  amount: number,
+  currency: string,
+  planName: string,
+  creditsAdded: number
+) {
+  const formattedAmount = (amount / 100).toFixed(2);
+  const currencyUpper = currency.toUpperCase();
+  
+  const body = `Hey there! 👋
+
+Great news! Your payment of ${currencyUpper} ${formattedAmount} has been successfully processed! ✅
+
+Your ${planName} subscription payment was successful and your account has been credited with ${creditsAdded} video credits. 🎉
+
+You can now continue creating amazing videos with your updated credits.
+Questions? Just hit reply, I read everything. 💬
+
+From Kosi 😄
+Builder, Vidinie
+
+P.S. Thank you for your continued support! 🙌`;
+
+  return sendEmail({
+    to: email,
+    subject: 'Payment successful! ✅',
+    body,
+  });
+}
+
+/**
+ * send invoice payment failed email
+ */
+export async function sendPaymentFailedEmail(
+  email: string,
+  amount: number,
+  currency: string,
+  planName: string,
+  attemptCount: number,
+  errorMessage?: string
+) {
+  const formattedAmount = (amount / 100).toFixed(2);
+  const currencyUpper = currency.toUpperCase();
+  
+  const body = `Hey there! 👋
+
+We encountered an issue processing your payment of ${currencyUpper} ${formattedAmount} for your ${planName} subscription. ❌
+
+${attemptCount > 1 ? `This is attempt #${attemptCount}.` : 'This was the first attempt.'}
+${errorMessage ? `Error: ${errorMessage}` : 'Please check your payment method and try again.'}
+
+To resolve this:
+1. Check that your payment method is valid and has sufficient funds
+2. Update your payment method in your account settings if needed
+3. We'll automatically retry the payment
+
+Your subscription will remain active during this time. If the issue persists, please update your payment method or contact us.
+Questions? Just hit reply, I read everything. 💬
+
+From Kosi 😄
+Builder, Vidinie
+
+P.S. Need help? We're here to assist! 🙌`;
+
+  return sendEmail({
+    to: email,
+    subject: 'Payment failed - action required ⚠️',
     body,
   });
 }

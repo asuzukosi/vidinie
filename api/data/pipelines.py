@@ -6,7 +6,6 @@ from enum import Enum
 
 class VideoResolution(str, Enum):
     """video resolution."""
-    RESOLUTION_4K = "4K"
     RESOLUTION_1080P = "1080P"
     RESOLUTION_720P = "720P"
     RESOLUTION_480P = "480P"
@@ -83,7 +82,7 @@ class GenerateVideoPipelineRequest(BaseModel):
     title: Optional[str] = None
     subtitle: Optional[str] = None
     resolution: Optional[VideoResolution] = VideoResolution.RESOLUTION_720P
-    fps: Optional[int] = 30
+    fps: Optional[int] = Field(default=15, ge=10, le=30)
     title_duration: Optional[float] = 3.0
     end_duration: Optional[float] = 3.0
     transition_duration: Optional[float] = 0.5
@@ -102,7 +101,7 @@ class RunVideoPipelineOperationsRequest(BaseModel):
     title: Optional[str] = None
     subtitle: Optional[str] = None
     resolution: Optional[VideoResolution] = VideoResolution.RESOLUTION_720P
-    fps: Optional[int] = 30
+    fps: Optional[int] = Field(default=15, ge=10, le=30)
     title_duration: Optional[float] = 3.0
     end_duration: Optional[float] = 3.0
     transition_duration: Optional[float] = 0.5

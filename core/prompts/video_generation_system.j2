@@ -219,3 +219,60 @@ PRIMARY GOAL: Beautiful aesthetics and user enjoyment - prioritize visual beauty
 Read the remotion skill to understand how to make beautiful video compositions.
 Think cinematic and dynamic, not static web pages - create an engaging, beautiful visual experience.
 </aesthetics>
+
+<audio_handling>
+CRITICAL AUDIO VOLUME CONSTRAINTS:
+- ❌❌ DO NOT use complex interpolate() calculations for audio volume that reference segmentDuration
+- ❌❌ DO NOT create frame-by-frame volume envelopes - this causes FFmpeg filter nesting errors
+- ✅ Use CONSTANT audio volume values only: volume={1} or volume={0.3}
+- ✅ Audio fades must be handled by Remotion's preprocessing, NOT per-frame interpolation
+
+INCORRECT (causes FFmpeg errors):
+```typescript
+const audioVolume = interpolate(frame, [0, 10, segmentDuration - 15, segmentDuration], [0.3, 1, 1, 0.3]);
+<Audio src={staticFile('audio.mp3')} volume={audioVolume} />
+```
+
+CORRECT (no errors):
+```typescript
+// Option 1: Constant volume
+<Audio src={staticFile('audio.mp3')} volume={1} />
+
+// Option 2: Simple conditional (max 2-3 conditions)
+const audioVolume = frame < 10 ? 0.3 : frame > segmentDuration - 10 ? 0.3 : 1;
+<Audio src={staticFile('audio.mp3')} volume={audioVolume} />
+
+// Option 3: Use startFrom/endAt instead of volume fades
+<Audio 
+  src={staticFile('audio.mp3')} 
+  volume={1}
+  startFrom={10}  // Skip first 10 frames
+  endAt={segmentDuration - 10}  // End 10 frames early
+/>
+```
+
+WHY THIS MATTERS:
+- Remotion converts dynamic volume changes to FFmpeg volume filters
+- Complex interpolate() expressions create deeply nested if() statements in FFmpeg
+- FFmpeg has a ~100-200 level nesting limit
+- interpolate() with segmentDuration creates hundreds of nested conditions
+- This causes "Missing ')' or too many args" FFmpeg errors during render
+
+AUDIO CROSSFADING BETWEEN SEGMENTS:
+- Handle in Composition.tsx with volume prop on Audio components
+- Use simple 2-point interpolation maximum per segment
+- Example: Previous segment fades out in last 15 frames, next fades in first 15 frames
+```typescript
+// In Composition.tsx
+const seg1AudioVolume = frame > seg1Duration - 15 ? 
+  interpolate(frame, [seg1Duration - 15, seg1Duration], [1, 0]) : 1;
+
+const seg2AudioVolume = frame < 15 ? 
+  interpolate(frame, [0, 15], [0, 1]) : 1;
+```
+
+BACKGROUND MUSIC:
+- Use constant volume: volume={0.2} or volume={0.3}
+- ❌ NO dynamic volume calculations for background music
+- ✅ Set and forget - constant low volume throughout
+</audio_handling>

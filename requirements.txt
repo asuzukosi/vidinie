@@ -29,6 +29,7 @@ pydub
 # video generation
 moviepy==1.0.3
 numpy
+ffmpeg-python
 
 # fastapi
 fastapi[standard]

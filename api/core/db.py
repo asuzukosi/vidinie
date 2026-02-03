@@ -7,7 +7,7 @@ logger = get_logger("db")
 
 load_dotenv()
 
-MONGODB_URI = os.environ.get("MONGODB_URI", "mongodb://localhost:27017")
+MONGODB_URI = os.environ.get("MONGODB_URI", "mongodb://mongodb:27017")
 db_client = motor.motor_asyncio.AsyncIOMotorClient(MONGODB_URI)
 database = db_client["vidinie"]
 users_collection = database["users"]

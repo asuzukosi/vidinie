@@ -3,7 +3,8 @@ services:
   vidinie-backend:
     build:
       context: .
-      dockerfile: Dockerfile.backend
+      dockerfile: Dockerfile
+      target: backend
     networks:
       - vidinie-network
     ports:
@@ -29,10 +30,12 @@ services:
       - .env
     depends_on:
       - vidinie-backend
+      - mongodb
   vidinie-celery:
     build:
       context: .
-      dockerfile: Dockerfile.celery
+      dockerfile: Dockerfile
+      target: celery
     networks:
       - vidinie-network
     environment:
@@ -47,20 +50,12 @@ services:
   mongodb:
     image: mongo:latest
     container_name: mongodb
+    networks:
+      - vidinie-network
     ports:
       - "27017:27017"
-    command: mongod --replSet rs0 --bind_ip_all
-    
-  mongodb-setup:
-    image: mongo:latest
-    depends_on:
-      - mongodb
-    restart: "no"
-    entrypoint: >
-      bash -c "
-      sleep 2 &&
-      mongosh --host mongodb:27017 --eval 'rs.initiate()'
-      "
+    volumes:
+      - mongodb-data:/data/db
 
   redis:
     image: redis:7-alpine

@@ -233,7 +233,6 @@ export interface CreateVideoOutlineRequest {
 }
 
 export enum VideoResolution {
-    RESOLUTION_4K = '4K',
     RESOLUTION_1080P = '1080P',
     RESOLUTION_720P = '720P',
     RESOLUTION_480P = '480P',

@@ -75,11 +75,12 @@ async def process_content(
             images_metadata=images_metadata
         )
         
-        # fetch stock images
-        logger.info("fetching stock images")
+        # fetch stock images and videos
+        logger.info("fetching stock images and videos")
         stock_images_dir = os.path.join(temp_dir, pipeline.id, 'images', 'stock_images')
+        stock_videos_dir = os.path.join(temp_dir, pipeline.id, 'video_clips', 'stock_videos')
         try:
-            fetcher = StockFetcher(output_dir=stock_images_dir)
+            fetcher = StockFetcher(output_dir=stock_images_dir, video_output_dir=stock_videos_dir)
             outline.segments = await fetcher.fetch_for_segments_async(outline.segments)
         except ValueError as e:
             logger.warning(f"stock fetcher not available: {str(e)}")

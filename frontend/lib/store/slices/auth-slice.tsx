@@ -10,6 +10,8 @@ interface User {
     current_subscription?: string | null;
     profile_picture?: string | null;
     stripe_customer_id?: string | null;
+    videos_remaining?: number;
+    videos_generated?: number;
 }
 
 interface UserState {
@@ -89,8 +91,34 @@ const authSlice = createSlice({
                 state.user.email = action.payload;
             }
         },
+        updateVideosRemaining: (state, action: PayloadAction<number>) => {
+            if (state.user) {
+                state.user.videos_remaining = action.payload;
+                // persist to local storage
+                if (isWindowDefined()) {
+                    try {
+                        localStorage.setItem('vidinie_user', JSON.stringify(state.user));
+                    } catch (error) {
+                        console.error('error saving user to local storage:', error);
+                    }
+                }
+            }
+        },
+        updateVideosGenerated: (state, action: PayloadAction<number>) => {
+            if (state.user) {
+                state.user.videos_generated = action.payload;
+                // persist to local storage
+                if (isWindowDefined()) {
+                    try {
+                        localStorage.setItem('vidinie_user', JSON.stringify(state.user));
+                    } catch (error) {
+                        console.error('error saving user to local storage:', error);
+                    }
+                }
+            }
+        },
     },
 })
 
-export const { setUser, clearUser, updateSubscription, setEmail } = authSlice.actions;
+export const { setUser, clearUser, updateSubscription, setEmail, updateVideosRemaining, updateVideosGenerated } = authSlice.actions;
 export default authSlice.reducer;

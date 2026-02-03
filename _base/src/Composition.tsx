@@ -22,13 +22,13 @@
  * ⚠️ CRITICAL: Each segment handles fade in/out in first/last 10-15 frames
  * ⚠️ CRITICAL: Background music plays continuously throughout entire video
  */
-import { AbsoluteFill, Audio, Sequence, staticFile } from 'remotion';
+import { AbsoluteFill, Audio, Img, Sequence, staticFile } from 'remotion';
 // Import your segments here:
 // import { Segment1 } from './segments/Segment1';
 // import { Segment2 } from './segments/Segment2';
 
 export const MyComposition = () => {
-  // Calculate segment durations (seconds × 15 fps)
+  // Calculate segment durations (audio_duration × 15 fps)
   // const segment1Duration = 0; // Update based on audio length
   // const segment2Duration = 0; // Update based on audio length
 
@@ -45,6 +45,25 @@ export const MyComposition = () => {
       <Sequence from={segment1Duration} durationInFrames={segment2Duration}>
         <Segment2 />
       </Sequence>
+      */}
+
+      {/* CRITICAL: WATERMARK - Vidinie logo + white text "made with vidinie.com" in bottom right corner */}
+      {/* Must appear on ALL segments - fixed position, small size (slightly smaller), subtle opacity */}
+      {/* Text is white, NOT a clickable link - just plain text below logo */}
+      {/* Example:
+      <div style={{
+        position: 'absolute',
+        bottom: 15,
+        right: 15,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-end',
+        opacity: 0.8,
+        zIndex: 1000
+      }}>
+        <Img src={staticFile('vidinie.png')} style={{ width: 35, height: 'auto' }} />
+        <div style={{ fontSize: 11, color: '#ffffff', marginTop: 4 }}>made with vidinie.com</div>
+      </div>
       */}
     </AbsoluteFill>
   );

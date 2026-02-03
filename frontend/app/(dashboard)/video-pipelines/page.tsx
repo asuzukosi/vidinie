@@ -14,9 +14,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import posthog from 'posthog-js';
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { PostHogEvent } from "@/lib/utils";
 import type { RootState } from "@/lib/store/store";
+import { updateVideosRemaining, updateVideosGenerated } from "@/lib/store/slices/auth-slice";
+import { authClient } from "@/lib/auth-client";
 
 export default function TasksPage() {
   const searchParams = useSearchParams();
@@ -26,6 +28,7 @@ export default function TasksPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isCreatingTask, setIsCreatingTask] = useState(false);
   const user = useSelector((state: RootState) => state.auth.user);
+  const dispatch = useDispatch();
 
   const createTask = async (task: CreateVideoPipelineRequest) => {
 
@@ -36,6 +39,28 @@ export default function TasksPage() {
       } else {
         task.file = undefined;
         await client.createVideoPipelineFromUrl(task);
+      }
+      
+      // update video counts after successful pipeline creation using Better Auth
+      const newVideosRemaining = (user?.videos_remaining || 0) - 1;
+      const newVideosGenerated = (user?.videos_generated || 0) + 1;
+      
+      try {
+        // update user fields using Better Auth client SDK
+        const result = await (authClient as any).updateUser({
+          videos_remaining: newVideosRemaining,
+          vidoes_generated: newVideosGenerated, // Note: typo in Better Auth field name
+        });
+        
+        if (result?.error) {
+          throw new Error(result.error.message || "Failed to update video counts");
+        }
+        
+        // update Redux state
+        dispatch(updateVideosRemaining(newVideosRemaining));
+        dispatch(updateVideosGenerated(newVideosGenerated));
+      } catch (error) {
+        console.error("Error updating video counts:", error);
       }
     } catch (error) {
       console.error("Error creating task:", error);
@@ -85,41 +110,64 @@ export default function TasksPage() {
   // websocket connection for real-time pipeline updates
   useEffect(() => {
     if (!user?.id) {
-      console.log(`user id not found, skipping websocket connection on user object ${user}`);
       return;
     }
 
     const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
     const baseWsUrl = baseUrl.replace('http', 'ws').replace('https', 'wss');
     const wsUrl = `${baseWsUrl}/users/${user.id}/video-pipelines/ws`;
-    const socket = new WebSocket(wsUrl);
+    let socket: WebSocket | null = null;
+    let isCleaningUp = false;
 
-    socket.onopen = () => {
-      console.log("connected to user pipeline state socket");
-    };
+    try {
+      socket = new WebSocket(wsUrl);
 
-    socket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        console.log("received pipeline update:", data);
-        fetchVideoPipelines().catch(console.error);
-      } catch (error) {
-        console.error("Error parsing WebSocket message:", error);
-      }
-    };
+      socket.onopen = () => {
+        if (!isCleaningUp) {
+          console.log("connected to user pipeline state socket");
+        }
+      };
 
-    socket.onerror = (error) => {
-      console.error("websocket error:", error);
-    };
+      socket.onmessage = (event) => {
+        if (!isCleaningUp) {
+          try {
+            const data = JSON.parse(event.data);
+            console.log("received pipeline update:", data);
+            fetchVideoPipelines().catch(console.error);
+          } catch (error) {
+            console.error("Error parsing WebSocket message:", error);
+          }
+        }
+      };
 
-    socket.onclose = () => {
-      console.log("websocket closed");
-    };
+      socket.onerror = (error) => {
+        // only log errors if not cleaning up (to avoid noise from React Strict Mode)
+        if (!isCleaningUp && socket?.readyState !== WebSocket.CLOSING && socket?.readyState !== WebSocket.CLOSED) {
+          console.error("websocket error:", error);
+        }
+      };
+
+      socket.onclose = (event) => {
+        // only log if it wasn't a normal closure during cleanup
+        if (!isCleaningUp && event.code !== 1000) {
+          console.log("websocket closed:", event.code, event.reason);
+        }
+      };
+    } catch (error) {
+      console.error("Failed to create WebSocket:", error);
+    }
 
     // cleanup function to close the websocket connection when the component unmounts
     return () => {
-      if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
-        socket.close();
+      isCleaningUp = true;
+      if (socket) {
+        try {
+          if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+            socket.close(1000, 'Component unmounting');
+          }
+        } catch (error) {
+          // ignore errors during cleanup
+        }
       }
     };
   }, [user?.id]);

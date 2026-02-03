@@ -33,8 +33,8 @@ export default function TaskDetailPage() {
     const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
     const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
-    // helper function to find the last completed stage
-    const getLastCompletedStage = (pipeline: VideoPipeline): VideoPipelineStage => {
+    // helper function to find the last in-progress stage, or fall back to last completed stage
+    const getLastInProgressStage = (pipeline: VideoPipeline): VideoPipelineStage => {
         // define stages in order with their corresponding status fields
         const stagesInOrder: Array<{ stage: VideoPipelineStage; status: VideoPipelineStatus | undefined }> = [
             { stage: VideoPipelineStage.DOCUMENT_PROCESSING, status: pipeline.document_processing_status },
@@ -43,15 +43,26 @@ export default function TaskDetailPage() {
             { stage: VideoPipelineStage.VIDEO_GENERATION, status: pipeline.video_generation_status },
         ];
 
-        // find the last completed stage
-        let lastCompletedStage = VideoPipelineStage.DOCUMENT_PROCESSING;
+        // find the last in-progress stage
+        let lastInProgressStage: VideoPipelineStage | null = null;
         for (const { stage, status } of stagesInOrder) {
-            if (status === VideoPipelineStatus.COMPLETED) {
-                lastCompletedStage = stage;
+            if (status === VideoPipelineStatus.IN_PROGRESS) {
+                lastInProgressStage = stage;
             }
         }
 
-        return lastCompletedStage;
+        // if no stage is in progress, fall back to the last completed stage
+        if (lastInProgressStage === null) {
+            let lastCompletedStage = VideoPipelineStage.DOCUMENT_PROCESSING;
+            for (const { stage, status } of stagesInOrder) {
+                if (status === VideoPipelineStatus.COMPLETED) {
+                    lastCompletedStage = stage;
+                }
+            }
+            return lastCompletedStage;
+        }
+
+        return lastInProgressStage;
     };
 
     const fetchVideoPipeline = async () => {
@@ -63,9 +74,9 @@ export default function TaskDetailPage() {
             setIsProcessingContent(result.content_analysis_status === VideoPipelineStatus.IN_PROGRESS);
             setIsGeneratingScripts(result.script_generation_status === VideoPipelineStatus.IN_PROGRESS);
             setIsGeneratingVideo(result.video_generation_status === VideoPipelineStatus.IN_PROGRESS);
-            // set the selected stage to the last completed stage
-            const lastCompletedStage = getLastCompletedStage(result);
-            setSelectedStage(lastCompletedStage);
+            // set the selected stage to the last in-progress stage (or last completed if none in progress)
+            const lastInProgressStage = getLastInProgressStage(result);
+            setSelectedStage(lastInProgressStage);
         } catch (error) {
             console.error("Error fetching video pipeline:", error);
             toast.error(`Failed to retrieve video pipeline with id: ${taskId}`);
@@ -87,33 +98,57 @@ export default function TaskDetailPage() {
         const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
         const baseWsUrl = `${baseUrl.replace('http', 'ws').replace('https', 'wss')}`;
         const wsUrl = `${baseWsUrl}/video-pipelines/${taskId}/ws?user_id=${user.id}`;
-        const socket = new WebSocket(wsUrl);
+        let socket: WebSocket | null = null;
+        let isCleaningUp = false;
 
-        socket.onopen = () => {
-            console.log("onopen: connected to pipeline state socket");
-        };
+        try {
+            socket = new WebSocket(wsUrl);
 
-        socket.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-                fetchVideoPipeline();
-            } catch (error) {
-                console.error("Error parsing WebSocket message:", error);
-            }
-        };
+            socket.onopen = () => {
+                if (!isCleaningUp) {
+                    console.log("onopen: connected to pipeline state socket");
+                }
+            };
 
-        socket.onerror = (error) => {
-            console.log("onerror: websocket error:", error);
-        };
+            socket.onmessage = (event) => {
+                if (!isCleaningUp) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        fetchVideoPipeline();
+                    } catch (error) {
+                        console.error("Error parsing WebSocket message:", error);
+                    }
+                }
+            };
 
-        socket.onclose = () => {
-            console.log("onclose: websocket closed");
-        };
+            socket.onerror = (error) => {
+                // only log errors if not cleaning up (to avoid noise from React Strict Mode)
+                if (!isCleaningUp && socket?.readyState !== WebSocket.CLOSING && socket?.readyState !== WebSocket.CLOSED) {
+                    console.log("onerror: websocket error:", error);
+                }
+            };
+
+            socket.onclose = (event) => {
+                // only log if it wasn't a normal closure during cleanup
+                if (!isCleaningUp && event.code !== 1000) {
+                    console.log("onclose: websocket closed:", event.code, event.reason);
+                }
+            };
+        } catch (error) {
+            console.error("Failed to create WebSocket:", error);
+        }
 
         // cleanup function to close the websocket connection when the component unmounts
         return () => {
-            if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
-                socket.close();
+            isCleaningUp = true;
+            if (socket) {
+                try {
+                    if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+                        socket.close(1000, 'Component unmounting');
+                    }
+                } catch (error) {
+                    // ignore errors during cleanup
+                }
             }
         };
     }, [taskId, user?.id]);
