@@ -52,7 +52,7 @@ export default function SignInPage() {
         throw new Error(response.error.message || "Google authentication failed");
       }
       toast.success("Login successful!");
-      router.push("/");
+      // router.push("/");
     } catch (error: any) {
       toast.error("Google authentication failed", {
         description: error.message || "Please try again",
