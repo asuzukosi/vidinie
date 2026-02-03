@@ -42,7 +42,7 @@ app = FastAPI(title="[vidinie] backend service api",
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://localhost:3000/", 
-                   "https://vidinie.com", "https://api.vidinie.com"] + [os.getenv("FRONTEND_URL")],
+                   "https://vidinie.com", "https://app.vidinie.com", "https://api.vidinie.com"] + [os.getenv("FRONTEND_URL")],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
