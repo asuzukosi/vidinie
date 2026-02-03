@@ -1,5 +1,5 @@
 "use client";
-import { Sidebar } from "@/components/sidebar/sidebar";
+import { Sidebar } from "@/components/sidebar/root-sidebar";
 import { LoadingPage } from "@/components/utils/loading-page";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
