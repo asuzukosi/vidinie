@@ -33,9 +33,6 @@ ENV/
 # output directories
 output/
 temp/
-*.mp4
-*.mp3
-*.wav
 
 # ide files
 .vscode/
@@ -68,6 +65,3 @@ inputs/
 # output files
 output/
 temp/
-*.mp4
-*.mp3
-*.wav
