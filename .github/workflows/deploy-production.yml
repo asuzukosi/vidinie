@@ -1,0 +1,31 @@
+# .github/workflows/stagingdeployments.yml
+name: Test and Deploy Production Back-end Application
+
+on:
+  push:
+    branches: [ production ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Install sshpass
+        run: sudo apt-get install -y sshpass
+      
+      - name: Deploy to Production
+        env:
+          HOST: ${{ secrets.HOST }}
+          USER: ${{ secrets.USER }}
+          PASSWORD: ${{ secrets.PASSWORD }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          sshpass -p "${PASSWORD}" ssh -o StrictHostKeyChecking=no ${USER}@${HOST} "
+            cd ${DEPLOY_PATH} &&
+            git pull origin production &&
+            git checkout production &&
+            docker compose build &&
+            docker compose down &&
+            docker compose up -d
+          "
