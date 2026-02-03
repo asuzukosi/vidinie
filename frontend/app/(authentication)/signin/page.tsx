@@ -31,7 +31,7 @@ export default function SignInPage() {
       // show success toast
       toast.success("Login successful!");
       // navigate to the video pipelines page
-      router.push("/video-pipelines");
+      // router.push("/video-pipelines");
     } catch (error: any) {
       toast.error("Login failed", {
         description: error.message || "Invalid email or password",

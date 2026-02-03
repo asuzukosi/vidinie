@@ -52,17 +52,16 @@ export default function SignUpPage() {
   const handleGoogleSignup = useCallback(async () => {
     try {
       // use better-auth google authentication
-      // Note: This redirects to Google, then back to callbackURL
       const response = await authClient.signIn.social({
         provider: "google",
-        callbackURL: "/video-pipelines",
+        callbackURL: "/",
       });
       // if there is an error, throw an error
       if (response.error) {
         throw new Error(response.error.message || "Google authentication failed");
       }
-      // For OAuth, the redirect happens automatically, so this code may not execute
-      // The session will be validated when the user lands on the callbackURL
+      toast.success("Account created successfully!");
+      router.push("/");
     } catch (error: any) {
       toast.error("Google authentication failed", {
         description: error.message || "Please try again",
