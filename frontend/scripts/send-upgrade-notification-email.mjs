@@ -9,7 +9,7 @@
 
 import { Resend } from 'resend';
 
-const resend = new Resend('re_xxxx...xxxxxx');
+const resend = new Resend('re_HTs8m292_8fRmUTfSWkvJXjBQgGHCkYo4');
 
 /**
  * Send upgrade notification email to a user

@@ -23,7 +23,7 @@ import posthog from 'posthog-js';
 import { useSelector } from "react-redux";
 import type { RootState } from "@/lib/store/store";
 
-interface CheckoutProps extends Omit<React.ComponentProps<"div">, "onError"> {
+export interface CheckoutProps extends Omit<React.ComponentProps<"div">, "onError"> {
   plan: string; // plan id for better-auth subscription - required
   planName?: string;
   planPrice?: string;
@@ -37,7 +37,7 @@ interface CheckoutProps extends Omit<React.ComponentProps<"div">, "onError"> {
   buttonClassName?: string;
 }
 
-export default function Checkout({
+export function Checkout({
   plan,
   planName,
   planPrice,
