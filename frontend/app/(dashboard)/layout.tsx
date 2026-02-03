@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSelector, useDispatch } from "react-redux";
 import { authClient } from "@/lib/auth-client";
 import { setUser } from "@/lib/store/slices/auth-slice";
-import { AppSidebar } from "@/components/sidebar/app-sidebar";
+import { Sidebar } from "@/components/sidebar/root-sidebar";
 import type { RootState } from "@/lib/store/store";
 import { LoadingPage } from "@/components/utils/loading-page";
 
@@ -59,9 +59,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     return (
         <div className="flex min-h-screen bg-zinc-50 font-sans dark:bg-black">
-            <AppSidebar>
+            <Sidebar>
                 {children}
-            </AppSidebar>
+            </Sidebar>
         </div>
     );
 }
