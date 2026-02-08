@@ -102,12 +102,13 @@ export async function handleSubscriptionCreated(
   }
   const priceId = subscription.items.data[0]?.price.id;
   const planName = getPlanNameFromPriceId(priceId);
+
+  console.log(`subscription created for user ${user.email} on plan ${planName}`);
   if (user.email) {
       void sendSubscriptionActivatedEmail(user.email, planName).catch((error) => {
         console.error('Failed to send subscription created email:', error);
       });
   }
-  console.log(`subscription created for user ${user.email} on plan ${planName}`);
 }
 
 export async function handleSubscriptionUpdated(
@@ -198,7 +199,16 @@ export async function handlePaymentSucceeded(
     console.warn(`user not found for customer ${customer.id}`);
     return;
   }
-  const creditsAdded = await updateUserVideosRemaining(user.id, planName);
+  const isSubscriptionInvoice = invoice.billing_reason === 'subscription_create' || 
+                                 invoice.billing_reason === 'subscription_cycle';
+  let creditsAdded = 0;
+  if (isSubscriptionInvoice && subscriptionId !== "N/A") {
+    creditsAdded = await updateUserVideosRemaining(user.id, planName);
+    console.log(`credits added: ${creditsAdded} (billing_reason: ${invoice.billing_reason})`);
+  } else {
+    console.log(`skipping credit addition - not a subscription invoice (billing_reason: ${invoice.billing_reason})`);
+  }
+  
   console.log(`payment succeeded for user ${user.email}`);
   console.log(`amount paid: ${(invoice.amount_paid / 100).toFixed(2)} ${invoice.currency?.toUpperCase()}`);
   
