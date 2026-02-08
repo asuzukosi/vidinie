@@ -2,7 +2,7 @@
  * better-auth stripe subscription management helpers
  */
 
-import { authClient } from "./auth-client";
+import { authClient } from "@/lib/auth-client";
 
 export interface SubscriptionInfo {
   id: string;

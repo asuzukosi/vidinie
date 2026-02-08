@@ -7,7 +7,6 @@ interface User {
     created_at?: string;
     updated_at?: string;
     is_verified?: boolean;
-    current_subscription?: string | null;
     profile_picture?: string | null;
     stripe_customer_id?: string | null;
     videos_remaining?: number;
@@ -81,11 +80,6 @@ const authSlice = createSlice({
                 console.error('window is not defined');
             }
         },
-        updateSubscription: (state, action: PayloadAction<string>) => {
-            if (state.user) {
-                state.user.current_subscription = action.payload;
-            }
-        },
         setEmail: (state, action: PayloadAction<string>) => {
             if (state.user) {
                 state.user.email = action.payload;
@@ -120,5 +114,5 @@ const authSlice = createSlice({
     },
 })
 
-export const { setUser, clearUser, updateSubscription, setEmail, updateVideosRemaining, updateVideosGenerated } = authSlice.actions;
+export const { setUser, clearUser, setEmail, updateVideosRemaining, updateVideosGenerated } = authSlice.actions;
 export default authSlice.reducer;
