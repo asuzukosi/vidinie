@@ -14,6 +14,7 @@ import { LoadingPage } from "@/components/utils/loading-page";
 import type { RootState } from "@/lib/store/store";
 import { setEmail } from "@/lib/store/slices/auth-slice";
 import { Loader2 } from "lucide-react";
+import { getCurrentSubscription, SubscriptionInfo } from "@/lib/stripe";
 
 export default function ProfilePage() {
   const user = useSelector((state: RootState) => state.auth.user);
@@ -28,6 +29,15 @@ export default function ProfilePage() {
     newPassword: "",
     confirmPassword: "",
   });
+  const [currentSubscription, setCurrentSubscription] = useState<SubscriptionInfo | null>(null);
+
+  useEffect(() => {
+    const loadSubscription = async () => {
+      const subscription = await getCurrentSubscription();
+      setCurrentSubscription(subscription);
+    };
+    loadSubscription();
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -204,7 +214,7 @@ export default function ProfilePage() {
                 <FieldLabel>Subscription Plan</FieldLabel>
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium capitalize">
-                    {user.current_subscription || "Free"}
+                    {currentSubscription?.plan || "Free"}
                   </span>
                 </div>
                 <FieldDescription>

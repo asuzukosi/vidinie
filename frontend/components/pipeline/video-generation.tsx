@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { VideoPlayer } from "@/components/utils/video-player";
 import { GenerateVideoPipelineRequest, VideoPipelineReviewRequest } from "@/lib/sdk/types";
@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import posthog from 'posthog-js';
 import { PostHogEvent } from "@/lib/utils";
+import { getCurrentSubscription, SubscriptionInfo } from "@/lib/stripe";
 
 interface VideoGenerationProps {
     videoPipelineId: string;
@@ -52,10 +53,18 @@ export function VideoGeneration({
 }: VideoGenerationProps) {
     const router = useRouter();
     const user = useAppSelector((state) => state.auth.user);
-    const subscription = user?.current_subscription || "free";
+    const [currentSubscription, setCurrentSubscription] = useState<SubscriptionInfo | null>(null);
     const [isVideoGenerationModalOpen, setIsVideoGenerationModalOpen] = useState(false);
     const [isDownloading, setIsDownloading] = useState(false);
     const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+
+    useEffect(() => {
+        const loadSubscription = async () => {
+            const subscription = await getCurrentSubscription();
+            setCurrentSubscription(subscription);
+        };
+        loadSubscription();
+    }, []);
 
     const handleVideoGenerationSubmit = (data: GenerateVideoPipelineRequest) => {
         if (onVideoGeneration) {
@@ -66,7 +75,11 @@ export function VideoGeneration({
 
     const handleDownload = async () => {
         // check if user has free subscription
-        if (subscription === "free") {
+        if (!currentSubscription) {
+            setIsUpgradeModalOpen(true);
+            return;
+        }
+        if(currentSubscription.plan === "free") {
             setIsUpgradeModalOpen(true);
             return;
         }

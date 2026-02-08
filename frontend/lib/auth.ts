@@ -67,13 +67,13 @@ export const auth = betterAuth({
         required: false,
         min: 0,
         defaultValue: 2,
-        input: false,
+        input: true,
       },
-      vidoes_generated: {
+      videos_generated: {
         type: "number",
         required: false,
         defaultValue: 0,
-        input: false,
+        input: true,
       },
     },
   },

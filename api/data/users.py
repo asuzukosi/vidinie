@@ -15,7 +15,6 @@ class User(BaseModel):
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
     is_verified: bool = Field(default=False)
-    current_subscription: Optional[SubscriptionType] = Field(default=SubscriptionType.FREE)
     profile_picture: Optional[str] = None  # path to profile picture file
     stripe_customer_id: Optional[str] = None  # stripe customer ID
     google_id: Optional[str] = None  # Google user ID for OAuth users

@@ -46,10 +46,10 @@ export default function TasksPage() {
       const newVideosGenerated = (user?.videos_generated || 0) + 1;
       
       try {
-        // update user fields using Better Auth client SDK
-        const result = await (authClient as any).updateUser({
+        // update user fields using better-auth client SDK
+        const result = await authClient.updateUser({
           videos_remaining: newVideosRemaining,
-          vidoes_generated: newVideosGenerated, // Note: typo in Better Auth field name
+          videos_generated: newVideosGenerated,
         });
         
         if (result?.error) {
