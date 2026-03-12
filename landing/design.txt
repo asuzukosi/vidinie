@@ -1,0 +1,5 @@
+Font: Stack Sans Notch
+Primary brand color: #c78ef2
+Secondary / stronger accent color: #a95de3
+Main background: #ececdf
+Strong dark text / contrast color: #161613
