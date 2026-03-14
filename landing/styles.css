@@ -1454,6 +1454,10 @@ h1 {
     gap: 18px;
 }
 
+.listing-shell h1 {
+    max-width: 18ch;
+}
+
 .article-index-list {
     border-top: 1px solid var(--line);
 }
