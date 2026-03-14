@@ -55,8 +55,8 @@ def add_image_to_pipeline(
     if not video_pipeline.id:
         raise ValueError("Pipeline ID not found for this pipeline. Create a new pipeline object to continue")
     
-    temp_dir = config.output_temp_directory
-    image_path = os.path.join(temp_dir, video_pipeline.id, "images", image.filename)
+    output_dir = str(config.output_directory)
+    image_path = os.path.join(output_dir, video_pipeline.id, "images", image.filename)
     _save_image_file(image, image_path)
     image_metadata = _create_image_metadata(image, image_path)
     

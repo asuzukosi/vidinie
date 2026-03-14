@@ -31,8 +31,8 @@ async def process_pdf_document(
     returns:
         updated video pipeline with parsed content and optionally labeled images
     """
-    temp_dir = config.output_temp_directory
-    images_dir = os.path.join(temp_dir, pipeline.id, 'images')
+    output_dir = str(config.output_directory)
+    images_dir = os.path.join(output_dir, pipeline.id, 'images')
     os.makedirs(images_dir, exist_ok=True)
     
     # validate input
@@ -84,8 +84,8 @@ async def process_html_document(
     returns:
         updated video pipeline with parsed content and optionally labeled images
     """
-    temp_dir = config.output_temp_directory
-    images_dir = os.path.join(temp_dir, pipeline.id, 'images')
+    output_dir = str(config.output_directory)
+    images_dir = os.path.join(output_dir, pipeline.id, 'images')
     os.makedirs(images_dir, exist_ok=True)
     
     # validate input

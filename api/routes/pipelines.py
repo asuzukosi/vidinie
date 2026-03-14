@@ -49,22 +49,35 @@ from api.core.signals import broadcast_message, listen_for_messages, PipelineBro
 from api.core.celery import execute_pipeline_task
 
 # setup logging
-setup_logging(log_dir='temp')
+setup_logging(log_dir=str(config.logs_directory))
 logger = get_logger('pipelines')
-
-
 router = APIRouter(tags=["pipelines"])
 
+
+async def copy_base_to_target(target_path: str) -> bool:
+    """copy the base project to the target path."""
+    copy_target_path = os.path.join(target_path)
+    if os.path.exists(copy_target_path):
+        logger.info(f"removing existing composition at {copy_target_path}")
+        shutil.rmtree(copy_target_path)
+    logger.info(f"copying base project to {copy_target_path}")
+    return shutil.copytree(str(config.base_project_path), copy_target_path)
 
 # special utility function to write content to file for pipeline
 async def write_content_to_file_for_pipeline(video_pipeline: VideoPipeline, 
                                              filename: str, 
                                              file_content: bytes) -> None:
     # now save file to disk with the final id
-    temp_dir = config.output_temp_directory
-    pipeline_dir = os.path.join(temp_dir, video_pipeline.id, "source")
+    output_dir = str(config.output_directory)
+    pipeline_dir = os.path.join(output_dir, video_pipeline.id)
+    # create pipeline directory
     Path(pipeline_dir).mkdir(parents=True, exist_ok=True)
-    file_path = os.path.join(pipeline_dir, filename)
+    # copy base project to pipeline directory
+    await copy_base_to_target(pipeline_dir)
+    pipeline_source_path = os.path.join(pipeline_dir, 'public', 'sources')
+    # create folder for source files
+    Path(pipeline_source_path).mkdir(parents=True, exist_ok=True)
+    file_path = os.path.join(pipeline_source_path, filename)
     with open(file_path, 'wb') as f:
         f.write(file_content)
     video_pipeline.source_path = file_path
@@ -81,8 +94,8 @@ async def write_content_to_file_for_pipeline(video_pipeline: VideoPipeline,
 # special utility function to delete pipeline temp directory
 async def delete_pipeline_temp_directory(video_pipeline: VideoPipeline) -> None:
     # delete temp directory for pipeline
-    temp_dir = config.output_temp_directory
-    pipeline_dir = os.path.join(temp_dir, video_pipeline.id)
+    output_dir = str(config.output_directory)
+    pipeline_dir = os.path.join(output_dir, video_pipeline.id)
     if os.path.exists(pipeline_dir):
         shutil.rmtree(pipeline_dir)
         logger.info(f"temp directory deleted successfully with id: {video_pipeline.id}")

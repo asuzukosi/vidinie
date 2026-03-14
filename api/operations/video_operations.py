@@ -29,7 +29,7 @@ async def generate_video(
     returns:
         updated video pipeline with video path
     """
-    temp_dir = config.output_temp_directory
+    output_dir = str(config.output_directory)
     
     if not pipeline.full_audio_path:
         logger.error("Full audio path not found in pipeline data")
@@ -48,7 +48,7 @@ async def generate_video(
         logger.info(f"Using script data for {len(script_data.segments)} segments")
         
         # generate video
-        video_dir = os.path.join(temp_dir, pipeline.id)
+        video_dir = os.path.join(output_dir, pipeline.id)
         os.makedirs(video_dir, exist_ok=True)
         
         video_gen = VideoGenerator(

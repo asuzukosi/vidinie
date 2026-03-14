@@ -28,7 +28,7 @@ async def generate_scripts(
     returns:
         updated video pipeline with script data, full audio path, and full audio duration
     """
-    temp_dir = config.output_temp_directory
+    output_dir = str(config.output_directory)
     
     if not pipeline.video_outline:
         logger.error("Video outline not found in pipeline data")
@@ -46,7 +46,7 @@ async def generate_scripts(
         logger.info(f"Generated scripts for {len(script_data.segments)} segments")
         
         # Generate voiceovers
-        audio_dir = os.path.join(temp_dir, pipeline.id, 'audio')
+        audio_dir = os.path.join(output_dir, pipeline.id, 'audio')
         os.makedirs(audio_dir, exist_ok=True)
         
         voiceover_gen = VoiceoverGenerator(
@@ -59,7 +59,7 @@ async def generate_scripts(
         logger.info(f"Generated voiceovers for {len(script_data_with_audio.segments)} segments")
         
         # senerate background music if query is provided
-        music_dir = os.path.join(temp_dir, pipeline.id, 'music')
+        music_dir = os.path.join(output_dir, pipeline.id, 'music')
         os.makedirs(music_dir, exist_ok=True)
         
         music_gen = MusicGenerator(output_dir=music_dir)

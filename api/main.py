@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from api.core.signals import connect_to_broadcast, disconnect_from_broadcast
 from api.core.config import initialize_config, destroy_config
 from api.core.db import initialize_db, disconnect_from_db
+from core.utils.config_loader import config
 from core.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -65,11 +66,10 @@ class CORSStaticFiles(StaticFiles):
         await super().__call__(scope, receive, send_wrapper)
 
 # mount the media directory
-if not os.path.exists("temp"):
-    os.makedirs("temp", exist_ok=True)
-    app.mount("/media", CORSStaticFiles(directory="temp"), name="media")
-else:
-    app.mount("/media", CORSStaticFiles(directory="temp"), name="media")
+output_dir = str(config.output_directory)
+if not os.path.exists(output_dir):
+    os.makedirs(output_dir, exist_ok=True)
+app.mount("/media", CORSStaticFiles(directory=output_dir), name="media")
 
 # include the routes
 app.include_router(users.router, prefix="/users")

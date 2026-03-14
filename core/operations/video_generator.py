@@ -16,7 +16,6 @@ from core.data import (
     VideoOutline, 
 )
 from core.data.segment_models import to_xml_prompt_context
-
 from claude_agent_sdk import query # function to query the agent
 from claude_agent_sdk.types import ClaudeAgentOptions # class for the agent options
 from claude_agent_sdk.types import AssistantMessage # class for the assistant message
@@ -51,11 +50,11 @@ class VideoGenerator:
         self.resolution = resolution
         self.user_instructions = user_instructions
         self.jinja_env = Environment(
-            loader=FileSystemLoader(str(config.get_prompts_directory())),
+            loader=FileSystemLoader(str(config.prompts_directory)),
             autoescape=select_autoescape(['html', 'xml'])
         )
-        self.base_project_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '_base')
-        self.remotion_tool_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '.claude/skills/remotion-best-practices')
+        self.base_project_path = config.base_project_path
+        self.remotion_tool_path = config.remotion_tool_path
         logger.info(f"initialized video generator: {self.resolution}")
 
         if not self._check_remotion_tool():

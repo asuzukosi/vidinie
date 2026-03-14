@@ -6,6 +6,7 @@ import os
 import asyncio
 from pathlib import Path
 from api.utils.error_wrapper import error_wrapper
+from core.utils.config_loader import config
 
 logger = get_logger("users")
 router = APIRouter(tags=["users"])
@@ -26,8 +27,8 @@ async def upload_profile_picture(
         )
     
     # create user directory if it doesn't exist
-    temp_dir = "temp"
-    user_dir = os.path.join(temp_dir, "users", user_id)
+    output_dir = str(config.output_directory)
+    user_dir = os.path.join(output_dir, "users", user_id)
     Path(user_dir).mkdir(parents=True, exist_ok=True)
     
     # try to delete old profile picture if it exists

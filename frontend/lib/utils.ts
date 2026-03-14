@@ -32,7 +32,7 @@ export function getLinkToImage(
   
   let processedPath = filePath;
   if (swap_with_media) {
-    processedPath = processedPath.replace("temp", "media");
+    processedPath = processedPath.replace("outputs", "media").replace("temp", "media");
   }
   // remove leading slash from path if present to avoid double slashes
   const cleanPath = processedPath.startsWith("/") ? processedPath.slice(1) : processedPath;

@@ -38,7 +38,7 @@ async def process_content(
         updated video pipeline with video outline
     """
     anthropic_api_key = config.anthropic_api_key
-    temp_dir = config.output_temp_directory
+    output_dir = str(config.output_directory)
     
     if not anthropic_api_key:
         logger.error("anthropic api key required")
@@ -77,8 +77,8 @@ async def process_content(
         
         # fetch stock images and videos
         logger.info("fetching stock images and videos")
-        stock_images_dir = os.path.join(temp_dir, pipeline.id, 'images', 'stock_images')
-        stock_videos_dir = os.path.join(temp_dir, pipeline.id, 'video_clips', 'stock_videos')
+        stock_images_dir = os.path.join(output_dir, pipeline.id, 'images', 'stock_images')
+        stock_videos_dir = os.path.join(output_dir, pipeline.id, 'video_clips', 'stock_videos')
         try:
             fetcher = StockFetcher(output_dir=stock_images_dir, video_output_dir=stock_videos_dir)
             outline.segments = await fetcher.fetch_for_segments_async(outline.segments)
@@ -87,7 +87,7 @@ async def process_content(
         
         # generate ai images
         logger.info("generating ai images")
-        ai_images_dir = os.path.join(temp_dir, pipeline.id, 'images', 'ai_images')
+        ai_images_dir = os.path.join(output_dir, pipeline.id, 'images', 'ai_images')
         generator = ImageGenerator(output_dir=ai_images_dir)
         outline.segments = await generator.generate_for_segments(
             pipeline_id=pipeline.id,
@@ -96,7 +96,7 @@ async def process_content(
         
         # generate ai video clips
         logger.info("generating ai video clips")
-        ai_videos_dir = os.path.join(temp_dir, pipeline.id, 'video_clips', 'ai_video_clips')
+        ai_videos_dir = os.path.join(output_dir, pipeline.id, 'video_clips', 'ai_video_clips')
         video_clip_generator = VideoClipGenerator(output_dir=ai_videos_dir)
         outline.segments = await video_clip_generator.generate_for_segments(
             pipeline_id=pipeline.id,

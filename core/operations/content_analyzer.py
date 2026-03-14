@@ -104,7 +104,7 @@ class ContentAnalyzer:
         """
         # load system prompt from template
         jinja_env = Environment(
-            loader=FileSystemLoader(str(config.get_prompts_directory())),
+            loader=FileSystemLoader(str(config.prompts_directory)),
             autoescape=select_autoescape(['html', 'xml'])
         )
         # render system prompt
@@ -189,7 +189,7 @@ class ContentAnalyzer:
         # get the prompt for video outline generation
         images_text = self._extract_images_prompt(images_metadata)
         jinja_env = Environment(
-            loader=FileSystemLoader(str(config.get_prompts_directory())),
+            loader=FileSystemLoader(str(config.prompts_directory)),
             autoescape=select_autoescape(['html', 'xml'])
         )
 
