@@ -160,9 +160,9 @@
                 <a href="#pricing">Pricing</a>
                 <a href="#features">Features</a>
                 <a href="#support">Workflow</a>
-                <a href="usecases/">Use cases</a>
-                <a href="blog/">Blog</a>
-                <a href="comparisons/">Comparisons</a>
+                <a href="usecases/index.html">Use cases</a>
+                <a href="blog/index.html">Blog</a>
+                <a href="comparisons/index.html">Comparisons</a>
             </div>
         </div>
         <div class="nav-actions">
@@ -178,7 +178,7 @@
         <section class="section" id="home">
             <div class="hero hero-split">
                 <div class="hero-copy">
-                    <p class="section-kicker">Content to video, rethought</p>
+                    <!-- <p class="section-kicker">Content to video, rethought</p> -->
                     <h1>Turn articles and PDFs into <span class="gradient-text">polished videos</span> without rebuilding the story.</h1>
                     <p class="subtitle">Vidinie gives teams a premium workflow for turning existing written content into narrated, review-ready videos with structure, speed, and brand consistency built in.</p>
                     <div class="app-buttons">
@@ -250,7 +250,7 @@
             <div class="content-page">
                 <div class="section-header">
                     <p class="section-kicker">Built for modern teams</p>
-                    <h2 id="team-narratives-title">One video workflow for every <span class="gradient-text">team narrative.</span></h2>
+                    <h2 class="section-title" id="team-narratives-title">One video workflow for every <span class="gradient-text">team narrative.</span></h2>
                     <p class="section-summary">Vidinie helps different teams turn written knowledge into clear, repeatable video output without rebuilding the story from scratch each time.</p>
                 </div>
 
@@ -282,7 +282,7 @@
             <div class="content-page">
                 <div class="section-header">
                     <p class="section-kicker">Pricing</p>
-                    <h2>Clear plans for teams moving from written content to <span class="gradient-text">video production.</span></h2>
+                    <h2 class="section-title">Clear plans for teams moving from written content to <span class="gradient-text">video production.</span></h2>
                     <p class="section-summary">Start simple, scale into branded workflows, and choose the plan that matches how often your team publishes.</p>
                 </div>
 
@@ -348,7 +348,7 @@
                     <div>
                         <div class="section-header">
                             <p class="section-kicker">Features</p>
-                            <h2>Built for teams that want a <span class="gradient-text">content-native</span> video workflow.</h2>
+                            <h2 class="section-title">Built for teams that want a <span class="gradient-text">content-native</span> video workflow.</h2>
                             <p class="section-summary">The platform is designed around existing source material, so the first draft comes from strategy and structure, not from a blank timeline.</p>
                         </div>
 
@@ -369,12 +369,21 @@
                     </div>
 
                     <div class="feature-orbit" aria-hidden="true">
-                        <div class="orbit-ring outer"></div>
-                        <div class="orbit-ring inner"></div>
-                        <div class="orbit-core"></div>
-                        <div class="orbit-node top">Source content</div>
-                        <div class="orbit-node right">Scene design</div>
-                        <div class="orbit-node bottom">Final export</div>
+                        <div class="feature-orbit-card source">
+                            <span class="feature-orbit-step">01</span>
+                            <strong>source content</strong>
+                            <span>pdfs, reports, articles, and live pages</span>
+                        </div>
+                        <div class="feature-orbit-card design">
+                            <span class="feature-orbit-step">02</span>
+                            <strong>scene design</strong>
+                            <span>turn structure into scenes, pacing, and narration</span>
+                        </div>
+                        <div class="feature-orbit-card export">
+                            <span class="feature-orbit-step">03</span>
+                            <strong>final export</strong>
+                            <span>share a review-ready cut with a cleaner handoff</span>
+                        </div>
                     </div>
                 </div>
 
@@ -399,7 +408,7 @@
             <div class="content-page">
                 <div class="section-header">
                     <p class="section-kicker">Workflow</p>
-                    <h2>From source material to <span class="gradient-text">review-ready output</span> in one connected system.</h2>
+                    <h2 class="section-title">From source material to <span class="gradient-text">review-ready output</span> in one connected system.</h2>
                     <p class="section-summary">The product is organized for reliability and scale: structured input, cleaner drafting, and output that is easy to review with the rest of your team.</p>
                 </div>
 
@@ -433,8 +442,10 @@
                 <div class="support-grid" style="margin-top: 20px;">
                     <article class="support-card">
                         <div class="support-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8">
-                                <path d="M4 6h16M4 12h10M4 18h7"/>
+                            <svg width="800px" height="800px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <rect x="4" y="4" width="16" height="5" rx="1" stroke-width="3"/>
+                                <path d="M4 17C4 16.0572 4 15.5858 4.29289 15.2929C4.58579 15 5.05719 15 6 15H9V18C9 18.9428 9 19.4142 8.70711 19.7071C8.41421 20 7.94281 20 7 20H6C5.05719 20 4.58579 20 4.29289 19.7071C4 19.4142 4 18.9428 4 18V17Z" stroke-width="3"/>
+                                <path d="M15 15H18C18.9428 15 19.4142 15 19.7071 15.2929C20 15.5858 20 16.0572 20 17V18C20 18.9428 20 19.4142 19.7071 19.7071C19.4142 20 18.9428 20 18 20H17C16.0572 20 15.5858 20 15.2929 19.7071C15 19.4142 15 18.9428 15 18V15Z" stroke-width="3"/>
                             </svg>
                         </div>
                         <h3>Structured inputs</h3>
@@ -442,18 +453,21 @@
                     </article>
                     <article class="support-card">
                         <div class="support-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8">
-                                <path d="M5 19l6-6 4 4 4-8"/>
-                            </svg>
+                            <svg fill="#000000" width="800px" height="800px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M15.29,10.29l-2.78,2.78A2.09,2.09,0,0,0,12,13a2,2,0,0,0-2,2,2.09,2.09,0,0,0,.07.51l-.78.78a1,1,0,0,0,0,1.42,1,1,0,0,0,1.42,0l.78-.78A2.09,2.09,0,0,0,12,17a2,2,0,0,0,2-2,2.09,2.09,0,0,0-.07-.51l2.78-2.78a1,1,0,0,0-1.42-1.42ZM12,4A10,10,0,0,0,2,14a9.91,9.91,0,0,0,1.69,5.56,1,1,0,0,0,1.66-1.12,8,8,0,1,1,13.3,0,1,1,0,0,0,.27,1.39,1,1,0,0,0,.56.17,1,1,0,0,0,.83-.44A9.91,9.91,0,0,0,22,14,10,10,0,0,0,12,4Z"/></svg>
                         </div>
                         <h3>Faster iteration</h3>
                         <p>Review drafts earlier, tighten narrative faster, and spend time on quality instead of repetitive setup.</p>
                     </article>
                     <article class="support-card">
                         <div class="support-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8">
-                                <path d="M12 3l7 4v5c0 5-3.5 8-7 9-3.5-1-7-4-7-9V7l7-4z"/>
-                            </svg>
+                            <svg width="800px" height="800px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <g id="style=doutone">
+                                <g id="message">
+                                <path id="vector (Stroke)" fill-rule="evenodd" clip-rule="evenodd" d="M21.1278 6.18259C21.1276 6.1832 21.1275 6.1838 21.1273 6.18441L17.013 19.394C16.2487 21.839 12.8232 21.8798 12.0108 19.4468L12.01 19.4442L10.7875 15.8276C10.3768 14.5745 9.39515 13.6265 8.17816 13.2211C8.17775 13.221 8.17735 13.2208 8.17694 13.2207L4.55221 11.9997C2.12266 11.1855 2.16644 7.74515 4.58179 6.98632C4.58215 6.9862 4.58252 6.98608 4.58289 6.98597L17.8396 2.87816L17.8434 2.87697C19.8553 2.24181 21.755 4.1257 21.1278 6.18259ZM17.3938 1.44593C20.5863 0.439728 23.5345 3.43986 22.5618 6.62281L18.4449 19.8408C17.2516 23.658 11.8683 23.7517 10.5886 19.9234C10.5884 19.9229 10.5882 19.9224 10.5881 19.9219L9.36534 16.3045L9.36293 16.2972C9.10562 15.5095 8.48677 14.9047 7.70334 14.644L7.70072 14.6431L4.07556 13.422C4.07563 13.422 4.07549 13.4219 4.07556 13.422C0.276533 12.1486 0.321192 6.75095 4.13385 5.55475L17.3918 1.44656C17.3925 1.44635 17.3931 1.44614 17.3938 1.44593Z" fill="#000000"/>
+                                <path id="vector (Stroke)_2" fill-rule="evenodd" clip-rule="evenodd" d="M6.60304 9.47172C6.47081 9.86426 6.68183 10.2897 7.07437 10.4219L10.7032 11.6443C10.9549 11.728 11.1898 11.8475 11.4011 11.997C11.5369 12.0931 11.6629 12.2017 11.7774 12.3212C12.0389 12.594 12.241 12.9246 12.3628 13.2975L12.3652 13.3048L13.5888 16.9248C13.7215 17.3172 14.1471 17.5278 14.5395 17.3952C14.9319 17.2625 15.1425 16.8369 15.0099 16.4445L13.7874 12.8279C13.5941 12.2379 13.2734 11.7142 12.8604 11.2833C12.6795 11.0945 12.4809 10.9236 12.2677 10.7727C11.9363 10.5381 11.5695 10.3518 11.1782 10.2215C11.1778 10.2213 11.1773 10.2212 11.1769 10.221L7.55322 9.00038C7.16067 8.86815 6.73527 9.07918 6.60304 9.47172Z" fill="#BFBFBF"/>
+                                </g>
+                                </g>
+                                </svg>
                         </div>
                         <h3>Reliable publishing</h3>
                         <p>Produce output your team can share confidently across marketing, education, and product storytelling work.</p>
@@ -478,7 +492,7 @@
                 <div class="faq-layout">
                     <div class="section-header" style="margin-bottom: 0;">
                         <p class="section-kicker">FAQ</p>
-                        <h2>Frequently asked questions for teams evaluating a <span class="gradient-text">content-to-video</span> workflow.</h2>
+                        <h2 class="section-title">Frequently asked questions.</h2>
                         <p class="section-summary">The most common questions usually come down to input quality, editing control, and how quickly the team can get to a strong first draft.</p>
                     </div>
 
@@ -531,15 +545,15 @@
                 <p style="margin-top: 8px;">Content-native video creation for modern teams.</p>
             </div>
             <div class="site-footer-links">
-                <a href="https://vidinie.com/usecases/">Use cases</a>
-                <a href="https://vidinie.com/blog/">Blog</a>
-                <a href="https://vidinie.com/comparisons/">Comparisons</a>
+                <a href="https://vidinie.com/usecases/index.html">Use cases</a>
+                <a href="https://vidinie.com/blog/index.html">Blog</a>
+                <a href="https://vidinie.com/comparisons/index.html">Comparisons</a>
             </div>
         </div>
         <div class="site-footer-meta">
             <div class="site-footer-legal">
-                <a href="https://vidinie.com/privacy.html">Privacy Policy</a>
-                <a href="https://vidinie.com/terms.html">Terms of Use</a>
+                <a href="privacy.html">Privacy Policy</a>
+                <a href="terms.html">Terms of Use</a>
             </div>
         </div>
     </footer>

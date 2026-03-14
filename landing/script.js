@@ -76,6 +76,47 @@ if (logo) {
     });
 }
 
+// code for reveal sections on scroll
+const revealSections = document.querySelectorAll('.main-content > .section');
+const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+if (revealSections.length) {
+    revealSections.forEach((section, index) => {
+        if (index === 0 || prefersReducedMotion.matches) {
+            section.classList.add('is-visible');
+        }
+    });
+
+    if (!prefersReducedMotion.matches && 'IntersectionObserver' in window) {
+        const revealObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach((entry) => {
+                if (!entry.isIntersecting) {
+                    return;
+                }
+
+                entry.target.classList.add('is-visible');
+                observer.unobserve(entry.target);
+            });
+        }, {
+            threshold: 0.18,
+            rootMargin: '0px 0px -10% 0px'
+        });
+
+        revealSections.forEach((section, index) => {
+            if (index === 0) {
+                return;
+            }
+
+            revealObserver.observe(section);
+        });
+    } else {
+        revealSections.forEach((section) => {
+            section.classList.add('is-visible');
+        });
+    }
+}
+
+// code for faq items
 const faqItems = document.querySelectorAll('.faq-item');
 
 faqItems.forEach((item, index) => {
