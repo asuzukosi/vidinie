@@ -75,72 +75,18 @@ class VideoGenerator:
     def _check_composition_assets(self, target_path: str) -> bool:
         """check if the composition assets are available."""
         logger.info(f"checking if composition assets are available at {target_path}")
-        available = os.path.exists(os.path.join(target_path, 'composition', 'public'))
+        available = os.path.exists(os.path.join(target_path, config.pipeline_public_path))
         if not available:
             logger.error(f"composition assets are not available at {target_path}")
             return []
         else:
             logger.info(f"composition assets are available at {target_path}")
-        return recursive_listdir(os.path.join(target_path, 'composition', 'public'))
+        return recursive_listdir(os.path.join(target_path, config.pipeline_public_path))
 
     
-    def _check_base_project(self) -> bool:
-        """check if the base project is available."""
-        logger.info(f"checking if base project is available at {self.base_project_path}")
-        available = os.path.exists(self.base_project_path)
-        if not available:
-            logger.error(f"base project is not available at {self.base_project_path}")
-        else:
-            logger.info(f"base project is available at {self.base_project_path}")
-        return available
-    
-    def _copy_base_to_target(self, target_path: str) -> bool:
-        """copy the base project to the target path."""
-        copy_target_path = os.path.join(target_path, 'composition')
-        if os.path.exists(copy_target_path):
-            logger.info(f"removing existing composition at {copy_target_path}")
-            shutil.rmtree(copy_target_path)
-        logger.info(f"copying base project to {copy_target_path}")
-        return shutil.copytree(self.base_project_path, copy_target_path)
-    
-    def _install_dependencies_in_target(self, target_path: str) -> bool:
-        """install dependencies in the target path."""
-        composition_path = os.path.join(target_path, 'composition')
-        return subprocess.run(
-            ['npm', 'install'],
-            cwd=composition_path,
-            check=False
-        )
-    
-    def _move_assets_from_target_to_remotion_public(self, target_path: str) -> bool:
-        """move assets from the target path to the remotion public folder."""
-        composition_path = os.path.join(target_path, 'composition')
-        composition_public_path = os.path.join(composition_path, 'public')
-        if not os.path.exists(composition_public_path):
-            os.makedirs(composition_public_path)
-        # move audio
-        audio_path = os.path.join(target_path, 'audio')
-        if os.path.exists(audio_path):
-            shutil.copytree(audio_path, os.path.join(composition_public_path, 'audio'))
-         # move music
-        music_path = os.path.join(target_path, 'music')
-        if os.path.exists(audio_path):
-            shutil.copytree(music_path, os.path.join(composition_public_path, 'music'))
-        # move source
-        source_path = os.path.join(target_path, 'source')
-        if os.path.exists(source_path):
-            shutil.copytree(source_path, os.path.join(composition_public_path, 'source'))
-        # move images
-        images_path = os.path.join(target_path, 'images')
-        if os.path.exists(images_path):
-            shutil.copytree(images_path, os.path.join(composition_public_path, 'images'))
-        # move video clips
-        video_clips_path = os.path.join(target_path, 'video_clips')
-        if os.path.exists(video_clips_path):
-            shutil.copytree(video_clips_path, os.path.join(composition_public_path, 'video_clips'))
-    
-    def _render_video_in_target(self, target_path: str) -> str:
-        composition_path = os.path.join(target_path, 'composition')
+    def _render_video_in_target(self, target_path: str) -> subprocess.CompletedProcess:
+        """render video in the target path."""
+        composition_path = os.path.join(target_path)
         entry_file = 'src/index.ts'
         return subprocess.run(
             ['npx', 'remotion', 'render', entry_file],
@@ -150,8 +96,8 @@ class VideoGenerator:
     
     def _move_remotion_output_to_target_output(self, target_path: str) -> bool:
         """copy remotion output to the target output path."""
-        remotion_output_path = os.path.join(target_path, 'composition', 'out', 'VidinieComposition.mp4')
-        target_output_dir = os.path.join(target_path, 'result')
+        remotion_output_path = os.path.join(target_path, config.pipeline_remotion_output_path)
+        target_output_dir = os.path.join(target_path, config.pipeline_result_path)
         target_output_path = os.path.join(target_output_dir, 'vidinie_video.mp4')
         if not os.path.exists(remotion_output_path):
             logger.error(f"remotion output not found at {remotion_output_path}")
@@ -162,6 +108,9 @@ class VideoGenerator:
         shutil.copy2(remotion_output_path, target_output_path)
         logger.info(f"remotion output copied to {target_output_path}")
         return True
+    
+    async def _agentic_video_modification(self, target_path: str, user_query: str, error_message: str) -> bool:
+        raise NotImplementedError("video modification is not implemented")
     
     async def _agentic_video_generation(self, xml_prompt_context: str, target_path: str):
         """agentic video generation."""
@@ -223,13 +172,6 @@ class VideoGenerator:
 
 
     async def generate_video(self, script_data: VideoOutline, target_path: str) -> str:
-        # copy reference content into provided output path
-        self._copy_base_to_target(target_path)
-        # install dependencies in target path
-        self._move_assets_from_target_to_remotion_public(target_path)
-        # install dependencies in target path
-        self._install_dependencies_in_target(target_path)
-        # convert video outline into json and store in task temp file
         xml_prompt_context = to_xml_prompt_context(script_data)
         # check if remotion tool is available
         if not self._check_remotion_tool():
@@ -237,21 +179,19 @@ class VideoGenerator:
         # initiate agent with context of the task and location of the remotion project, video outline data and media assets
         await self._agentic_video_generation(xml_prompt_context, target_path)
         # render video in target path
-        self._render_video_in_target(target_path)
+        render_process = self._render_video_in_target(target_path)
+        logger.info(f"render process output: {render_process.stdout}")
+        logger.info(f"render process error: {render_process.stderr}")
+        if render_process.returncode != 0:
+            raise ValueError(f"failed to render video in target path: {render_process.stderr}")
         # move remotion output to target output path
         self._move_remotion_output_to_target_output(target_path)
         # return the path to the generated video
-        return os.path.join(target_path, 'result', 'vidinie_video.mp4')
+        return os.path.join(target_path, config.pipeline_result_path, 'vidinie_video.mp4')
 
 if __name__ == "__main__":
     logger.info("starting video generator experiment")
     video_generator = VideoGenerator()
-    logger.info("video generator initialized")
-    video_generator._copy_base_to_target('temp/696fed125aaee84dd0d1bbd1')
-    logger.info("base project copied to target path")
-    video_generator._move_assets_from_target_to_remotion_public('temp/696fed125aaee84dd0d1bbd1')
-    logger.info("assets moved to remotion public folder")
-    video_generator._install_dependencies_in_target('temp/696fed125aaee84dd0d1bbd1')
     logger.info("dependencies installed in target path")
     video_generator._render_video_in_target('temp/696fed125aaee84dd0d1bbd1')
     logger.info("video rendered in target path")

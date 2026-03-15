@@ -42,6 +42,21 @@ class Config:
         self.prompts_directory = self.project_root / 'core' / 'prompts'
         self.base_project_path = self.project_root / '_base'
         self.remotion_tool_path = self.project_root / '.claude' / 'skills' / 'remotion-best-practices'
+
+        # pipeline subpaths (relative to output_directory/pipeline_id)
+        self.pipeline_public_path = 'public'
+        self.pipeline_source_path = self.pipeline_public_path / 'sources'
+        self.pipeline_audio_path = self.pipeline_public_path / 'audio'
+        self.pipeline_music_path = self.pipeline_public_path / 'music'
+        self.pipeline_images_path = self.pipeline_public_path / 'images'
+        self.pipeline_clips_path = self.pipeline_public_path / 'clips'
+        self.pipeline_stock_images_path = self.pipeline_images_path / 'stock_images'
+        self.pipeline_stock_videos_path = self.pipeline_clips_path / 'stock_videos'
+        self.pipeline_ai_images_path = self.pipeline_images_path / 'ai_images'
+        self.pipeline_ai_videos_path = self.pipeline_clips_path / 'ai_videos'
+        self.pipeline_result_path = 'result'
+        self.pipeline_remotion_output_path = 'out/VidinieComposition.mp4'
+
         # api keys (will be loaded from env)
         self.anthropic_api_key = None
         self.replicate_api_token = None

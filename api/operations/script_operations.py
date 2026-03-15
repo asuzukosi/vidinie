@@ -8,8 +8,6 @@ from core.utils.config_loader import config
 from core.data import (
     VideoPipeline,
     VideoOutline,
-    VideoPipelineStage,
-    VideoPipelineStatus,
 )
 from core.operations.script_generator import ScriptGenerator
 from core.operations.voiceover_generator import VoiceoverGenerator
@@ -46,7 +44,7 @@ async def generate_scripts(
         logger.info(f"Generated scripts for {len(script_data.segments)} segments")
         
         # Generate voiceovers
-        audio_dir = os.path.join(output_dir, pipeline.id, 'audio')
+        audio_dir = os.path.join(output_dir, pipeline.id, config.pipeline_audio_path)
         os.makedirs(audio_dir, exist_ok=True)
         
         voiceover_gen = VoiceoverGenerator(
@@ -59,7 +57,7 @@ async def generate_scripts(
         logger.info(f"Generated voiceovers for {len(script_data_with_audio.segments)} segments")
         
         # senerate background music if query is provided
-        music_dir = os.path.join(output_dir, pipeline.id, 'music')
+        music_dir = os.path.join(output_dir, pipeline.id, config.pipeline_music_path)
         os.makedirs(music_dir, exist_ok=True)
         
         music_gen = MusicGenerator(output_dir=music_dir)
