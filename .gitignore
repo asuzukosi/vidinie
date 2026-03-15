@@ -63,7 +63,7 @@ venv
 inputs/
 
 # output files
-output/
+outputs/
 temp/
 
 node_modules/

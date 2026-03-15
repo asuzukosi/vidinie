@@ -15,7 +15,7 @@ from core.data import (
 from core.operations.content_analyzer import ContentAnalyzer
 from core.operations.stock_fetcher import StockFetcher
 from core.operations.image_generator import ImageGenerator
-from core.operations.video_clip_generator import VideoClipGenerator
+from core.operations.clip_generator import ClipGenerator
 
 logger = get_logger("content_operations")
 
@@ -94,8 +94,8 @@ async def process_content(
         # generate ai video clips
         logger.info("generating ai video clips")
         ai_videos_dir = os.path.join(output_dir, pipeline.id, config.pipeline_ai_videos_path)
-        video_clip_generator = VideoClipGenerator(output_dir=ai_videos_dir)
-        outline.segments = await video_clip_generator.generate_for_segments(
+        clip_generator = ClipGenerator(output_dir=ai_videos_dir)
+        outline.segments = await clip_generator.generate_for_segments(
             pipeline_id=pipeline.id,
             segments=outline.segments
         )

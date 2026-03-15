@@ -27,8 +27,8 @@ class SegmentImage(BaseModel):
     path: Optional[str] = None  # path to pdf image if pdf, or path to generated image if ai_generated
     timing: Optional[str] = None  # start, middle, end, throughout
 
-class SegmentVideoClip(BaseModel):
-    """segment video clip"""
+class SegmentClip(BaseModel):
+    """segment clip"""
     source: VideoSource
     query: Optional[str] = None  # search keyword if stock, or prompt if ai_generated
     path: Optional[str] = None  # url to video clip

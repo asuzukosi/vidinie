@@ -61,7 +61,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # copy remotion package.json file
-COPY package.json ./package.json
+COPY package.json .
 
 # install node dependencies
 RUN npm install
@@ -81,8 +81,7 @@ COPY _base/ ./_base
 # copy .env file
 COPY .env .
 
-# copy config.yaml file
-COPY config.yaml .
+
 
 # backend target
 FROM base as backend

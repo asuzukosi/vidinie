@@ -17,7 +17,7 @@ services:
       # - mongodb
       - redis
     volumes:
-      - ./temp:/app/temp
+      - ./outputs:/app/outputs
   vidinie-frontend:
     build:
       context: .
@@ -46,7 +46,7 @@ services:
       # - mongodb
       - redis
     volumes:
-      - ./temp:/app/temp
+      - ./outputs:/app/outputs
   mongodb:
     image: mongo:latest
     container_name: mongodb

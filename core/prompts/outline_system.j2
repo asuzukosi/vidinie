@@ -39,7 +39,7 @@ Valid JSON only. No markdown, no extra text.
     "visual_keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"],
     "duration": <seconds>,
     "images": [{"source": "document|stock|ai_generated", "query": "<keywords/prompt; null if document>", "path": "<filepath if document, null otherwise>", "timing": "start|middle|end|throughout"}],
-    "video_clips": [{"source": "stock|ai_generated", "query": "<keywords/prompt>", "path": null, "timing": "start|middle|end|throughout"}]
+    "clips": [{"source": "stock|ai_generated", "query": "<keywords/prompt>", "path": null, "timing": "start|middle|end|throughout"}]
   }]
 }
 </output>
@@ -59,7 +59,7 @@ Pacing: Alternate dense info with breathing room. Short segments (20-40s) for in
 Images (required, 1-2 per segment): document (when relevant from doc), stock (real-world visuals), ai_generated (complex/abstract concepts).
 Video clips (optional, 0-1 per segment, all 5s): stock (preferred), ai_generated (extremely sparingly, max 1-2 per outline).
 Cost: document (free) < stock image < stock video < ai image < ai video (expensive).
-Rules: Each segment needs ≥1 image. Most segments: empty video_clips[]. All clips 5s (no duration field).
+Rules: Each segment needs ≥1 image. Most segments: empty clips[]. All clips 5s (no duration field).
 </visuals>
 
 <context>
@@ -70,5 +70,5 @@ Business: Stakes/implications. Document charts + stock images.
 </context>
 
 <critical>
-JSON only. No markdown. Valid and parsable. All fields present. ≥1 image per segment. video_clips mostly empty. ai_generated video extremely rare.
+JSON only. No markdown. Valid and parsable. All fields present. ≥1 image per segment. clips mostly empty. ai_generated video extremely rare.
 </critical>

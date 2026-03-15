@@ -22,6 +22,8 @@ elevenlabs
 # image processing
 Pillow
 requests
+pymupdf
+html2image
 
 # audio processing
 pydub

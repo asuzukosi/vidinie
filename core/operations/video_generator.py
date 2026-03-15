@@ -23,6 +23,60 @@ from claude_agent_sdk.types import ResultMessage # class for the result of the a
 from core.utils.logger import get_logger
 logger = get_logger("video_generator")
 
+
+# USING CUSTOM TOOLS
+# from claude_agent_sdk import (
+#     tool,
+#     create_sdk_mcp_server,
+#     ClaudeSDKClient,
+#     ClaudeAgentOptions,
+# )
+# # Define a custom tool using the @tool decorator
+# @tool(
+#     "get_weather",
+#     "Get current temperature for a location using coordinates",
+#     {"latitude": float, "longitude": float},
+# )
+# async def get_weather(args: dict[str, Any]) -> dict[str, Any]:
+#     # Call weather API
+#     async with aiohttp.ClientSession() as session:
+#         async with session.get(
+#             f"https://api.open-meteo.com/v1/forecast?latitude={args['latitude']}&longitude={args['longitude']}&current=temperature_2m&temperature_unit=fahrenheit"
+#         ) as response:
+#             data = await response.json()
+
+#     return {
+#         "content": [
+#             {
+#                 "type": "text",
+#                 "text": f"Temperature: {data['current']['temperature_2m']}°F",
+#             }
+#         ]
+#     }
+
+
+# # Create an SDK MCP server with the custom tool
+# custom_server = create_sdk_mcp_server(
+#     name="my-custom-tools",
+#     version="1.0.0",
+#     tools=[get_weather],  # Pass the decorated function
+# )
+
+# from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
+# import asyncio
+
+# # Use the custom tools with Claude
+# options = ClaudeAgentOptions(
+#     mcp_servers={"my-custom-tools": custom_server},
+#     allowed_tools=[
+#         "mcp__my-custom-tools__get_weather",  # Allow the weather tool
+#         # Add other tools as needed
+#     ],
+# )
+
+
+
+
 def recursive_listdir(path: str, full_list: List[str] = []) -> List[str]:
     for file in os.listdir(path):
         if os.path.isfile(os.path.join(path, file)):
@@ -59,8 +113,6 @@ class VideoGenerator:
 
         if not self._check_remotion_tool():
             raise ValueError("remotion tool is not available")
-        if not self._check_base_project():
-            raise ValueError("base project is not available")
 
     def _check_remotion_tool(self) -> bool:
         """check if the remotion tool is available."""
@@ -89,26 +141,11 @@ class VideoGenerator:
         composition_path = os.path.join(target_path)
         entry_file = 'src/index.ts'
         return subprocess.run(
-            ['npx', 'remotion', 'render', entry_file],
+            ['npx', 'remotion', 'render', entry_file, f'--public-dir={os.path.join(target_path, config.pipeline_public_path)}', 'VidinieComposition', 'result/video.mp4'],
             cwd=composition_path,
             check=False
         )
-    
-    def _move_remotion_output_to_target_output(self, target_path: str) -> bool:
-        """copy remotion output to the target output path."""
-        remotion_output_path = os.path.join(target_path, config.pipeline_remotion_output_path)
-        target_output_dir = os.path.join(target_path, config.pipeline_result_path)
-        target_output_path = os.path.join(target_output_dir, 'vidinie_video.mp4')
-        if not os.path.exists(remotion_output_path):
-            logger.error(f"remotion output not found at {remotion_output_path}")
-            return False
-        # create target directory if it doesn't exist
-        os.makedirs(target_output_dir, exist_ok=True)
-        logger.info(f"copying remotion output from {remotion_output_path} to {target_output_path}")
-        shutil.copy2(remotion_output_path, target_output_path)
-        logger.info(f"remotion output copied to {target_output_path}")
-        return True
-    
+
     async def _agentic_video_modification(self, target_path: str, user_query: str, error_message: str) -> bool:
         raise NotImplementedError("video modification is not implemented")
     
@@ -128,7 +165,7 @@ class VideoGenerator:
             setting_sources=["project"],  # load skills from the project file system
             allowed_tools=["Skill", "Read", "Write"], # allow tools to read and write files only - NO bash commands
             permission_mode="acceptEdits",  # allow file edits
-            cwd=os.path.join(target_path, "composition") # limit the scope of the agent to the composition directory
+            cwd=os.path.join(target_path) # limit the scope of the agent to the composition directory
 
         )
         message_usages = []
@@ -179,15 +216,9 @@ class VideoGenerator:
         # initiate agent with context of the task and location of the remotion project, video outline data and media assets
         await self._agentic_video_generation(xml_prompt_context, target_path)
         # render video in target path
-        render_process = self._render_video_in_target(target_path)
-        logger.info(f"render process output: {render_process.stdout}")
-        logger.info(f"render process error: {render_process.stderr}")
-        if render_process.returncode != 0:
-            raise ValueError(f"failed to render video in target path: {render_process.stderr}")
-        # move remotion output to target output path
-        self._move_remotion_output_to_target_output(target_path)
+        self._render_video_in_target(target_path)
         # return the path to the generated video
-        return os.path.join(target_path, config.pipeline_result_path, 'vidinie_video.mp4')
+        return os.path.join(target_path, config.pipeline_result_path, 'video.mp4')
 
 if __name__ == "__main__":
     logger.info("starting video generator experiment")
