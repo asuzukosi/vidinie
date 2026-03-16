@@ -167,9 +167,9 @@ export default function SettingsPage() {
                   {subscriptionPlans.map((plan) => (
                     <Card
                       key={plan.id}
-                      className={`flex flex-col ${ subscriptionStatus === plan.id
+                      className={`flex flex-col border ${subscriptionStatus === plan.id
                           ? "border-primary"
-                          : ""
+                          : "border-border"
                       }`}
                     >
                       <CardHeader>
@@ -194,7 +194,7 @@ export default function SettingsPage() {
                         </ul>
                         <div className="mt-auto">
                           {subscriptionStatus === plan.id ? (
-                            <Button disabled variant="outline" className="w-full">
+                            <Button disabled variant="outline" className="w-full border-primary text-foreground">
                               Current Plan
                             </Button>
                           ) : plan.id !== "free" ? (
@@ -256,7 +256,7 @@ export default function SettingsPage() {
                     {subscriptions.map((subscription) => (
                       <div
                         key={subscription.id}
-                        className="flex items-center justify-between p-4 border rounded-lg"
+                        className="flex items-center justify-between p-4 border border-border rounded-none"
                       >
                         <div>
                           <div className="flex items-center gap-2">

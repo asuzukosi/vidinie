@@ -86,7 +86,7 @@ export function MultiSelect({
                 return (
                   <span
                     key={option?.value || idx}
-                    className="inline-flex items-center gap-1 rounded bg-zinc-100 px-2 py-0.5 text-xs dark:bg-zinc-800 whitespace-nowrap"
+                    className="inline-flex items-center gap-1 rounded-none bg-muted px-2 py-0.5 text-xs whitespace-nowrap"
                   >
                     {label}
                     <span
@@ -103,7 +103,7 @@ export function MultiSelect({
                           handleRemove(option!.value, e as unknown as React.MouseEvent);
                         }
                       }}
-                      className="ml-1 cursor-pointer rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-700 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                      className="ml-1 cursor-pointer rounded-none hover:bg-accent focus:outline-none focus:ring-1 focus:ring-ring"
                     >
                       <XIcon className="h-3 w-3" />
                     </span>

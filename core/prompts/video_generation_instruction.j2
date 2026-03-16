@@ -6,6 +6,7 @@ PRIMARY GOAL: Visual aesthetics, beauty, and enjoyability - create a visually st
 Focus on creating a beautiful, enjoyable video that users will love watching.
 Keep code concise and to the point.
 No need to provide a summary when you are done. Just do the job and exit.
+No need to review all the files again. Just modify the files you are instructed to while minimizing your tool calls as much as possible.
 </task>
 
 <outline>
@@ -136,9 +137,8 @@ CRITICAL FONT USAGE:
 
 <workflow>
 1. Read package.json FIRST to see what packages are available - ONLY use packages listed in dependencies
-2. Read the CONFIRMED assets list above - ONLY use files from this list, never use files not in the list
-3. Read the remotion skill to understand how to make video compositions in Remotion
-4. Parse video outline to understand the video structure and content provided
+2. Read the remotion skills to understand how to make video compositions in Remotion
+3. Parse video outline to understand the video structure and content provided
    - CRITICAL: Read each segment's script/transcript to understand narration timing
    - CRITICAL: Use audio_duration (not estimated duration) for segment timing - audio is source of truth
    - CRITICAL: Note audio_file path and audio_duration for each segment

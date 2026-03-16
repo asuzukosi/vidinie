@@ -144,10 +144,10 @@ export default function CreateVideoPipelineModal({
         />
   
         {/* modal */}
-        <div className="relative z-10 w-full max-w-lg rounded-sm border border-zinc-200 bg-white p-6 shadow-2xl dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="relative z-10 w-full max-w-lg rounded-none border border-border bg-card p-6 shadow-2xl backdrop-blur-[14px]">
           {/* header */}
           <div className="mb-6 flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">
+            <h2 className="text-xl font-semibold text-foreground">
               Create New Video
             </h2>
             <button
@@ -157,20 +157,20 @@ export default function CreateVideoPipelineModal({
                 }
               }}
               disabled={isCreating}
-              className="rounded-lg p-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="rounded-none p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <IconX className="h-5 w-5" />
             </button>
           </div>
-  
+
           {/* tabs */}
           <div className="mb-6 flex gap-2">
             <button
               onClick={() => setActiveTab(TaskType.URL)}
-              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+              className={`flex items-center gap-2 rounded-none px-4 py-2 text-sm font-medium transition-colors ${
                 activeTab === TaskType.URL
-                  ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900"
-                  : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
               }`}
             >
               <IconFileText className="h-4 w-4" />
@@ -178,10 +178,10 @@ export default function CreateVideoPipelineModal({
             </button>
             <button
               onClick={() => setActiveTab(TaskType.UPLOAD)}
-              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+              className={`flex items-center gap-2 rounded-none px-4 py-2 text-sm font-medium transition-colors ${
                 activeTab === TaskType.UPLOAD
-                  ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900"
-                  : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
               }`}
             >
               <IconUpload className="h-4 w-4" />
@@ -199,7 +199,7 @@ export default function CreateVideoPipelineModal({
                 value={selectedUrl}
                 onChange={(e) => setSelectedUrl(e.target.value)}
                 placeholder="Paste link to the article..."
-                className=" resize-none rounded-lg border border-zinc-300 bg-white p-4 text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white dark:placeholder-zinc-500"
+                className="resize-none rounded-none border border-input bg-input-bg p-4 text-sm text-foreground placeholder-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
           ) : (
@@ -208,21 +208,21 @@ export default function CreateVideoPipelineModal({
               onDragLeave={handleDrag}
               onDragOver={handleDrag}
               onDrop={handleDrop}
-              className={`flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 transition-colors ${
+              className={`flex flex-col items-center justify-center rounded-none border-2 border-dashed p-8 transition-colors ${
                 dragActive
-                  ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+                  ? "border-primary bg-accent"
                   : selectedFile
-                    ? "border-black-500 bg-black-50 dark:bg-black-900/20"
-                    : "border-zinc-300 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800/50"
+                    ? "border-primary bg-accent"
+                    : "border-border bg-muted"
               }`}
             >
               {selectedFile ? (
                 <>
-                  <IconFileText className="mb-3 h-8 w-8 text-black-500" />
-                  <p className="mb-1 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                  <IconFileText className="mb-3 h-8 w-8 text-primary" />
+                  <p className="mb-1 text-sm font-medium text-foreground">
                     {selectedFile.name}
                   </p>
-                  <p className="mb-4 text-xs text-zinc-500 dark:text-zinc-400">
+                  <p className="mb-4 text-xs text-muted-foreground">
                     {(selectedFile.size / 1024).toFixed(1)} KB
                   </p>
                   <button
@@ -234,11 +234,11 @@ export default function CreateVideoPipelineModal({
                 </>
               ) : (
                 <>
-                  <IconUpload className="mb-3 h-10 w-10 text-zinc-400" />
-                  <p className="mb-1 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                  <IconUpload className="mb-3 h-10 w-10 text-muted-foreground" />
+                  <p className="mb-1 text-sm font-medium text-foreground">
                     Drag and drop your file here
                   </p>
-                  <p className="mb-4 text-xs text-zinc-500 dark:text-zinc-400">
+                  <p className="mb-4 text-xs text-muted-foreground">
                     Supports .pdf files
                   </p>
                   <input
@@ -251,7 +251,7 @@ export default function CreateVideoPipelineModal({
                   />
                   <label
                     htmlFor="file-upload"
-                    className="cursor-pointer rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100"
+                    className="cursor-pointer rounded-none bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
                   >
                     Browse Files
                   </label>
@@ -321,17 +321,17 @@ export default function CreateVideoPipelineModal({
             <button
               onClick={onClose}
               disabled={isCreating}
-              className="rounded-lg px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="rounded-none px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
             <button
               onClick={handleCreateTask}
               disabled={!canCreate || isCreating}
-              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+              className={`flex items-center gap-2 rounded-none px-4 py-2 text-sm font-medium transition-colors ${
                 canCreate && !isCreating
-                  ? "bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100"
-                  : "cursor-not-allowed bg-zinc-300 text-zinc-500 dark:bg-zinc-700 dark:text-zinc-500"
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                  : "cursor-not-allowed bg-muted text-muted-foreground"
               }`}
             >
               {isCreating ? (

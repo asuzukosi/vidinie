@@ -38,7 +38,7 @@ export function ScriptAndVoiceovers({
                         <Button variant="outline" size="sm"
                             onClick={onScriptAndAudioGeneration}
                             disabled={isGeneratingScripts}
-                            className="w-full flex items-center justify-center gap-2 text-xs border-dashed border-zinc-300 text-zinc-500 hover:text-zinc-700 hover:border-zinc-500">
+                            className="w-full flex items-center justify-center gap-2 text-xs border-dashed border-border text-muted-foreground hover:text-foreground hover:border-foreground/30">
                             {isGeneratingScripts ? (
                                 <Loader2 className="size-4 animate-spin" />
                             ) : (

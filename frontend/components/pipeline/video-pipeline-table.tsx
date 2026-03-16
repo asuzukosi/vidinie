@@ -72,7 +72,7 @@ export default function VideoPipelineTable({ videoPipelines = [], onDelete }: Vi
   };
 
   return (
-    <div className="rounded-lg border bg-card w-full overflow-x-auto">
+    <div className="rounded-none border border-border bg-card w-full overflow-x-auto">
       <Table className="min-w-[370px] w-full">
         <TableHeader>
           <TableRow className="hover:bg-transparent border-b">

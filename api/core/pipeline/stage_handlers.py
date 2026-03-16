@@ -1,9 +1,9 @@
-from core.data import VideoPipeline, VideoPipelineStage, VideoPipelineStatus, SourceType
+from core.data import VideoPipeline, VideoPipelineStage, VideoPipelineStatus
 from core.utils.logger import get_logger
 from api.helpers.pipeline_helpers import update_pipeline_in_db
 from api.core.pipeline.status import update_stage_status
 from api.core.signals import broadcast_message, PipelineBroadcastMessageType, PipelineBroadcastStatus
-from api.operations.document_operations import process_pdf_document, process_html_document
+from api.operations.document_operations import process_document
 from api.operations.content_operations import process_content
 from api.operations.script_operations import generate_scripts
 from api.operations.video_operations import generate_video
@@ -37,32 +37,13 @@ async def execute_document_processing_stage(
     )
     
     try:
-        if pipeline.source_type == SourceType.PDF:
-            if not pdf_content:
-                raise ValueError("pdf_content must be provided")
-            
-            pipeline = await process_pdf_document(
-                pipeline,
-                extract_images=extract_images,
-                pdf_content=pdf_content
-            )
-                
-        elif pipeline.source_type == SourceType.HTML:
-            if not html_content:
-                raise ValueError("html_content must be provided")
-            
-            if not original_url:
-                raise ValueError("original_url must be provided for HTML processing")
-            
-            pipeline = await process_html_document(
-                pipeline,
-                extract_images=extract_images,
-                html_content=html_content,
-                original_url=original_url
-            )
-        else:
-            raise ValueError(f"unsupported source type: {pipeline.source_type}")
-        
+        pipeline = await process_document(
+            pipeline,
+            extract_images=extract_images,
+            pdf_content=pdf_content,
+            html_content=html_content,
+            original_url=original_url
+        )
         await update_stage_status(
             pipeline,
             VideoPipelineStage.DOCUMENT_PROCESSING,

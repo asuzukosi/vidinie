@@ -14,6 +14,7 @@ from api.core.pipeline.stage_handlers import (
     execute_video_generation_stage
 )
 from typing import Optional, Tuple
+import time
 
 logger = get_logger("pipeline.executor")
 
@@ -158,32 +159,57 @@ async def execute_pipeline_stages(
         stages_to_run = PIPELINE_STAGES
     
     logger.info(f"stages to run: {stages_to_run}")
+
+    # store variables for each stage duration 
+    document_processing_duration = 0
+    content_analysis_duration = 0
+    script_generation_duration = 0
+    video_generation_duration = 0
+
+    # store variables for each stage start time
+    document_processing_start_time = None
+    content_analysis_start_time = None
+    script_generation_start_time = None
+    video_generation_start_time = None  
     
     # execute document processing stage
     if VideoPipelineStage.DOCUMENT_PROCESSING in stages_to_run:
+        document_processing_start_time = time.time()
         pipeline, should_continue = await _execute_document_processing(pipeline, **kwargs)
         if not should_continue:
             return pipeline
+        document_processing_duration = time.time() - document_processing_start_time
     
     # execute content analysis stage
     if VideoPipelineStage.CONTENT_ANALYSIS in stages_to_run:
+        content_analysis_start_time = time.time()
         pipeline, should_continue = await _execute_content_analysis(pipeline, **kwargs)
         if not should_continue:
             return pipeline
+        content_analysis_duration = time.time() - content_analysis_start_time
     
     # execute script generation stage
     if VideoPipelineStage.SCRIPT_GENERATION in stages_to_run:
+        script_generation_start_time = time.time()
         pipeline, should_continue = await _execute_script_generation(pipeline, **kwargs)
         if not should_continue:
             return pipeline
+        script_generation_duration = time.time() - script_generation_start_time
     
     # execute video generation stage
     if VideoPipelineStage.VIDEO_GENERATION in stages_to_run:
+        video_generation_start_time = time.time()
         pipeline, should_continue = await _execute_video_generation(pipeline, **kwargs)
         if not should_continue:
             return pipeline
+        video_generation_duration = time.time() - video_generation_start_time
     
     # finalize pipeline execution
+    logger.info(f"document processing duration: {document_processing_duration}")
+    logger.info(f"content analysis duration: {content_analysis_duration}")
+    logger.info(f"script generation duration: {script_generation_duration}")
+    logger.info(f"video generation duration: {video_generation_duration}")
+    logger.info(f"total pipeline duration: {document_processing_duration + content_analysis_duration + script_generation_duration + video_generation_duration}")
     return await _finalize_pipeline_execution(pipeline)
 
 

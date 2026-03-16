@@ -60,7 +60,7 @@ class ContentAnalyzer:
     """
     def __init__(self, 
                  target_segments: int = 5, 
-                 segment_duration: int = 40,
+                 segment_duration: int = 30,
                  user_instructions: str = ""):
         """
         initialize content analyzer.
@@ -71,7 +71,7 @@ class ContentAnalyzer:
         self.user_instructions = user_instructions
         
 
-    def _split_context(self, context: str, split_by: str = '\n', chunk_length: int = 360000) -> List[str]:
+    def _split_context(self, context: str, split_by: str = '\n', chunk_length: int = 680_000) -> List[str]:
         """
         split the context into smaller chunks.
         """
@@ -141,8 +141,8 @@ class ContentAnalyzer:
         """
         logger.info("starting content analysis")
         # iteratively summarize the content
-        content = await self.iterative_summarization(title, content, split_by='\n', 
-                                               chunk_length=360000, max_size=480000)
+        # content = await self.iterative_summarization(title, content, split_by='\n', TODO: iterative summarization is too slow, so we're not using it for now
+        #                                        chunk_length=360000, max_size=480000)
         logger.info(f"successfully iteratively summarized content")
         # create video outline
         outline = await self._create_video_outline(title=title, content=content, images_metadata=images_metadata)

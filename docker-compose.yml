@@ -17,6 +17,8 @@ services:
       # - mongodb
       - redis
     volumes:
+      - ./core/:/app/core
+      - ./api/:/app/api
       - ./outputs:/app/outputs
   vidinie-frontend:
     build:
@@ -31,6 +33,13 @@ services:
     depends_on:
       - vidinie-backend
       - mongodb
+    # volumes:
+    #   - ./frontend/src:/app/src
+    #   - ./frontend/components:/app/components
+    #   - ./frontend/lib:/app/lib
+    #   - ./frontend/hooks:/app/hooks
+
+
   vidinie-celery:
     build:
       context: .
@@ -47,6 +56,9 @@ services:
       - redis
     volumes:
       - ./outputs:/app/outputs
+      - ./core/:/app/core
+      - ./api/:/app/api
+    
   mongodb:
     image: mongo:latest
     container_name: mongodb

@@ -6,7 +6,6 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from typing import List
-import shutil
 import subprocess
 from enum import Enum
 from typing import Optional
@@ -145,11 +144,8 @@ class VideoGenerator:
             cwd=composition_path,
             check=False
         )
-
-    async def _agentic_video_modification(self, target_path: str, user_query: str, error_message: str) -> bool:
-        raise NotImplementedError("video modification is not implemented")
     
-    async def _agentic_video_generation(self, xml_prompt_context: str, target_path: str):
+    async def _agentic_video_generation(self, xml_prompt_context: str, target_path: str, additional_query: str = ""):
         """agentic video generation."""
         system_prompt = self.jinja_env.get_template('video_generation_system.j2').render(
             user_instructions=self.user_instructions if self.user_instructions else None
@@ -225,7 +221,5 @@ if __name__ == "__main__":
     video_generator = VideoGenerator()
     logger.info("dependencies installed in target path")
     video_generator._render_video_in_target('temp/696fed125aaee84dd0d1bbd1')
-    logger.info("video rendered in target path")
-    video_generator._move_remotion_output_to_target_output('temp/696fed125aaee84dd0d1bbd1')
     logger.info("remotion output moved to target output path")
     # asyncio.run(test_agent())
