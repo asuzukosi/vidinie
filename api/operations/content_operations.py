@@ -4,21 +4,18 @@ analyzes content and creates video outlines with visual asset planning.
 """
 
 import os
-from typing import List
 from core.utils.logger import get_logger
 from core.utils.config_loader import config
 from core.data import (
     VideoPipeline,
     VideoOutline,
-    VideoPipelineStage,
-    VideoPipelineStatus,
     ContentSection,
     VideoSegment,
 )
 from core.operations.content_analyzer import ContentAnalyzer
 from core.operations.stock_fetcher import StockFetcher
 from core.operations.image_generator import ImageGenerator
-from core.operations.video_clip_generator import VideoClipGenerator
+from core.operations.clip_generator import ClipGenerator
 
 logger = get_logger("content_operations")
 
@@ -38,7 +35,7 @@ async def process_content(
         updated video pipeline with video outline
     """
     anthropic_api_key = config.anthropic_api_key
-    temp_dir = config.output_temp_directory
+    output_dir = str(config.output_directory)
     
     if not anthropic_api_key:
         logger.error("anthropic api key required")
@@ -77,8 +74,8 @@ async def process_content(
         
         # fetch stock images and videos
         logger.info("fetching stock images and videos")
-        stock_images_dir = os.path.join(temp_dir, pipeline.id, 'images', 'stock_images')
-        stock_videos_dir = os.path.join(temp_dir, pipeline.id, 'video_clips', 'stock_videos')
+        stock_images_dir = os.path.join(output_dir, pipeline.id, config.pipeline_stock_images_path)
+        stock_videos_dir = os.path.join(output_dir, pipeline.id, config.pipeline_stock_videos_path)
         try:
             fetcher = StockFetcher(output_dir=stock_images_dir, video_output_dir=stock_videos_dir)
             outline.segments = await fetcher.fetch_for_segments_async(outline.segments)
@@ -87,7 +84,7 @@ async def process_content(
         
         # generate ai images
         logger.info("generating ai images")
-        ai_images_dir = os.path.join(temp_dir, pipeline.id, 'images', 'ai_images')
+        ai_images_dir = os.path.join(output_dir, pipeline.id, config.pipeline_ai_images_path)
         generator = ImageGenerator(output_dir=ai_images_dir)
         outline.segments = await generator.generate_for_segments(
             pipeline_id=pipeline.id,
@@ -96,9 +93,9 @@ async def process_content(
         
         # generate ai video clips
         logger.info("generating ai video clips")
-        ai_videos_dir = os.path.join(temp_dir, pipeline.id, 'video_clips', 'ai_video_clips')
-        video_clip_generator = VideoClipGenerator(output_dir=ai_videos_dir)
-        outline.segments = await video_clip_generator.generate_for_segments(
+        ai_videos_dir = os.path.join(output_dir, pipeline.id, config.pipeline_ai_videos_path)
+        clip_generator = ClipGenerator(output_dir=ai_videos_dir)
+        outline.segments = await clip_generator.generate_for_segments(
             pipeline_id=pipeline.id,
             segments=outline.segments
         )

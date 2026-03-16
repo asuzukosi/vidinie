@@ -11,7 +11,7 @@ from core.operations.script_generator import ScriptGenerator
 from core.operations.video_generator import VideoGenerator
 from core.operations.stock_fetcher import StockFetcher
 from core.operations.image_generator import ImageGenerator
-from core.operations.video_clip_generator import VideoClipGenerator
+from core.operations.clip_generator import ClipGenerator
 from core.operations.voiceover_generator import VoiceoverGenerator
 
 __all__ = [
@@ -21,7 +21,7 @@ __all__ = [
     'VideoGenerator',
     'StockFetcher',
     'ImageGenerator',
-    'VideoClipGenerator',
+    'ClipGenerator',
     'VoiceoverGenerator',
 ]
 

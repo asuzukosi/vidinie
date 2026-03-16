@@ -14,6 +14,7 @@ from typing import Dict, List, Optional, Any
 from pydantic import BaseModel, Field
 
 from core.utils.logger import get_logger
+from core.utils.config_loader import config
 from core.data.enums import SourceType, VideoPipelineStatus, VideoPipelineStage
 from core.data.content_models import (
     ParsedContent,
@@ -226,17 +227,19 @@ class VideoPipeline(BaseModel):
         return cls(**data)
 
     @classmethod
-    def load_by_id(cls, video_pipeline_id: str, base_dir: str = "temp") -> 'VideoPipeline':
+    def load_by_id(cls, video_pipeline_id: str, base_dir: Optional[str] = None) -> 'VideoPipeline':
         """
         load video pipeline data by ID from base directory.
         args:
             video_pipeline_id: uuid of the video pipeline
-            base_dir: base directory containing video pipeline folders
+            base_dir: base directory containing video pipeline folders (defaults to config.output_directory)
         returns:
             VideoPipeline instance
         raises:
             FileNotFoundError: if video pipeline folder doesn't exist
         """
+        if base_dir is None:
+            base_dir = str(config.output_directory)
         folder_path = Path(base_dir) / video_pipeline_id
         if not folder_path.exists():
             raise FileNotFoundError(f"Video pipeline folder not found: {folder_path}")

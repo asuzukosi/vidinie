@@ -60,6 +60,12 @@ COPY requirements.txt .
 # install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
+# copy remotion package.json file
+COPY package.json .
+
+# install node dependencies
+RUN npm install
+
 # copy core directory
 COPY core/ ./core
 
@@ -75,8 +81,7 @@ COPY _base/ ./_base
 # copy .env file
 COPY .env .
 
-# copy config.yaml file
-COPY config.yaml .
+
 
 # backend target
 FROM base as backend

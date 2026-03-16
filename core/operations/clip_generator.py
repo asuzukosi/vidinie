@@ -1,5 +1,5 @@
 """
-vidinie video clip generator module
+vidinie clip generator module
 generates ai video clips for segments using video engine.
 """
 from typing import Optional, List
@@ -10,33 +10,33 @@ from core.utils.logger import get_logger
 from core.data import VideoSegment, VideoSource
 from core.utils.video_utils import convert_mp4_to_webm_and_delete_original
 
-logger = get_logger("video_clip_generator")
+logger = get_logger("clip_generator")
 
 
-class VideoClipGenerator:
+class ClipGenerator:
     """generate ai video clips for segments using video engine."""
-    
+
     def __init__(self, output_dir: str):
         """
-        initialize video clip generator.
+        initialize clip generator.
         """
         self.output_dir = Path(output_dir)
         Path(output_dir).mkdir(parents=True, exist_ok=True)
-        
-    async def _generate_for_segment(self, 
-                             index: int, 
+
+    async def _generate_for_segment(self,
+                             index: int,
                              output_dir: str,
                              segment: VideoSegment) -> VideoSegment:
         """
         generate ai video clips for a segment.
         """
-        if not segment.video_clips:
+        if not segment.clips:
             return segment
-            
-        # generate videos for all video clips in the segment
+
+        # generate clips for all clips in the segment
         prompts = []
         prompt_indices = []
-        for idx, clip in enumerate(segment.video_clips):
+        for idx, clip in enumerate(segment.clips):
             if clip.source == VideoSource.AI_GENERATED:
                 prompt = VideoPrompt(
                     target=clip.query,
@@ -46,16 +46,16 @@ class VideoClipGenerator:
                 )
                 prompts.append(prompt)
                 prompt_indices.append(idx)
-        
+
         if prompts:
             paths = await generate_videos(prompts)
             for idx, path in zip(prompt_indices, paths):
                 path = await convert_mp4_to_webm_and_delete_original(path)
-                segment.video_clips[idx].path = path
-                segment.video_clips[idx].source = VideoSource.AI_GENERATED
+                segment.clips[idx].path = path
+                segment.clips[idx].source = VideoSource.AI_GENERATED
         return segment
-    
-    async def generate_for_segments(self, 
+
+    async def generate_for_segments(self,
                               pipeline_id: Optional[str],
                               segments: List[VideoSegment]
                               ) -> List[VideoSegment]:
@@ -64,11 +64,11 @@ class VideoClipGenerator:
         """
         output_dir = os.path.join(self.output_dir, pipeline_id) if pipeline_id else str(self.output_dir)
         Path(output_dir).mkdir(parents=True, exist_ok=True)
-        
+
         try:
             for i, segment in enumerate(segments, 1):
-                segment = await self._generate_for_segment(index=i, 
-                                                     output_dir=output_dir, 
+                segment = await self._generate_for_segment(index=i,
+                                                     output_dir=output_dir,
                                                      segment=segment)
             return segments
         except Exception as e:

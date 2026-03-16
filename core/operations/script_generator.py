@@ -39,7 +39,7 @@ class ScriptGenerator:
         self.user_instructions = user_instructions
         # initialize jinja2 environment for prompt templates
         self.jinja_env = Environment(
-            loader=FileSystemLoader(str(config.get_prompts_directory())),
+            loader=FileSystemLoader(str(config.prompts_directory)),
             autoescape=select_autoescape(['html', 'xml'])
         )
     

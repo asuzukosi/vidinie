@@ -4,7 +4,7 @@ segment and outline models for video pipeline.
 
 from typing import List, Optional
 from pydantic import BaseModel, Field
-from .image_models import SegmentImage, SegmentVideoClip
+from core.data.image_models import SegmentImage, SegmentClip
 
 
 class VideoSegment(BaseModel):
@@ -18,7 +18,7 @@ class VideoSegment(BaseModel):
     word_count: Optional[int] = None
     duration: int
     images: Optional[List[SegmentImage]] = None  # images to show with segment
-    video_clips: Optional[List[SegmentVideoClip]] = None  # video clips to show with segment
+    clips: Optional[List[SegmentClip]] = None  # clips to show with segment
     transition_to: Optional[str] = None
     transition_type: Optional[str] = None
     audio_file: Optional[str] = None
@@ -113,11 +113,11 @@ def to_xml_prompt_context(outline: VideoOutline) -> str:
                 xml_parts.append('        </image>')
             xml_parts.append('      </images>')
         
-        # visual assets - video clips
-        if segment.video_clips:
-            xml_parts.append('      <video_clips>')
-            for clip_idx, clip in enumerate(segment.video_clips, 1):
-                xml_parts.append(f'        <video_clip index="{clip_idx}">')
+        # visual assets - clips
+        if segment.clips:
+            xml_parts.append('      <clips>')
+            for clip_idx, clip in enumerate(segment.clips, 1):
+                xml_parts.append(f'        <clip index="{clip_idx}">')
                 xml_parts.append(f'          <source>{clip.source.value}</source>')
                 if clip.query:
                     xml_parts.append(f'          <query>{_escape_xml(clip.query)}</query>')
@@ -125,8 +125,8 @@ def to_xml_prompt_context(outline: VideoOutline) -> str:
                     xml_parts.append(f'          <path>{_escape_xml(clip.path)}</path>')
                 if clip.timing:
                     xml_parts.append(f'          <timing>{_escape_xml(clip.timing)}</timing>')
-                xml_parts.append('        </video_clip>')
-            xml_parts.append('      </video_clips>')
+                xml_parts.append('        </clip>')
+            xml_parts.append('      </clips>')
         
         # transitions
         if segment.transition_to or segment.transition_type:

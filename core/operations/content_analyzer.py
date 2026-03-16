@@ -14,7 +14,7 @@ from core.data import (
     ImageMetadata,
     VideoSegment,
 )
-from core.data.image_models import SegmentImage, SegmentVideoClip
+from core.data.image_models import SegmentImage, SegmentClip
 
 logger = get_logger("content_analyzer")
 
@@ -43,7 +43,7 @@ class ContentAnalyzerOutlineSegment(BaseModel):
     visual_keywords: List[str]
     duration: int
     images: List[SegmentImage]
-    video_clips: List[SegmentVideoClip]
+    clips: List[SegmentClip]
 
 class ContentAnalyzerOutline(BaseModel):
     title: str
@@ -104,7 +104,7 @@ class ContentAnalyzer:
         """
         # load system prompt from template
         jinja_env = Environment(
-            loader=FileSystemLoader(str(config.get_prompts_directory())),
+            loader=FileSystemLoader(str(config.prompts_directory)),
             autoescape=select_autoescape(['html', 'xml'])
         )
         # render system prompt
@@ -189,7 +189,7 @@ class ContentAnalyzer:
         # get the prompt for video outline generation
         images_text = self._extract_images_prompt(images_metadata)
         jinja_env = Environment(
-            loader=FileSystemLoader(str(config.get_prompts_directory())),
+            loader=FileSystemLoader(str(config.prompts_directory)),
             autoescape=select_autoescape(['html', 'xml'])
         )
 
@@ -222,7 +222,7 @@ class ContentAnalyzer:
                 visual_keywords=segment.visual_keywords,
                 duration=segment.duration,
                 images=segment.images,
-                video_clips=segment.video_clips,
+                clips=segment.clips,
             ))
         video_outline = VideoOutline(
             title=outline.title,

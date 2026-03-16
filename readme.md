@@ -1,4 +1,4 @@
-# Vidinie - Transform articles into engaging videos
+# Vidinie - Transform content and ideas into engaging videos
 
 Vidinie - Transform articles into engaging videos.
 

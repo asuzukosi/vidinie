@@ -13,7 +13,7 @@ from core.utils.stock_fetcher import (
     fetch_from_pexels_async,
 )
 from core.data import VideoSegment
-from core.data.segment_models import SegmentVideoClip, SegmentImage
+from core.data.segment_models import SegmentClip, SegmentImage
 from core.data.enums import ImageSource, VideoSource
 
 logger = get_logger(__name__)
@@ -42,19 +42,19 @@ class StockFetcher:
             Path(video_output_dir).mkdir(parents=True, exist_ok=True)
 
     def _generate_file_path(self, query: str, 
-                            media_item: Union[SegmentImage, SegmentVideoClip], 
+                            media_item: Union[SegmentImage, SegmentClip], 
                             index: int,
                             video_output_dir: str = None) -> str:
         """
         generate a file path for stock media based on the media item type.
-        Videos go to video_clips/stock_videos, images go to images/stock_images.
+        Videos go to clips/stock_videos, images go to images/stock_images.
         """
         query_hash = hashlib.md5(query.encode()).hexdigest()[:8]
         extension = ".jpg" if isinstance(media_item, SegmentImage) else ".mp4"
         filename = f"pexels_{query_hash}_{index}{extension}"
         
         # Use separate directory for videos if provided
-        if isinstance(media_item, SegmentVideoClip) and video_output_dir:
+        if isinstance(media_item, SegmentClip) and video_output_dir:
             return os.path.join(video_output_dir, filename)
         
         return os.path.join(self.output_dir, filename)
@@ -63,7 +63,7 @@ class StockFetcher:
         self,
         query: str,
         output_path: str,
-        media_item: Union[SegmentImage, SegmentVideoClip]
+        media_item: Union[SegmentImage, SegmentClip]
     ) -> bool:
         """
         fetch stock media and save to the specified path.
@@ -103,17 +103,17 @@ class StockFetcher:
                         image.query, output_path, image
                     ))
         
-        # process all video clips in the segment
-        if segment.video_clips:
-            for clip_idx, video_clip in enumerate(segment.video_clips):
+        # process all clips in the segment
+        if segment.clips:
+            for clip_idx, clip in enumerate(segment.clips):
                 # only fetch if it's a stock video with a query and no path yet
-                if (video_clip.source == VideoSource.STOCK and 
-                    video_clip.query and 
-                    not video_clip.path):
+                if (clip.source == VideoSource.STOCK and 
+                    clip.query and 
+                    not clip.path):
                     # generate path before fetching (videos go to video_output_dir)
-                    output_path = self._generate_file_path(video_clip.query, video_clip, clip_idx, self.video_output_dir)
+                    output_path = self._generate_file_path(clip.query, clip, clip_idx, self.video_output_dir)
                     tasks.append(self._fetch_and_update_path(
-                        video_clip.query, output_path, video_clip
+                        clip.query, output_path, clip
                     ))
         
         # execute all fetches for this segment in parallel
