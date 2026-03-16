@@ -12,7 +12,7 @@ import {
 
 // initialize stripe client for better-auth plugin
 const stripeClient = new Stripe(process.env.NEXT_PUBLIC_STRIPE_SECRET_KEY || "", {
-  apiVersion: "2025-11-17.clover",
+  apiVersion: "2026-02-25.clover",
 });
 
 // mongodb database client
