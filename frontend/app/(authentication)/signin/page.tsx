@@ -67,7 +67,7 @@ export default function SignInPage() {
 
   return (
     // login page container
-    <div className="flex items-center justify-center min-h-screen bg-zinc-50 dark:bg-black p-4">
+    <div className="flex items-center justify-center min-h-screen bg-background p-4">
       <div className="w-full max-w-md">
         <LoginForm onLogin={handleLogin} onGoogleLogin={handleGoogleLogin} onForgotPassword={handleForgotPassword} />
       </div>

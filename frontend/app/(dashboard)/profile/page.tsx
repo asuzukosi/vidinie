@@ -193,11 +193,11 @@ export default function ProfilePage() {
                 <div className="flex items-center gap-2">
                   <span className="text-sm">
                     {user.is_verified ? (
-                      <span className="text-green-600 dark:text-green-400">
+                      <span className="text-foreground font-medium">
                         Verified
                       </span>
                     ) : (
-                      <span className="text-yellow-600 dark:text-yellow-400">
+                      <span className="text-muted-foreground font-medium">
                         Unverified
                       </span>
                     )}

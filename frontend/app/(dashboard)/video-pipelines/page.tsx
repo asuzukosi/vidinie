@@ -190,14 +190,13 @@ export default function TasksPage() {
           <h1 className="text-3xl font-bold">
             Videos
           </h1>
-          <p className="mt-2 text-zinc-600 dark:text-zinc-400">
+          <p className="mt-2 text-muted-foreground">
             Manage your videos.
           </p>
         </div>
-        <button
+        <Button
           onClick={() => setIsModalOpen(true)}
           disabled={isCreatingTask}
-          className="flex items-center gap-2 rounded-sm bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isCreatingTask ? (
             <>
@@ -210,7 +209,7 @@ export default function TasksPage() {
               New Video
             </>
           )}
-        </button>
+        </Button>
       </div>
       {isLoading ? (
         <LoadingPage />

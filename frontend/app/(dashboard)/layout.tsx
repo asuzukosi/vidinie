@@ -58,7 +58,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
 
     return (
-        <div className="flex min-h-screen bg-zinc-50 font-sans dark:bg-black">
+        <div className="flex min-h-screen bg-background font-sans">
             <Sidebar>
                 {children}
             </Sidebar>

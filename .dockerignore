@@ -1,0 +1,26 @@
+# git
+.git
+.gitignore
+
+# python
+.venv
+venv
+__pycache__
+*.pyc
+.pytest_cache
+.mypy_cache
+
+# node
+node_modules
+outputs
+*.log
+logs.txt
+
+# ide
+.idea
+.vscode
+.cursor
+
+# docs and misc
+*.md
+*.pdf

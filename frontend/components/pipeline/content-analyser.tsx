@@ -42,7 +42,7 @@ export function ContentAnalyser({ videoOutline, onGenerateOutlineContent, isProc
                         <Button variant="outline" size="sm"
                             onClick={() => setIsOutlineContentModalOpen(true)}
                             disabled={isProcessingContent}
-                            className="w-full flex items-center justify-center gap-2 text-xs border-dashed border-zinc-300 text-zinc-500 hover:text-zinc-700 hover:border-zinc-500">
+                            className="w-full flex items-center justify-center gap-2 text-xs border-dashed border-border text-muted-foreground hover:text-foreground hover:border-foreground/30">
                             {isProcessingContent ? (
                                 <Loader2 className="size-4 animate-spin" />
                             ) : (

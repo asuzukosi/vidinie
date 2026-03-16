@@ -29,7 +29,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ videoPipelineId }) => 
                     className="w-full h-full object-contain"
                 />
             ) : (
-                <div className="w-full h-full flex items-center justify-center bg-zinc-100 dark:bg-zinc-900">
+                <div className="w-full h-full flex items-center justify-center bg-muted">
                     <p className="text-sm text-muted-foreground">Loading video player...</p>
                 </div>
             )}
