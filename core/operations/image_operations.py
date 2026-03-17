@@ -8,7 +8,7 @@ from fastapi import UploadFile
 from core.utils.logger import get_logger
 from core.utils.config_loader import config
 from core.data import VideoPipeline, ImageMetadata
-from core.operations.image_labeler import ImageLabeler
+from core.operators.image_labeler import ImageLabeler
 
 logger = get_logger(__name__)
 

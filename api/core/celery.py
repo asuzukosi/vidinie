@@ -5,8 +5,8 @@ from celery.signals import worker_process_init
 from core.data import VideoPipelineStage
 from core.utils.logger import get_logger
 from api.core.db import initialize_db
-from api.core.pipeline.executor import execute_pipeline_stages_for_id
-from api.core.pipeline.status import mark_pipeline_as_failed
+from api.core.execution.executor import execute_pipeline_stages_for_id
+from api.core.execution.status import mark_pipeline_as_failed
 from typing import Optional
 
 logger = get_logger("celery")

@@ -1,6 +1,6 @@
 "use client";
 
-import { VideoPipelineScript } from "@/lib/sdk/types";
+import { VideoOutline } from "@/lib/sdk/types";
 import { Badge } from "@/components/ui/badge";
 import {
     Accordion,
@@ -14,7 +14,7 @@ import { IconPlus } from "@tabler/icons-react";
 import { Loader2 } from "lucide-react";
 
 interface ScriptAndVoiceoversProps {
-    scriptData?: VideoPipelineScript;
+    videoOutline?: VideoOutline;
     fullAudioPath?: string;
     fullAudioDuration?: number;
     onScriptAndAudioGeneration?: () => void;
@@ -22,13 +22,13 @@ interface ScriptAndVoiceoversProps {
 }
 
 export function ScriptAndVoiceovers({ 
-    scriptData, 
+    videoOutline, 
     fullAudioPath, 
     fullAudioDuration,
     onScriptAndAudioGeneration,
     isGeneratingScripts = false
 }: ScriptAndVoiceoversProps) {
-    if (!scriptData || !scriptData.segments || scriptData.segments.length === 0) {
+    if (!videoOutline || !videoOutline.segments || videoOutline.segments.length === 0) {
         return (
             <div className="space-y-8 pt-8">
                 <div className="max-w-4xl mx-auto space-y-6">
@@ -62,7 +62,7 @@ export function ScriptAndVoiceovers({
                         <h3 className="font-semibold text-sm">Script and Voiceovers</h3>
                         <div className="flex flex-row justify-end gap-2 text-xs">
                             <Badge variant="outline">
-                                {scriptData.total_segments} {scriptData.total_segments === 1 ? "segment" : "segments"}
+                                {videoOutline.total_segments} {videoOutline.total_segments === 1 ? "segment" : "segments"}
                             </Badge>
                             {fullAudioDuration && (
                                 <Badge variant="outline">
@@ -83,7 +83,7 @@ export function ScriptAndVoiceovers({
                     )}
 
                     {/* Full Script Text */}
-                    {scriptData.full_script && (
+                    {videoOutline.full_script && (
                         <div className="space-y-4 mb-4">
                             <Accordion
                                 type="single"
@@ -96,7 +96,7 @@ export function ScriptAndVoiceovers({
                                     </AccordionTrigger>
                                     <AccordionContent className="flex flex-col gap-4">
                                         <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap italic">
-                                            "{scriptData.full_script}"
+                                            "{videoOutline.full_script}"
                                         </p>
                                     </AccordionContent>
                                 </AccordionItem>
@@ -112,7 +112,7 @@ export function ScriptAndVoiceovers({
                             collapsible
                             className="w-full"
                         >
-                            {scriptData.segments.map((segment, index) => {
+                            {videoOutline.segments.map((segment, index) => {
                                 const audioUrl = getLinkToImage(segment.audio_file) || undefined;
                                 return (
                                     <AccordionItem key={index} value={`segment-${index}`}>

@@ -24,7 +24,6 @@ async def lifespan(app: FastAPI):
     await initialize_db()
     # connect to the broadcast server
     await connect_to_broadcast()
-
     yield
     # disconnect from the broadcast server
     await disconnect_from_broadcast()

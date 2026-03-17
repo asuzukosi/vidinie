@@ -17,7 +17,7 @@ from typing import Dict, List
 from core.utils.logger import get_logger
 from core.utils.config_loader import config
 from core.processors.base import DocumentProcessor
-from core.operations.image_labeler import ImageLabeler
+from core.operators.image_labeler import ImageLabeler
 from core.data import (
     ParsedContent,
     ImageMetadata,

@@ -452,7 +452,7 @@ async def download_video_pipeline_output(video_pipeline_id: str,
     return FileResponse(
         path=video_path,
         media_type='video/mp4',
-        filename=f"{video_pipeline.script_data.title}-{datetime.now().strftime('%Y%m%d%H%M%S')}.mp4"
+        filename=f"{video_pipeline.video_outline.title}-{datetime.now().strftime('%Y%m%d%H%M%S')}.mp4"
     )
 
 def parse_range_header(range_header: str, file_size: int) -> Tuple[int, int]:

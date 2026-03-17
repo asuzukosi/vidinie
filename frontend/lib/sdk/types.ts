@@ -114,14 +114,9 @@ export interface VideoOutline {
     total_segments: number;
     estimated_duration: number;
     segments: VideoSegment[];
-}
-
-export interface VideoPipelineScript {
-    title: string;
-    total_segments: number;
-    segments: VideoSegment[];
     full_script: string;
 }
+
 
 export enum VideoPipelineStage {
     INITIALIZED = 'initialized',
@@ -169,7 +164,6 @@ export interface VideoPipeline {
     images_metadata?: ImageMetadata[];
     content?: string;
     video_outline?: VideoOutline;
-    script_data?: VideoPipelineScript;
     full_audio_path?: string;
     full_audio_duration?: number;
     video_path?: string;

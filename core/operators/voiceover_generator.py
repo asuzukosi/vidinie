@@ -31,23 +31,23 @@ class VoiceoverGenerator:
         self.voice = voice
     
     async def generate_voiceovers(self,
-                            script_data: VideoOutline) -> VideoOutline:
+                            video_outline: VideoOutline) -> VideoOutline:
         """
         generate voiceover audio for all segments.
         args:
-            script_data: script data with segments
+            video_outline: video outline with segments
         returns:
             updated script data with audio file paths and metadata
         """
-        logger.info(f"generating voiceovers for {len(script_data.segments)} segments")
-        audio_prompts = [AudioPrompt(text=segment.script, voice=self.voice, output_path=os.path.join(self.output_dir, f"segment_{i:02d}_{segment.title}.mp3")) for i, segment in enumerate(script_data.segments)]
+        logger.info(f"generating voiceovers for {len(video_outline.segments)} segments")
+        audio_prompts = [AudioPrompt(text=segment.script, voice=self.voice, output_path=os.path.join(self.output_dir, f"segment_{i:02d}_{segment.title}.mp3")) for i, segment in enumerate(video_outline.segments)]
         audio_paths = await generate_audios(audio_prompts)
-        for i, segment in enumerate(script_data.segments):
+        for i, segment in enumerate(video_outline.segments):
             segment.audio_file = audio_paths[i][0]
             segment.audio_duration = audio_paths[i][1]
-        return script_data
+        return video_outline
     
-    async def generate_full_audio(self, script_data: VideoOutline, 
+    async def generate_full_audio(self, video_outline: VideoOutline, 
                             output_path: str) -> float:
         """
         generate a single audio file combining all segments.
@@ -55,7 +55,7 @@ class VoiceoverGenerator:
         logger.info("combining all segments into single audio file")
             
         combined = AudioSegment.empty()
-        for segment in script_data.segments:
+        for segment in video_outline.segments:
             audio_file = segment.audio_file
             if audio_file and os.path.exists(audio_file):
                 audio = AudioSegment.from_mp3(audio_file)

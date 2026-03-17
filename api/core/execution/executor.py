@@ -7,7 +7,7 @@ from core.data import VideoPipeline, VideoPipelineStage, VideoPipelineStatus
 from core.utils.logger import get_logger
 from api.helpers.pipeline_helpers import get_pipeline_by_id
 from api.core.signals import broadcast_message, PipelineBroadcastMessageType, PipelineBroadcastStatus
-from api.core.pipeline.stage_handlers import (
+from api.core.execution.stage_handlers import (
     execute_document_processing_stage,
     execute_content_analysis_stage,
     execute_script_generation_stage,

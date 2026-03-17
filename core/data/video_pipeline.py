@@ -58,7 +58,6 @@ class VideoPipeline(BaseModel):
     video_outline: Optional[VideoOutline] = None  # video structure and segment plan
 
     # script_generation operation
-    script_data: Optional[VideoOutline] = None  # generated narration scripts
     full_audio_path: Optional[str] = None  # path to generated full audio file
     full_audio_duration: Optional[float] = None  # duration of generated full audio file
 
@@ -135,9 +134,6 @@ class VideoPipeline(BaseModel):
             with open(folder / "video_outline.json", 'w', encoding='utf-8') as f:
                 json.dump(self.video_outline.model_dump(mode="json"), f, indent=2, ensure_ascii=False)
 
-        if self.script_data:
-            with open(folder / "video_script.json", 'w', encoding='utf-8') as f:
-                json.dump(self.script_data, f, indent=2, ensure_ascii=False)
 
         logger.info(f"Saved video pipeline data to {folder}")
         return str(folder)
@@ -212,16 +208,6 @@ class VideoPipeline(BaseModel):
         if outline_file.exists():
             with open(outline_file, 'r', encoding='utf-8') as f:
                 data["video_outline"] = json.load(f)
-
-        script_file = folder / "video_script.json"
-        if script_file.exists():
-            with open(script_file, 'r', encoding='utf-8') as f:
-                data["script_data"] = json.load(f)
-
-        audio_file = folder / "script_with_audio.json"
-        if audio_file.exists():
-            with open(audio_file, 'r', encoding='utf-8') as f:
-                data["script_with_audio"] = json.load(f)
 
         logger.info(f"Loaded video pipeline data from folder: {folder}")
         return cls(**data)

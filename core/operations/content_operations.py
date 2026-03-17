@@ -12,10 +12,10 @@ from core.data import (
     ContentSection,
     VideoSegment,
 )
-from core.operations.content_analyzer import ContentAnalyzer
-from core.operations.stock_fetcher import StockFetcher
-from core.operations.image_generator import ImageGenerator
-from core.operations.clip_generator import ClipGenerator
+from core.operators.content_analyzer import ContentAnalyzer
+from core.operators.stock_fetcher import StockFetcher
+from core.operators.image_generator import ImageGenerator
+from core.operators.clip_generator import ClipGenerator
 
 logger = get_logger("content_operations")
 

@@ -22,7 +22,7 @@ from core.data import (
     ContentMetadata,
     ContentSection,
 )
-from core.operations.image_labeler import ImageLabeler
+from core.operators.image_labeler import ImageLabeler
 from urllib.parse import urljoin, urlparse
 import random
 

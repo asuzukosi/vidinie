@@ -298,7 +298,7 @@ export default function TaskDetailPage() {
                             </CardHeader>
                             <CardContent>
                                 <ScriptAndVoiceovers 
-                                    scriptData={videoPipeline.script_data}
+                                    videoOutline={videoPipeline.video_outline}
                                     fullAudioPath={videoPipeline.full_audio_path}
                                     fullAudioDuration={videoPipeline.full_audio_duration}
                                     onScriptAndAudioGeneration={scriptAndAudioGeneration}

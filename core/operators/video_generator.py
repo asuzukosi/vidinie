@@ -204,8 +204,8 @@ class VideoGenerator:
         logger.info("--------------------------------------------------\n")
 
 
-    async def generate_video(self, script_data: VideoOutline, target_path: str) -> str:
-        xml_prompt_context = to_xml_prompt_context(script_data)
+    async def generate_video(self, video_outline: VideoOutline, target_path: str) -> str:
+        xml_prompt_context = to_xml_prompt_context(video_outline)
         # check if remotion tool is available
         if not self._check_remotion_tool():
             raise ValueError("remotion tool is not available")

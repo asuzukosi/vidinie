@@ -10,7 +10,7 @@ from core.utils.config_loader import config
 from core.data import (
     VideoPipeline,
 )
-from core.operations.video_generator import VideoGenerator, VideoResolution
+from core.operators.video_generator import VideoGenerator, VideoResolution
 
 logger = get_logger("video_operations")
 
@@ -37,13 +37,13 @@ async def generate_video(
         logger.error("Full audio duration not found in pipeline data")
         raise ValueError("Full audio duration not found in pipeline data")
     
-    if not pipeline.script_data:
-        logger.error("Script data not found in pipeline data")
-        raise ValueError("Script data not found in pipeline data")
+    if not pipeline.video_outline:
+        logger.error("Video outline not found in pipeline data")
+        raise ValueError("Video outline not found in pipeline data")
     
     try:
-        script_data = pipeline.script_data
-        logger.info(f"Using script data for {len(script_data.segments)} segments")
+        video_outline = pipeline.video_outline
+        logger.info(f"Using video outline for {len(video_outline.segments)} segments")
         
         # generate video
         video_dir = os.path.join(output_dir, pipeline.id)
@@ -54,7 +54,7 @@ async def generate_video(
             user_instructions=pipeline.instructions
         )
         
-        generated_video_path = await video_gen.generate_video(script_data, video_dir)
+        generated_video_path = await video_gen.generate_video(video_outline, video_dir)
         pipeline.video_path = generated_video_path
         pipeline.output_path = generated_video_path
         
