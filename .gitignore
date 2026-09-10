@@ -112,3 +112,5 @@ next-env.d.ts
 
 # clerk configuration (can include secrets)
 /.clerk/
+# local agent scratch state
+pegasus_memory.json
