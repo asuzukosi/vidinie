@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, WebSocket, WebSocketDisconnect
 from api.core.auth import BetterAuthBearer
 from core.utils.logger import get_logger
+from core import storage
 from api.core.signals import listen_for_messages
 import os
 import asyncio
@@ -48,6 +49,8 @@ async def upload_profile_picture(
     with open(profile_picture_path, 'wb') as f:
         content = await file.read()
         f.write(content)
+
+    storage.media.push_file(profile_picture_path)
     
     # profile picture path (frontend will handle database update)
     profile_picture_relative_path = os.path.join("users", user_id, profile_picture_filename)

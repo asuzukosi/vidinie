@@ -1,6 +1,6 @@
-from fastapi import APIRouter, File, UploadFile, Form, HTTPException, Request, WebSocket, BackgroundTasks, Depends, WebSocketDisconnect
+from fastapi import APIRouter, File, UploadFile, Form, HTTPException, Request, Response, WebSocket, BackgroundTasks, Depends, WebSocketDisconnect
 import re
-from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.responses import StreamingResponse, FileResponse, RedirectResponse
 from core.data import (
     VideoPipeline,
     SourceType,
@@ -39,6 +39,7 @@ from api.data.pipelines import CreateVideoPipelineRequest, VideoPipelineSummary,
                                CreateVideoOutlineRequest, CreateVideoPipelineScriptRequest, \
                                VideoPipelineReviewRequest, GenerateVideoPipelineRequest
 from core.utils.config_loader import config
+from core import storage
 from core.clients.audio_engine import AudioVoiceString
 from datetime import datetime
 from typing import Optional, Tuple, List
@@ -81,6 +82,7 @@ async def write_content_to_file_for_pipeline(video_pipeline: VideoPipeline,
     with open(file_path, 'wb') as f:
         f.write(file_content)
     video_pipeline.source_path = file_path
+    storage.push(video_pipeline.id)
     await update_pipeline_in_db(video_pipeline.id, video_pipeline)
     await broadcast_message({
         "type": PipelineBroadcastMessageType.PIPELINE,
@@ -96,6 +98,7 @@ async def delete_pipeline_temp_directory(video_pipeline: VideoPipeline) -> None:
     # delete temp directory for pipeline
     output_dir = str(config.output_directory)
     pipeline_dir = os.path.join(output_dir, video_pipeline.id)
+    storage.remove(video_pipeline.id)
     if os.path.exists(pipeline_dir):
         shutil.rmtree(pipeline_dir)
         logger.info(f"temp directory deleted successfully with id: {video_pipeline.id}")
@@ -264,6 +267,7 @@ async def add_video_pipeline_image(video_pipeline_id: str, image: UploadFile,
             "image_filename": image.filename or ""
         })
         image_metadata = add_image_to_pipeline(video_pipeline, image, label=label or False)
+        storage.push(video_pipeline_id)
         await broadcast_message({
             "type": PipelineBroadcastMessageType.IMAGE,
             "pipeline_id": video_pipeline_id,
@@ -441,7 +445,7 @@ async def generate_video_pipeline_output(video_pipeline_id: str, request: Genera
 @router.get("/{video_pipeline_id}/output/download", name="download video pipeline output", dependencies=[Depends(BetterAuthBearer())])
 @error_wrapper("download video pipeline output")
 async def download_video_pipeline_output(video_pipeline_id: str,
-                                          user_id: str = Depends(BetterAuthBearer())) -> FileResponse:
+                                          user_id: str = Depends(BetterAuthBearer())) -> Response:
     logger.info("received request to download video")
     video_pipeline = await get_pipeline_by_id(video_pipeline_id)
     # verify ownership
@@ -449,6 +453,10 @@ async def download_video_pipeline_output(video_pipeline_id: str,
     video_path = video_pipeline.video_path
     if not video_path:
         raise HTTPException(status_code=500, detail="Video path not found")
+    filename = f"{video_pipeline.video_outline.title}-{datetime.now().strftime('%Y%m%d%H%M%S')}.mp4"
+    signed_url = storage.url_for(video_path, filename=filename)
+    if signed_url:
+        return RedirectResponse(signed_url)
     return FileResponse(
         path=video_path,
         media_type='video/mp4',
@@ -470,12 +478,16 @@ def parse_range_header(range_header: str, file_size: int) -> Tuple[int, int]:
 @error_wrapper("stream video pipeline output")
 async def stream_video_pipeline_output(video_pipeline_id: str, request: Request,
                                     #    user_id: str = Depends(BetterAuthBearer())
-                                       ) -> StreamingResponse:
+                                       ) -> Response:
     # logger.info("received request to stream video")
     video_pipeline = await get_pipeline_by_id(video_pipeline_id)
     video_path = video_pipeline.video_path
     if not video_path:
         raise HTTPException(status_code=500, detail="Video path not found")
+    # r2 serves range requests itself, so hand the player a url straight to it
+    signed_url = storage.url_for(video_path)
+    if signed_url:
+        return RedirectResponse(signed_url)
     file_size = os.path.getsize(video_path)
     range_header = request.headers.get('range')
 

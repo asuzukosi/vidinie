@@ -57,6 +57,12 @@ class Config:
         self.pipeline_result_path = 'result'
         self.pipeline_remotion_output_path = 'out/VidinieComposition.mp4'
 
+        # r2 object storage (optional; falls back to local disk alone)
+        self.r2_account_id = None
+        self.r2_bucket = None
+        self.r2_access_key_id = None
+        self.r2_secret_access_key = None
+
         # api keys (will be loaded from env)
         self.anthropic_api_key = None
         self.replicate_api_token = None
@@ -72,6 +78,16 @@ class Config:
         self.replicate_api_token = os.getenv('REPLICATE_API_TOKEN') or self.replicate_api_token
         self.elevenlabs_api_key = os.getenv('ELEVENLABS_API_KEY') or self.elevenlabs_api_key
         self.pexels_api_key = os.getenv('PEXELS_API_KEY') or self.pexels_api_key
+
+        # load r2 settings from environment
+        self.r2_account_id = os.getenv('R2_ACCOUNT_ID') or self.r2_account_id
+        self.r2_bucket = os.getenv('R2_BUCKET') or self.r2_bucket
+        self.r2_access_key_id = os.getenv('R2_ACCESS_KEY_ID') or self.r2_access_key_id
+        self.r2_secret_access_key = os.getenv('R2_SECRET_ACCESS_KEY') or self.r2_secret_access_key
+
+    @property
+    def r2_endpoint(self) -> str:
+        return f"https://{self.r2_account_id}.r2.cloudflarestorage.com"
     
     def validate_api_keys(self) -> Dict[str, bool]:
         """

@@ -1,8 +1,7 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from api.routes import users, pipelines
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 import os
 from dotenv import load_dotenv
@@ -11,6 +10,9 @@ from api.core.config import initialize_config, destroy_config
 from api.core.db import initialize_db, disconnect_from_db
 from core.utils.config_loader import config
 from core.utils.logger import get_logger
+from core import storage
+from fastapi.responses import RedirectResponse, FileResponse
+from pathlib import Path
 
 logger = get_logger(__name__)
 load_dotenv()
@@ -47,28 +49,28 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# custom static file handler with cors headers
-class CORSStaticFiles(StaticFiles):
-    async def __call__(self, scope, receive, send):
-        async def send_wrapper(message):
-            frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
-            if message["type"] == "http.response.start":
-                # add cors headers to static file responses
-                headers = dict(message.get("headers", []))
-                headers[b"access-control-allow-origin"] = f"{frontend_url}".encode("utf-8")
-                headers[b"access-control-allow-credentials"] = b"true"
-                headers[b"access-control-allow-methods"] = b"*"
-                headers[b"access-control-allow-headers"] = b"*"
-                message["headers"] = list(headers.items())
-            await send(message)
-        
-        await super().__call__(scope, receive, send_wrapper)
-
-# mount the media directory
+# where rendered files land on this machine
 output_dir = str(config.output_directory)
 if not os.path.exists(output_dir):
     os.makedirs(output_dir, exist_ok=True)
-app.mount("/media", CORSStaticFiles(directory=output_dir), name="media")
+
+
+@app.get("/media/{path:path}", include_in_schema=False)
+def media(path: str):
+    """serve a file this machine rendered, or redirect to r2 for one it did not."""
+    requested = Path(output_dir).joinpath(path).resolve()
+    # a mount used to guard this; a plain join would let ../ escape outputs/
+    if not requested.is_relative_to(Path(output_dir).resolve()):
+        raise HTTPException(status_code=404, detail="not found")
+
+    if requested.is_file():
+        return FileResponse(str(requested))
+
+    signed_url = storage.media.url_for(path)
+    if not signed_url:
+        raise HTTPException(status_code=404, detail="not found")
+    return RedirectResponse(signed_url)
+
 
 # include the routes
 app.include_router(users.router, prefix="/users")

@@ -33,6 +33,9 @@ moviepy==1.0.3
 numpy
 ffmpeg-python
 
+# object storage
+boto3
+
 # fastapi
 fastapi[standard]
 pydantic[email]
