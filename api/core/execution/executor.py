@@ -13,6 +13,7 @@ from api.core.execution.stage_handlers import (
     execute_script_generation_stage,
     execute_video_generation_stage
 )
+from core import storage
 from typing import Optional, Tuple
 import time
 
@@ -160,6 +161,10 @@ async def execute_pipeline_stages(
     
     logger.info(f"stages to run: {stages_to_run}")
 
+    # bring down whatever an earlier stage left in r2; this may be the first
+    # time this machine has seen the pipeline at all
+    storage.pull(pipeline.id)
+
     # store variables for each stage duration 
     document_processing_duration = 0
     content_analysis_duration = 0
@@ -179,6 +184,7 @@ async def execute_pipeline_stages(
         if not should_continue:
             return pipeline
         document_processing_duration = time.time() - document_processing_start_time
+        storage.push(pipeline.id)
     
     # execute content analysis stage
     if VideoPipelineStage.CONTENT_ANALYSIS in stages_to_run:
@@ -187,6 +193,7 @@ async def execute_pipeline_stages(
         if not should_continue:
             return pipeline
         content_analysis_duration = time.time() - content_analysis_start_time
+        storage.push(pipeline.id)
     
     # execute script generation stage
     if VideoPipelineStage.SCRIPT_GENERATION in stages_to_run:
@@ -195,6 +202,7 @@ async def execute_pipeline_stages(
         if not should_continue:
             return pipeline
         script_generation_duration = time.time() - script_generation_start_time
+        storage.push(pipeline.id)
     
     # execute video generation stage
     if VideoPipelineStage.VIDEO_GENERATION in stages_to_run:
@@ -203,6 +211,7 @@ async def execute_pipeline_stages(
         if not should_continue:
             return pipeline
         video_generation_duration = time.time() - video_generation_start_time
+        storage.push(pipeline.id)
     
     # finalize pipeline execution
     logger.info(f"document processing duration: {document_processing_duration}")

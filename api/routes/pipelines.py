@@ -1,6 +1,6 @@
-from fastapi import APIRouter, File, UploadFile, Form, HTTPException, Request, WebSocket, BackgroundTasks, Depends, WebSocketDisconnect
+from fastapi import APIRouter, File, UploadFile, Form, HTTPException, Request, Response, WebSocket, BackgroundTasks, Depends, WebSocketDisconnect
 import re
-from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.responses import StreamingResponse, FileResponse, RedirectResponse
 from core.data import (
     VideoPipeline,
     SourceType,
@@ -13,13 +13,13 @@ from core.data import (
 import asyncio
 from api.core.auth import BetterAuthBearer
 from core.utils.logger import setup_logging, get_logger
-from api.operations.content_operations import (
+from core.operations.content_operations import (
     add_section_to_content as add_section_to_pipeline,
     delete_section_from_content as delete_section_from_pipeline,
     add_segment_to_outline,
     delete_segment_from_outline,
 )
-from api.operations.image_operations import (
+from core.operations.image_operations import (
     add_image_to_pipeline,
     delete_image_from_pipeline,
 )
@@ -33,12 +33,13 @@ from api.helpers.pipeline_helpers import (
 )
 import os
 from pathlib import Path
-from api.data.pipelines import CreateVideoPipelineRequest, VideoPipelineSummary, \
+from api.data.pipelines import CreateVideoPipelineRequest, VideoPipelineSummary, VideoPipelineProgress, \
                                DeleteVideoPipelineResponse, DeleteVideoPipelineImageResponse, \
                                DeleteVideoPipelineSectionResponse, \
                                CreateVideoOutlineRequest, CreateVideoPipelineScriptRequest, \
                                VideoPipelineReviewRequest, GenerateVideoPipelineRequest
 from core.utils.config_loader import config
+from core import storage
 from core.clients.audio_engine import AudioVoiceString
 from datetime import datetime
 from typing import Optional, Tuple, List
@@ -52,6 +53,11 @@ from api.core.celery import execute_pipeline_task
 setup_logging(log_dir=str(config.logs_directory))
 logger = get_logger('pipelines')
 router = APIRouter(tags=["pipelines"])
+
+
+class RenderedVideo(Response):
+    """declared on the video routes so the spec says mp4 rather than json."""
+    media_type = "video/mp4"
 
 
 async def copy_base_to_target(target_path: str) -> bool:
@@ -81,6 +87,7 @@ async def write_content_to_file_for_pipeline(video_pipeline: VideoPipeline,
     with open(file_path, 'wb') as f:
         f.write(file_content)
     video_pipeline.source_path = file_path
+    storage.push(video_pipeline.id)
     await update_pipeline_in_db(video_pipeline.id, video_pipeline)
     await broadcast_message({
         "type": PipelineBroadcastMessageType.PIPELINE,
@@ -96,11 +103,21 @@ async def delete_pipeline_temp_directory(video_pipeline: VideoPipeline) -> None:
     # delete temp directory for pipeline
     output_dir = str(config.output_directory)
     pipeline_dir = os.path.join(output_dir, video_pipeline.id)
+    storage.remove(video_pipeline.id)
     if os.path.exists(pipeline_dir):
         shutil.rmtree(pipeline_dir)
         logger.info(f"temp directory deleted successfully with id: {video_pipeline.id}")
     else:
         logger.info(f"no temp directory found for pipeline with id: {video_pipeline.id}")
+
+def _ready_video_path(video_pipeline: VideoPipeline) -> str:
+    """the rendered video, or the reason a caller cannot have it yet."""
+    if video_pipeline.video_path:
+        return video_pipeline.video_path
+    if video_pipeline.video_generation_status == VideoPipelineStatus.FAILED:
+        raise HTTPException(status_code=404, detail="video generation failed for this pipeline")
+    raise HTTPException(status_code=409, detail="video is not ready yet")
+
 
 async def any_stage_is_processing(video_pipeline: VideoPipeline) -> bool:
     # check if any stage is processing
@@ -218,6 +235,23 @@ async def get_video_pipeline_details(video_pipeline_id: str, user_id: str = Depe
     await verify_pipeline_ownership(video_pipeline, user_id)
     return video_pipeline
 
+@router.get("/{video_pipeline_id}/progress", name="get video pipeline progress", dependencies=[Depends(BetterAuthBearer())])
+@error_wrapper("get video pipeline progress")
+async def get_video_pipeline_progress(video_pipeline_id: str,
+                                      user_id: str = Depends(BetterAuthBearer())) -> VideoPipelineProgress:
+    video_pipeline = await get_pipeline_by_id(video_pipeline_id)
+    await verify_pipeline_ownership(video_pipeline, user_id)
+    return VideoPipelineProgress(
+        id=video_pipeline.id,
+        current_stage=video_pipeline.current_stage.value,
+        status=video_pipeline.status.value,
+        document_processing_status=video_pipeline.document_processing_status.value,
+        content_analysis_status=video_pipeline.content_analysis_status.value,
+        script_generation_status=video_pipeline.script_generation_status.value,
+        video_generation_status=video_pipeline.video_generation_status.value,
+        video_ready=bool(video_pipeline.video_path),
+    )
+
 @router.delete("/{video_pipeline_id}", name="delete video pipeline", 
                dependencies=[Depends(BetterAuthBearer())])
 @error_wrapper("delete video pipeline")
@@ -264,6 +298,7 @@ async def add_video_pipeline_image(video_pipeline_id: str, image: UploadFile,
             "image_filename": image.filename or ""
         })
         image_metadata = add_image_to_pipeline(video_pipeline, image, label=label or False)
+        storage.push(video_pipeline_id)
         await broadcast_message({
             "type": PipelineBroadcastMessageType.IMAGE,
             "pipeline_id": video_pipeline_id,
@@ -345,7 +380,7 @@ async def delete_video_pipeline_section(video_pipeline_id: str,
 @router.post("/{video_pipeline_id}/process", name="process video pipeline content", dependencies=[Depends(BetterAuthBearer())])
 @error_wrapper("process video pipeline content")
 async def process_video_pipeline_content(video_pipeline_id: str, request: CreateVideoOutlineRequest,
-                                         user_id: str = Depends(BetterAuthBearer())) -> VideoPipeline:
+                                         user_id: str = Depends(BetterAuthBearer())) -> VideoPipelineSummary:
     video_pipeline = await get_pipeline_by_id(video_pipeline_id)
     # verify ownership
     await verify_pipeline_ownership(video_pipeline, user_id)
@@ -403,7 +438,7 @@ async def delete_video_pipeline_outline_segment(video_pipeline_id: str, index: i
 @router.post("/{video_pipeline_id}/generate-scripts", name="generate video pipeline scripts")
 @error_wrapper("generate video pipeline scripts")
 async def generate_video_pipeline_scripts(video_pipeline_id: str, request: CreateVideoPipelineScriptRequest,
-                                          user_id: str = Depends(BetterAuthBearer())) -> VideoPipeline:
+                                          user_id: str = Depends(BetterAuthBearer())) -> VideoPipelineSummary:
     logger.info("received request to generate scripts and voiceovers")
     # get pipeline using helper
     video_pipeline = await get_pipeline_by_id(video_pipeline_id)
@@ -424,7 +459,7 @@ async def generate_video_pipeline_scripts(video_pipeline_id: str, request: Creat
 @router.post("/{video_pipeline_id}/generate", name="generate video pipeline output", dependencies=[Depends(BetterAuthBearer())])
 @error_wrapper("generate video pipeline output")
 async def generate_video_pipeline_output(video_pipeline_id: str, request: GenerateVideoPipelineRequest,
-                                         user_id: str = Depends(BetterAuthBearer())) -> VideoPipeline:
+                                         user_id: str = Depends(BetterAuthBearer())) -> VideoPipelineSummary:
     logger.info("received request to generate video")
     video_pipeline = await get_pipeline_by_id(video_pipeline_id)
     # verify ownership
@@ -438,17 +473,27 @@ async def generate_video_pipeline_output(video_pipeline_id: str, request: Genera
     # return pipeline summary
     return VideoPipelineSummary(**video_pipeline.model_dump(mode="json"))
 
-@router.get("/{video_pipeline_id}/output/download", name="download video pipeline output", dependencies=[Depends(BetterAuthBearer())])
+@router.get("/{video_pipeline_id}/output/download", name="download video pipeline output",
+            dependencies=[Depends(BetterAuthBearer())],
+            response_class=RenderedVideo,
+            responses={
+                200: {"description": "the rendered video"},
+                409: {"description": "video is not ready yet"},
+                404: {"description": "video generation failed"},
+            },
+            )
 @error_wrapper("download video pipeline output")
 async def download_video_pipeline_output(video_pipeline_id: str,
-                                          user_id: str = Depends(BetterAuthBearer())) -> FileResponse:
+                                          user_id: str = Depends(BetterAuthBearer())) -> Response:
     logger.info("received request to download video")
     video_pipeline = await get_pipeline_by_id(video_pipeline_id)
     # verify ownership
     await verify_pipeline_ownership(video_pipeline, user_id)
-    video_path = video_pipeline.video_path
-    if not video_path:
-        raise HTTPException(status_code=500, detail="Video path not found")
+    video_path = _ready_video_path(video_pipeline)
+    filename = f"{video_pipeline.video_outline.title}-{datetime.now().strftime('%Y%m%d%H%M%S')}.mp4"
+    signed_url = storage.url_for(video_path, filename=filename)
+    if signed_url:
+        return RedirectResponse(signed_url)
     return FileResponse(
         path=video_path,
         media_type='video/mp4',
@@ -464,18 +509,26 @@ def parse_range_header(range_header: str, file_size: int) -> Tuple[int, int]:
     end = int(byte_range.group(2)) if byte_range.group(2) else file_size - 1
     return start, end
 
-@router.get("/{video_pipeline_id}/output/stream", name="stream video pipeline output", 
+@router.get("/{video_pipeline_id}/output/stream", name="stream video pipeline output",
             # dependencies=[Depends(BetterAuthBearer())]
+            response_class=RenderedVideo,
+            responses={
+                200: {"description": "the rendered video"},
+                409: {"description": "video is not ready yet"},
+                404: {"description": "video generation failed"},
+            },
             )
 @error_wrapper("stream video pipeline output")
 async def stream_video_pipeline_output(video_pipeline_id: str, request: Request,
                                     #    user_id: str = Depends(BetterAuthBearer())
-                                       ) -> StreamingResponse:
+                                       ) -> Response:
     # logger.info("received request to stream video")
     video_pipeline = await get_pipeline_by_id(video_pipeline_id)
-    video_path = video_pipeline.video_path
-    if not video_path:
-        raise HTTPException(status_code=500, detail="Video path not found")
+    video_path = _ready_video_path(video_pipeline)
+    # r2 serves range requests itself, so hand the player a url straight to it
+    signed_url = storage.url_for(video_path)
+    if signed_url:
+        return RedirectResponse(signed_url)
     file_size = os.path.getsize(video_path)
     range_header = request.headers.get('range')
 

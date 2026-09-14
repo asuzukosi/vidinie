@@ -36,6 +36,7 @@ and the UI stops there so you can change what it produced before moving on.
 └────────┬─────────┘
          ▼
    outputs/<pipeline_id>/out/VidinieComposition.mp4
+                       └─ mirrored to r2 when configured
 ```
 
 Stages are defined in `core/data/enums.py:VideoPipelineStage` and driven by
@@ -124,6 +125,7 @@ fill it in.
 | `NEXT_PUBLIC_RESEND_API_KEY` | verification, password reset and welcome emails |
 | `NEXT_PUBLIC_API_URL`, `FRONTEND_URL` | how the two halves address each other, and CORS |
 | `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST` | product analytics |
+| `R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | durable storage for rendered videos and pipeline assets; unset keeps everything on local disk |
 
 Paths, directory layout and chunk sizes live in `core/utils/config_loader.py`.
 
@@ -137,6 +139,7 @@ All routes need a Better Auth JWT as a bearer token.
 | `POST` | `/video-pipelines/from-url` | start a pipeline from an article URL |
 | `GET` | `/video-pipelines/` | list your pipelines |
 | `GET` | `/video-pipelines/{id}` | full pipeline state |
+| `GET` | `/video-pipelines/{id}/progress` | stage statuses only — small enough to poll |
 | `POST` | `/video-pipelines/{id}/process` | run document processing |
 | `POST` | `/video-pipelines/{id}/sections` · `DELETE .../sections/{i}` | edit extracted content |
 | `POST` | `/video-pipelines/{id}/images` · `DELETE .../images/{i}` | edit the image set |
@@ -147,7 +150,8 @@ All routes need a Better Auth JWT as a bearer token.
 | `GET` | `/video-pipelines/{id}/output/stream` · `/download` | watch or fetch the MP4 |
 | `WS` | `/video-pipelines/{id}/ws` | live stage progress |
 
-Full schema at `/docs` once the backend is up.
+Full schema at `/docs` once the backend is up. `python scripts/export_openapi.py`
+writes `openapi.json`, which is what SDK and CLI generation reads.
 
 ## Layout
 
@@ -157,6 +161,7 @@ core/            everything that makes a video, framework-free
   operators/       one job each: content_analyzer, script_generator, video_generator, …
   operations/      stage-level orchestration over the operators
   processors/      pdf and html to text + images
+  storage/         syncs outputs/<pipeline_id>/ to r2, so any worker can resume one
   data/            pydantic models and the VideoPipeline record
   prompts/         jinja2 templates for every Claude call
 
