@@ -34,6 +34,18 @@ class VideoPipelineSummary(BaseModel):
     source_path: Optional[str] = None
     source_type: Optional[SourceType] = None
 
+class VideoPipelineProgress(BaseModel):
+    """small enough to poll on a loop, unlike the full pipeline document."""
+    id: str
+    current_stage: str
+    status: str
+    document_processing_status: str
+    content_analysis_status: str
+    script_generation_status: str
+    video_generation_status: str
+    video_ready: bool
+
+
 class DeleteVideoPipelineResponse(BaseModel):
     video_pipeline_id: str
     message: str

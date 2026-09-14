@@ -139,6 +139,7 @@ All routes need a Better Auth JWT as a bearer token.
 | `POST` | `/video-pipelines/from-url` | start a pipeline from an article URL |
 | `GET` | `/video-pipelines/` | list your pipelines |
 | `GET` | `/video-pipelines/{id}` | full pipeline state |
+| `GET` | `/video-pipelines/{id}/progress` | stage statuses only — small enough to poll |
 | `POST` | `/video-pipelines/{id}/process` | run document processing |
 | `POST` | `/video-pipelines/{id}/sections` · `DELETE .../sections/{i}` | edit extracted content |
 | `POST` | `/video-pipelines/{id}/images` · `DELETE .../images/{i}` | edit the image set |
@@ -149,7 +150,8 @@ All routes need a Better Auth JWT as a bearer token.
 | `GET` | `/video-pipelines/{id}/output/stream` · `/download` | watch or fetch the MP4 |
 | `WS` | `/video-pipelines/{id}/ws` | live stage progress |
 
-Full schema at `/docs` once the backend is up.
+Full schema at `/docs` once the backend is up. `python scripts/export_openapi.py`
+writes `openapi.json`, which is what SDK and CLI generation reads.
 
 ## Layout
 

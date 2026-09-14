@@ -1,4 +1,6 @@
+import re
 from fastapi import FastAPI, HTTPException
+from fastapi.routing import APIRoute
 from api.routes import users, pipelines
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
@@ -34,12 +36,22 @@ async def lifespan(app: FastAPI):
     # destroy the configuration
     await destroy_config()
 
+def operation_id(route: APIRoute) -> str:
+    """
+    name the operation after the route, not after the function plus its path.
+    generated sdks turn this into a method name, and the fastapi default reads
+    create_video_pipeline_from_file_video_pipelines_from_file_post.
+    """
+    return re.sub(r"\W+", "_", route.name).strip("_").lower()
+
+
 # create the fastapi app
 app = FastAPI(title="[vidinie] backend service api",
                description="API for Vidinie",
                version="0.1.0",
                openapi_url="/openapi.json",
-               lifespan=lifespan)
+               lifespan=lifespan,
+               generate_unique_id_function=operation_id)
 # add cors middleware
 app.add_middleware(
     CORSMiddleware,
