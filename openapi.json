@@ -1,0 +1,2389 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "[vidinie] backend service api",
+    "description": "API for Vidinie",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/users/profile-picture": {
+      "post": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Upload Profile Picture",
+        "operationId": "upload_profile_picture",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_profile_picture"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Upload Profile Picture"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BetterAuthBearer": []
+          }
+        ]
+      }
+    },
+    "/video-pipelines/from-file": {
+      "post": {
+        "tags": [
+          "pipelines"
+        ],
+        "summary": "Create Video Pipeline From File",
+        "operationId": "create_video_pipeline_from_file",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_create_video_pipeline_from_file"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoPipelineSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BetterAuthBearer": []
+          }
+        ]
+      }
+    },
+    "/video-pipelines/from-url": {
+      "post": {
+        "tags": [
+          "pipelines"
+        ],
+        "summary": "Create Video Pipeline From Url",
+        "operationId": "create_video_pipeline_from_url",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateVideoPipelineRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoPipelineSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BetterAuthBearer": []
+          }
+        ]
+      }
+    },
+    "/video-pipelines/": {
+      "get": {
+        "tags": [
+          "pipelines"
+        ],
+        "summary": "Get All Video Pipelines",
+        "operationId": "get_all_video_pipelines",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/VideoPipelineSummary"
+                  },
+                  "type": "array",
+                  "title": "Response Get All Video Pipelines"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BetterAuthBearer": []
+          }
+        ]
+      }
+    },
+    "/video-pipelines/{video_pipeline_id}": {
+      "get": {
+        "tags": [
+          "pipelines"
+        ],
+        "summary": "Get Video Pipeline Details",
+        "operationId": "get_video_pipeline_details",
+        "security": [
+          {
+            "BetterAuthBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "video_pipeline_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Video Pipeline Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoPipeline"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "pipelines"
+        ],
+        "summary": "Delete Video Pipeline",
+        "operationId": "delete_video_pipeline",
+        "security": [
+          {
+            "BetterAuthBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "video_pipeline_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Video Pipeline Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteVideoPipelineResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/video-pipelines/{video_pipeline_id}/progress": {
+      "get": {
+        "tags": [
+          "pipelines"
+        ],
+        "summary": "Get Video Pipeline Progress",
+        "operationId": "get_video_pipeline_progress",
+        "security": [
+          {
+            "BetterAuthBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "video_pipeline_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Video Pipeline Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoPipelineProgress"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/video-pipelines/{video_pipeline_id}/images": {
+      "post": {
+        "tags": [
+          "pipelines"
+        ],
+        "summary": "Add Video Pipeline Image",
+        "operationId": "add_video_pipeline_image",
+        "security": [
+          {
+            "BetterAuthBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "video_pipeline_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Video Pipeline Id"
+            }
+          },
+          {
+            "name": "label",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": false,
+              "title": "Label"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_add_video_pipeline_image"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageMetadata"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/video-pipelines/{video_pipeline_id}/images/{index}": {
+      "delete": {
+        "tags": [
+          "pipelines"
+        ],
+        "summary": "Delete Video Pipeline Image",
+        "operationId": "delete_video_pipeline_image",
+        "security": [
+          {
+            "BetterAuthBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "video_pipeline_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Video Pipeline Id"
+            }
+          },
+          {
+            "name": "index",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Index"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteVideoPipelineImageResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/video-pipelines/{video_pipeline_id}/sections": {
+      "post": {
+        "tags": [
+          "pipelines"
+        ],
+        "summary": "Add Video Pipeline Section",
+        "operationId": "add_video_pipeline_section",
+        "security": [
+          {
+            "BetterAuthBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "video_pipeline_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Video Pipeline Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentSection"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentSection"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/video-pipelines/{video_pipeline_id}/sections/{index}": {
+      "delete": {
+        "tags": [
+          "pipelines"
+        ],
+        "summary": "Delete Video Pipeline Section",
+        "operationId": "delete_video_pipeline_section",
+        "security": [
+          {
+            "BetterAuthBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "video_pipeline_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Video Pipeline Id"
+            }
+          },
+          {
+            "name": "index",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Index"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteVideoPipelineSectionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/video-pipelines/{video_pipeline_id}/process": {
+      "post": {
+        "tags": [
+          "pipelines"
+        ],
+        "summary": "Process Video Pipeline Content",
+        "operationId": "process_video_pipeline_content",
+        "security": [
+          {
+            "BetterAuthBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "video_pipeline_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Video Pipeline Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateVideoOutlineRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoPipelineSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/video-pipelines/{video_pipeline_id}/outline/segments": {
+      "post": {
+        "tags": [
+          "pipelines"
+        ],
+        "summary": "Add Video Pipeline Outline Segment",
+        "operationId": "add_video_pipeline_outline_segment",
+        "security": [
+          {
+            "BetterAuthBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "video_pipeline_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Video Pipeline Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VideoSegment"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoSegment"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/video-pipelines/{video_pipeline_id}/outline/segments/{index}": {
+      "delete": {
+        "tags": [
+          "pipelines"
+        ],
+        "summary": "Delete Video Pipeline Outline Segment",
+        "operationId": "delete_video_pipeline_outline_segment",
+        "security": [
+          {
+            "BetterAuthBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "video_pipeline_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Video Pipeline Id"
+            }
+          },
+          {
+            "name": "index",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Index"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoSegment"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/video-pipelines/{video_pipeline_id}/generate-scripts": {
+      "post": {
+        "tags": [
+          "pipelines"
+        ],
+        "summary": "Generate Video Pipeline Scripts",
+        "operationId": "generate_video_pipeline_scripts",
+        "security": [
+          {
+            "BetterAuthBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "video_pipeline_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Video Pipeline Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateVideoPipelineScriptRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoPipelineSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/video-pipelines/{video_pipeline_id}/generate": {
+      "post": {
+        "tags": [
+          "pipelines"
+        ],
+        "summary": "Generate Video Pipeline Output",
+        "operationId": "generate_video_pipeline_output",
+        "security": [
+          {
+            "BetterAuthBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "video_pipeline_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Video Pipeline Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateVideoPipelineRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoPipelineSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/video-pipelines/{video_pipeline_id}/output/download": {
+      "get": {
+        "tags": [
+          "pipelines"
+        ],
+        "summary": "Download Video Pipeline Output",
+        "operationId": "download_video_pipeline_output",
+        "security": [
+          {
+            "BetterAuthBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "video_pipeline_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Video Pipeline Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "the rendered video",
+            "content": {
+              "video/mp4": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "video is not ready yet"
+          },
+          "404": {
+            "description": "video generation failed"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/video-pipelines/{video_pipeline_id}/output/stream": {
+      "get": {
+        "tags": [
+          "pipelines"
+        ],
+        "summary": "Stream Video Pipeline Output",
+        "operationId": "stream_video_pipeline_output",
+        "parameters": [
+          {
+            "name": "video_pipeline_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Video Pipeline Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "the rendered video",
+            "content": {
+              "video/mp4": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "video is not ready yet"
+          },
+          "404": {
+            "description": "video generation failed"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/video-pipelines/{video_pipeline_id}/review": {
+      "post": {
+        "tags": [
+          "pipelines"
+        ],
+        "summary": "Add Video Pipeline Review",
+        "operationId": "add_video_pipeline_review",
+        "security": [
+          {
+            "BetterAuthBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "video_pipeline_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Video Pipeline Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VideoPipelineReviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoPipeline"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Health Check",
+        "operationId": "health_check",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_add_video_pipeline_image": {
+        "properties": {
+          "image": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "Image"
+          }
+        },
+        "type": "object",
+        "required": [
+          "image"
+        ],
+        "title": "Body_add_video_pipeline_image"
+      },
+      "Body_create_video_pipeline_from_file": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "instructions": {
+            "type": "string",
+            "title": "Instructions"
+          },
+          "voice": {
+            "type": "string",
+            "title": "Voice"
+          },
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "instructions",
+          "voice",
+          "file"
+        ],
+        "title": "Body_create_video_pipeline_from_file"
+      },
+      "Body_upload_profile_picture": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_profile_picture"
+      },
+      "ContentMetadata": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "creator": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Creator"
+          },
+          "producer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Producer"
+          },
+          "creation_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Creation Date"
+          },
+          "modification_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modification Date"
+          }
+        },
+        "type": "object",
+        "title": "ContentMetadata",
+        "description": "parsed content metadata from the document for video pipeline."
+      },
+      "ContentSection": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level"
+          }
+        },
+        "type": "object",
+        "title": "ContentSection",
+        "description": "parsed content section from the document for video pipeline."
+      },
+      "CreateVideoOutlineRequest": {
+        "properties": {
+          "target_segments": {
+            "type": "integer",
+            "title": "Target Segments",
+            "default": 4
+          },
+          "segment_duration": {
+            "type": "integer",
+            "title": "Segment Duration",
+            "default": 40
+          }
+        },
+        "type": "object",
+        "title": "CreateVideoOutlineRequest"
+      },
+      "CreateVideoPipelineRequest": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "instructions": {
+            "type": "string",
+            "title": "Instructions"
+          },
+          "voice": {
+            "type": "string",
+            "title": "Voice"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url",
+          "name",
+          "instructions",
+          "voice"
+        ],
+        "title": "CreateVideoPipelineRequest"
+      },
+      "CreateVideoPipelineScriptRequest": {
+        "properties": {
+          "provider": {
+            "type": "string",
+            "title": "Provider",
+            "default": "elevenlabs"
+          },
+          "voice": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice"
+          }
+        },
+        "type": "object",
+        "title": "CreateVideoPipelineScriptRequest"
+      },
+      "DeleteVideoPipelineImageResponse": {
+        "properties": {
+          "video_pipeline_id": {
+            "type": "string",
+            "title": "Video Pipeline Id"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "video_pipeline_id",
+          "filename",
+          "message"
+        ],
+        "title": "DeleteVideoPipelineImageResponse"
+      },
+      "DeleteVideoPipelineResponse": {
+        "properties": {
+          "video_pipeline_id": {
+            "type": "string",
+            "title": "Video Pipeline Id"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "video_pipeline_id",
+          "message"
+        ],
+        "title": "DeleteVideoPipelineResponse"
+      },
+      "DeleteVideoPipelineSectionResponse": {
+        "properties": {
+          "video_pipeline_id": {
+            "type": "string",
+            "title": "Video Pipeline Id"
+          },
+          "index": {
+            "type": "integer",
+            "title": "Index"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "type": "object",
+        "required": [
+          "video_pipeline_id",
+          "index",
+          "message"
+        ],
+        "title": "DeleteVideoPipelineSectionResponse"
+      },
+      "GenerateVideoPipelineRequest": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subtitle"
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VideoResolution"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "720P"
+          },
+          "fps": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 30.0,
+                "minimum": 10.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fps",
+            "default": 15
+          },
+          "title_duration": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title Duration",
+            "default": 3.0
+          },
+          "end_duration": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Duration",
+            "default": 3.0
+          },
+          "transition_duration": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transition Duration",
+            "default": 0.5
+          }
+        },
+        "type": "object",
+        "title": "GenerateVideoPipelineRequest"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ImageMetadata": {
+        "properties": {
+          "filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename"
+          },
+          "filepath": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filepath"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "image_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Type"
+          },
+          "key_elements": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key Elements"
+          },
+          "relevance": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relevance"
+          }
+        },
+        "type": "object",
+        "title": "ImageMetadata",
+        "description": "image metadata from the document for video pipeline."
+      },
+      "ImageSource": {
+        "type": "string",
+        "enum": [
+          "document",
+          "stock",
+          "ai_generated"
+        ],
+        "title": "ImageSource",
+        "description": "source of the image."
+      },
+      "ParsedContent": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "total_pages": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Pages"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/ContentSection"
+            },
+            "type": "array",
+            "title": "Sections"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContentMetadata"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "ParsedContent",
+        "description": "parsed content from the document for video pipeline."
+      },
+      "SegmentClip": {
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/VideoSource"
+          },
+          "query": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Query"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          },
+          "timing": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timing"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source"
+        ],
+        "title": "SegmentClip",
+        "description": "segment clip"
+      },
+      "SegmentImage": {
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/ImageSource"
+          },
+          "query": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Query"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          },
+          "timing": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timing"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source"
+        ],
+        "title": "SegmentImage",
+        "description": "segment image"
+      },
+      "SourceType": {
+        "type": "string",
+        "enum": [
+          "pdf",
+          "html"
+        ],
+        "title": "SourceType",
+        "description": "source type of the video pipeline."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "VideoOutline": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "total_segments": {
+            "type": "integer",
+            "title": "Total Segments"
+          },
+          "estimated_duration": {
+            "type": "integer",
+            "title": "Estimated Duration"
+          },
+          "segments": {
+            "items": {
+              "$ref": "#/components/schemas/VideoSegment"
+            },
+            "type": "array",
+            "title": "Segments"
+          },
+          "full_script": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Full Script",
+            "default": ""
+          },
+          "background_music_query": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Background Music Query"
+          },
+          "background_music_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Background Music Path"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "total_segments",
+          "estimated_duration",
+          "segments"
+        ],
+        "title": "VideoOutline",
+        "description": "video pipeline outline model."
+      },
+      "VideoPipeline": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "default": ""
+          },
+          "instructions": {
+            "type": "string",
+            "title": "Instructions"
+          },
+          "voice": {
+            "type": "string",
+            "title": "Voice"
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "source_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Path"
+          },
+          "source_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SourceType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "parsed_content": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ParsedContent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "images_metadata": {
+            "items": {
+              "$ref": "#/components/schemas/ImageMetadata"
+            },
+            "type": "array",
+            "title": "Images Metadata"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "video_outline": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VideoOutline"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "full_audio_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Full Audio Path"
+          },
+          "full_audio_duration": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Full Audio Duration"
+          },
+          "video_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Video Path"
+          },
+          "output_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Path"
+          },
+          "config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config"
+          },
+          "current_stage": {
+            "$ref": "#/components/schemas/VideoPipelineStage",
+            "default": "initialized"
+          },
+          "status": {
+            "$ref": "#/components/schemas/VideoPipelineStatus",
+            "default": "pending"
+          },
+          "initialized_status": {
+            "$ref": "#/components/schemas/VideoPipelineStatus",
+            "default": "pending"
+          },
+          "document_processing_status": {
+            "$ref": "#/components/schemas/VideoPipelineStatus",
+            "default": "pending"
+          },
+          "image_processing_status": {
+            "$ref": "#/components/schemas/VideoPipelineStatus",
+            "default": "pending"
+          },
+          "content_analysis_status": {
+            "$ref": "#/components/schemas/VideoPipelineStatus",
+            "default": "pending"
+          },
+          "script_generation_status": {
+            "$ref": "#/components/schemas/VideoPipelineStatus",
+            "default": "pending"
+          },
+          "video_generation_status": {
+            "$ref": "#/components/schemas/VideoPipelineStatus",
+            "default": "pending"
+          },
+          "stage_statistics": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/VideoPipelineStageStatistics"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/VideoPipelineStage"
+            },
+            "type": "object",
+            "title": "Stage Statistics"
+          },
+          "rating": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating"
+          },
+          "feedback": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedback"
+          }
+        },
+        "type": "object",
+        "required": [
+          "instructions",
+          "voice"
+        ],
+        "title": "VideoPipeline",
+        "description": "comprehensive data model for video generation pipeline.\nholds all data from each operation in the pipeline and provides\nserialization and deserialization capabilities.\nsupports multiple workflow configurations with flexible operation ordering."
+      },
+      "VideoPipelineProgress": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "current_stage": {
+            "type": "string",
+            "title": "Current Stage"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "document_processing_status": {
+            "type": "string",
+            "title": "Document Processing Status"
+          },
+          "content_analysis_status": {
+            "type": "string",
+            "title": "Content Analysis Status"
+          },
+          "script_generation_status": {
+            "type": "string",
+            "title": "Script Generation Status"
+          },
+          "video_generation_status": {
+            "type": "string",
+            "title": "Video Generation Status"
+          },
+          "video_ready": {
+            "type": "boolean",
+            "title": "Video Ready"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "current_stage",
+          "status",
+          "document_processing_status",
+          "content_analysis_status",
+          "script_generation_status",
+          "video_generation_status",
+          "video_ready"
+        ],
+        "title": "VideoPipelineProgress",
+        "description": "small enough to poll on a loop, unlike the full pipeline document."
+      },
+      "VideoPipelineReviewRequest": {
+        "properties": {
+          "rating": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating"
+          },
+          "feedback": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedback"
+          }
+        },
+        "type": "object",
+        "title": "VideoPipelineReviewRequest"
+      },
+      "VideoPipelineStage": {
+        "type": "string",
+        "enum": [
+          "initialized",
+          "document_processing",
+          "image_processing",
+          "content_analysis",
+          "script_generation",
+          "video_generation",
+          "completed",
+          "failed"
+        ],
+        "title": "VideoPipelineStage",
+        "description": "stage of the video pipeline."
+      },
+      "VideoPipelineStageStatistics": {
+        "properties": {
+          "start_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Time"
+          },
+          "end_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Time"
+          },
+          "duration": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VideoPipelineStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "VideoPipelineStageStatistics",
+        "description": "statistics of the video pipeline stage."
+      },
+      "VideoPipelineStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "in_progress",
+          "completed",
+          "failed"
+        ],
+        "title": "VideoPipelineStatus",
+        "description": "status of the video pipeline."
+      },
+      "VideoPipelineSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "default": ""
+          },
+          "instructions": {
+            "type": "string",
+            "title": "Instructions"
+          },
+          "voice": {
+            "type": "string",
+            "title": "Voice"
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "current_stage": {
+            "type": "string",
+            "title": "Current Stage",
+            "default": ""
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": ""
+          },
+          "source_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Path"
+          },
+          "source_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SourceType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "instructions",
+          "voice"
+        ],
+        "title": "VideoPipelineSummary"
+      },
+      "VideoResolution": {
+        "type": "string",
+        "enum": [
+          "1080P",
+          "720P",
+          "480P"
+        ],
+        "title": "VideoResolution",
+        "description": "video resolution."
+      },
+      "VideoSegment": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "purpose": {
+            "type": "string",
+            "title": "Purpose"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          },
+          "key_points": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Key Points"
+          },
+          "visual_keywords": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Visual Keywords"
+          },
+          "script": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Script"
+          },
+          "word_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Word Count"
+          },
+          "duration": {
+            "type": "integer",
+            "title": "Duration"
+          },
+          "images": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SegmentImage"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Images"
+          },
+          "clips": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SegmentClip"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clips"
+          },
+          "transition_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transition To"
+          },
+          "transition_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transition Type"
+          },
+          "audio_file": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audio File"
+          },
+          "audio_duration": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audio Duration"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "purpose",
+          "content",
+          "key_points",
+          "visual_keywords",
+          "duration"
+        ],
+        "title": "VideoSegment",
+        "description": "video pipeline segment model."
+      },
+      "VideoSource": {
+        "type": "string",
+        "enum": [
+          "stock",
+          "ai_generated"
+        ],
+        "title": "VideoSource",
+        "description": "source of the video clip."
+      }
+    },
+    "securitySchemes": {
+      "BetterAuthBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}
